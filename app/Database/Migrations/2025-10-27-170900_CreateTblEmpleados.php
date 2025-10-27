@@ -25,15 +25,15 @@ class CreateTblEmpleados extends Migration
             'created_at'       => ['type'=>'DATETIME','null'=>true],
             'updated_at'       => ['type'=>'DATETIME','null'=>true],
         ]);
-
         $this->forge->addKey('id', true);
         $this->forge->addUniqueKey('cedula');
         $this->forge->addKey('proyecto_id');
-        $this->forge->createTable('tbl_empleados', true);
+        $this->forge->createTable('tbl_empleados', true, [
+            'ENGINE'=>'InnoDB','CHARSET'=>'utf8mb4','COLLATE'=>'utf8mb4_general_ci'
+        ]);
 
-        // FK (MySQL InnoDB)
         $this->db->query('ALTER TABLE tbl_empleados
-            ADD CONSTRAINT fk_colab_proy FOREIGN KEY (proyecto_id) REFERENCES tbl_proyectos(id)
+            ADD CONSTRAINT fk_emp_proy FOREIGN KEY (proyecto_id) REFERENCES tbl_proyectos(id)
             ON UPDATE CASCADE ON DELETE SET NULL');
     }
 
