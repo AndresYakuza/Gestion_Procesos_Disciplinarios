@@ -3,16 +3,18 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class ProyectoAliasModel extends Model
+class FurdModel extends Model
 {
-    protected $table      = 'proyecto_aliases';
+    protected $table      = 'tbl_furd';
     protected $primaryKey = 'id';
     protected $returnType = 'array';
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
+
     protected $allowedFields = [
-        'proyecto_id','alias','alias_norm',
-        'audit_created_by','audit_updated_by','created_at','updated_at',
+        'colaborador_id','fecha_evento','turno','hora_evento',
+        'supervisor_id','hecho','estado',
+        'audit_created_by','audit_updated_by','created_at','updated_at'
     ];
 }

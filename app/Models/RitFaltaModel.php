@@ -3,16 +3,16 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class ProyectoAliasModel extends Model
+class RitFaltaModel extends Model
 {
-    protected $table      = 'proyecto_aliases';
+    protected $table      = 'tbl_rit_faltas';
     protected $primaryKey = 'id';
     protected $returnType = 'array';
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
     protected $allowedFields = [
-        'proyecto_id','alias','alias_norm',
-        'audit_created_by','audit_updated_by','created_at','updated_at',
+        'codigo','descripcion','gravedad','activo',
+        'audit_created_by','audit_updated_by','created_at','updated_at'
     ];
 }
