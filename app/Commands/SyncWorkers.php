@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Commands;
 
 use App\Libraries\SorttimeClient;
@@ -66,8 +67,10 @@ class SyncWorkers extends BaseCommand
 
         $db->transStart();
 
-        $insertadosEmp = 0; $actualizadosEmp = 0;
-        $insertadosCon = 0; $actualizadosCon = 0;
+        $insertadosEmp = 0;
+        $actualizadosEmp = 0;
+        $insertadosCon = 0;
+        $actualizadosCon = 0;
         $touchedEmps   = [];
 
         foreach ($rows as $r) {
@@ -173,8 +176,8 @@ class SyncWorkers extends BaseCommand
         }
 
         CLI::write(
-            "OK empleados: +{$insertadosEmp}/~{$actualizadosEmp} | contratos: +{$insertadosCon}/~{$actualizadosCon} ".
-            "| Rango {$desde}..{$hasta}"
+            "OK empleados: +{$insertadosEmp}/~{$actualizadosEmp} | contratos: +{$insertadosCon}/~{$actualizadosCon} " .
+                "| Rango {$desde}..{$hasta}"
         );
     }
 }

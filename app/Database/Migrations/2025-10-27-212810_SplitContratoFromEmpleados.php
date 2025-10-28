@@ -1,38 +1,41 @@
 <?php
+
 namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// ================ tbl_empleado_contrato ================
 class SplitContratoFromEmpleados extends Migration
 {
     public function up()
     {
-        // 1) Tabla de contratos
         $this->forge->addField([
-            'id'               => ['type'=>'INT','constraint'=>11,'unsigned'=>true,'auto_increment'=>true],
-            'empleado_id'      => ['type'=>'INT','constraint'=>11,'unsigned'=>true],
-            'contrato'         => ['type'=>'VARCHAR','constraint'=>30],
-            'cod_nomina'       => ['type'=>'VARCHAR','constraint'=>50,'null'=>true],
-            'proyecto_id'      => ['type'=>'INT','constraint'=>11,'unsigned'=>true,'null'=>true],
-            'sueldo'           => ['type'=>'DECIMAL','constraint'=>'12,2','null'=>true],
-            'cargo_sige'       => ['type'=>'VARCHAR','constraint'=>150,'null'=>true],
-            'cargo'            => ['type'=>'VARCHAR','constraint'=>150,'null'=>true],
-            'categoria'        => ['type'=>'VARCHAR','constraint'=>100,'null'=>true],
-            'codigo'           => ['type'=>'VARCHAR','constraint'=>50,'null'=>true],
-            'fecha_ingreso'    => ['type'=>'DATE','null'=>true],
-            'fecha_retiro'     => ['type'=>'DATE','null'=>true],
-            'activo'           => ['type'=>'TINYINT','constraint'=>1,'default'=>1],
-            'audit_created_by' => ['type'=>'VARCHAR','constraint'=>100,'null'=>true],
-            'audit_updated_by' => ['type'=>'VARCHAR','constraint'=>100,'null'=>true],
-            'created_at'       => ['type'=>'DATETIME','null'=>true],
-            'updated_at'       => ['type'=>'DATETIME','null'=>true],
+            'id'               => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'empleado_id'      => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
+            'contrato'         => ['type' => 'VARCHAR', 'constraint' => 30],
+            'cod_nomina'       => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true],
+            'proyecto_id'      => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'null' => true],
+            'sueldo'           => ['type' => 'DECIMAL', 'constraint' => '12,2', 'null' => true],
+            'cargo_sige'       => ['type' => 'VARCHAR', 'constraint' => 150, 'null' => true],
+            'cargo'            => ['type' => 'VARCHAR', 'constraint' => 150, 'null' => true],
+            'categoria'        => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
+            'codigo'           => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true],
+            'fecha_ingreso'    => ['type' => 'DATE', 'null' => true],
+            'fecha_retiro'     => ['type' => 'DATE', 'null' => true],
+            'activo'           => ['type' => 'TINYINT', 'constraint' => 1, 'default' => 1],
+            'audit_created_by' => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
+            'audit_updated_by' => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true],
+            'created_at'       => ['type' => 'DATETIME', 'null' => true],
+            'updated_at'       => ['type' => 'DATETIME', 'null' => true],
         ]);
         $this->forge->addKey('id', true);
-        $this->forge->addUniqueKey(['empleado_id','contrato']);
+        $this->forge->addUniqueKey(['empleado_id', 'contrato']);
         $this->forge->addKey('cod_nomina');
         $this->forge->addKey('proyecto_id');
         $this->forge->createTable('tbl_empleado_contratos', true, [
-            'ENGINE'=>'InnoDB','CHARSET'=>'utf8mb4','COLLATE'=>'utf8mb4_general_ci'
+            'ENGINE' => 'InnoDB',
+            'CHARSET' => 'utf8mb4',
+            'COLLATE' => 'utf8mb4_general_ci'
         ]);
 
         $this->db->query('ALTER TABLE tbl_empleado_contratos
@@ -41,7 +44,7 @@ class SplitContratoFromEmpleados extends Migration
               ON UPDATE CASCADE ON DELETE CASCADE');
 
         // 2) Migrar datos existentes desde tbl_empleados (si aún hay columnas antiguas)
-        $colsAntiguas = ['contrato','cod_nomina','sueldo','cargo_sige','cargo','categoria','codigo'];
+        $colsAntiguas = ['contrato', 'cod_nomina', 'sueldo', 'cargo_sige', 'cargo', 'categoria', 'codigo'];
 
         $fieldRows = $this->db->query("
             SELECT COLUMN_NAME
@@ -76,20 +79,19 @@ class SplitContratoFromEmpleados extends Migration
                 $this->forge->dropColumn('tbl_empleados', $drop);
             }
         }
-
     }
 
     public function down()
     {
         // devolver columnas a empleados
         $this->forge->addColumn('tbl_empleados', [
-            'contrato'     => ['type'=>'VARCHAR','constraint'=>30,'null'=>true,'after'=>'nombre_completo'],
-            'cod_nomina'   => ['type'=>'VARCHAR','constraint'=>50,'null'=>true,'after'=>'contrato'],
-            'sueldo'       => ['type'=>'DECIMAL','constraint'=>'12,2','null'=>true,'after'=>'cod_nomina'],
-            'cargo_sige'   => ['type'=>'VARCHAR','constraint'=>150,'null'=>true,'after'=>'sueldo'],
-            'cargo'        => ['type'=>'VARCHAR','constraint'=>150,'null'=>true,'after'=>'cargo_sige'],
-            'categoria'    => ['type'=>'VARCHAR','constraint'=>100,'null'=>true,'after'=>'cargo'],
-            'codigo'       => ['type'=>'VARCHAR','constraint'=>50,'null'=>true,'after'=>'categoria'],
+            'contrato'     => ['type' => 'VARCHAR', 'constraint' => 30, 'null' => true, 'after' => 'nombre_completo'],
+            'cod_nomina'   => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true, 'after' => 'contrato'],
+            'sueldo'       => ['type' => 'DECIMAL', 'constraint' => '12,2', 'null' => true, 'after' => 'cod_nomina'],
+            'cargo_sige'   => ['type' => 'VARCHAR', 'constraint' => 150, 'null' => true, 'after' => 'sueldo'],
+            'cargo'        => ['type' => 'VARCHAR', 'constraint' => 150, 'null' => true, 'after' => 'cargo_sige'],
+            'categoria'    => ['type' => 'VARCHAR', 'constraint' => 100, 'null' => true, 'after' => 'cargo'],
+            'codigo'       => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => true, 'after' => 'categoria'],
         ]);
         $this->forge->dropTable('tbl_empleado_contratos', true);
     }

@@ -12,12 +12,12 @@ class CreateTblFurdFaltas extends Migration
     public function up()
     {
         $this->forge->addField([
-            'id'          => ['type'=>'INT','constraint'=>11,'unsigned'=>true,'auto_increment'=>true],
-            'furd_id'     => ['type'=>'INT','constraint'=>11,'unsigned'=>true],
-            'falta_id'    => ['type'=>'INT','constraint'=>11,'unsigned'=>true],
+            'id'          => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true, 'auto_increment' => true],
+            'furd_id'     => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
+            'falta_id'    => ['type' => 'INT', 'constraint' => 11, 'unsigned' => true],
         ]);
         $this->forge->addKey('id', true);
-        $this->forge->addKey(['furd_id','falta_id']);
+        $this->forge->addKey(['furd_id', 'falta_id']);
         $this->forge->createTable('tbl_furd_faltas', true);
 
         $this->db->query('ALTER TABLE tbl_furd_faltas

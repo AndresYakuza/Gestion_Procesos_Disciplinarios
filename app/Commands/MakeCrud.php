@@ -24,7 +24,7 @@ class MakeCrud extends BaseCommand
         $modelName      = $pascalName . 'Model';
         $controllerName = $pascalName . 'Controller';
         $requestName    = $pascalName . 'Request';
-        $migrationName  = 'Create' . ucfirst($table) . 'Table'; 
+        $migrationName  = 'Create' . ucfirst($table) . 'Table';
 
         // === Paths ===
         $controllerPath = APPPATH . "Controllers/{$pascalName}/{$controllerName}.php";
