@@ -24,68 +24,106 @@ class FurdController extends ResourceController
     protected $modelName = FurdModel::class;
     protected $format    = 'json';
 
-    public function index()
+    // ✅ Vista HTML
+    public function form()
     {
-        $colabId = $this->request->getGet('colaborador_id');
-        $q = $colabId ? $this->model->where('colaborador_id',$colabId) : $this->model;
-        return $this->respond($q->orderBy('fecha_evento','DESC')->paginate(50));
+        return view('furd/create');
     }
 
+    // ✅ Listado (JSON)
+    public function index()
+    {
+        // Traer catálogo de faltas activas (ordenadas por gravedad y nombre)
+        $faltas = model(\App\Models\RitFaltaModel::class)
+            ->where('activo', 1)
+            ->orderBy('gravedad', 'DESC')
+            ->orderBy('codigo', 'ASC')
+            ->findAll();
+
+        return view('furd/index', [
+            'faltas' => $faltas,
+            'title'  => 'Registrar Proceso Disciplinario'
+        ]);
+    }
+
+    // ✅ Mostrar uno (JSON)
     public function show($id = null)
     {
         $row = $this->model->find($id);
         if (!$row) return $this->failNotFound();
-        // faltas y adjuntos
-        $ff = (new FurdFaltaModel())->where('furd_id',$id)->findAll();
-        $ad = (new AdjuntoModel())->where(['origen'=>'furd','origen_id'=>$id])->findAll();
-        $row['faltas'] = $ff;
-        $row['adjuntos'] = $ad;
+
+        $row['faltas'] = (new FurdFaltaModel())->where('furd_id', $id)->findAll();
+        $row['adjuntos'] = (new AdjuntoModel())->where(['origen' => 'furd', 'origen_id' => $id])->findAll();
         return $this->respond($row);
     }
 
+    // ✅ Crear (desde formulario o API)
     public function create()
     {
         try {
-            $data = StoreFurdRequest::validated($this->request, service('validation'));
-            $uc   = new CreateFurd($this->model);
-            return $this->respondCreated($uc($data));
+            // Detectar si la solicitud viene desde un formulario o JSON
+            $input = $this->request->getPost() ?: $this->request->getJSON(true);
+
+            // Validación básica (por si no usas StoreFurdRequest en formularios)
+            if (empty($input['colaborador_id']) || empty($input['fecha_evento']) || empty($input['hecho'])) {
+                return $this->failValidationErrors('Faltan datos requeridos.');
+            }
+
+            // Si usas tu request custom:
+            // $data = StoreFurdRequest::validated($this->request, service('validation'));
+            $uc = new CreateFurd($this->model);
+            $result = $uc($input);
+
+            // Si viene de un formulario HTML -> redirigir
+            if ($this->request->is('web')) {
+                return redirect()->to('/furd')->with('success', 'Registro creado correctamente');
+            }
+
+            // Si viene de una API -> responder JSON
+            return $this->respondCreated($result);
+
         } catch (\Throwable $e) {
             return $this->failValidationErrors($e->getMessage());
         }
     }
 
+    // ✅ Actualizar (solo API)
     public function update($id = null)
     {
         try {
             $data = UpdateFurdRequest::validated($this->request, service('validation'));
-            $uc   = new UpdateUC($this->model);
-            return $this->respond($uc((int)$id,$data));
+            $uc = new UpdateUC($this->model);
+            return $this->respond($uc((int)$id, $data));
         } catch (\Throwable $e) {
             return $this->failValidationErrors($e->getMessage());
         }
     }
 
+    // ✅ Eliminar (solo API)
     public function delete($id = null)
     {
         $uc = new DeleteUC($this->model, new FurdFaltaModel(), new AdjuntoModel());
         $ok = $uc((int)$id);
-        return $ok ? $this->respondDeleted(['id'=>(int)$id]) : $this->failServerError('No se pudo borrar');
+        return $ok
+            ? $this->respondDeleted(['id' => (int)$id])
+            : $this->failServerError('No se pudo borrar');
     }
 
+    // ✅ Métodos extra (API)
     public function attachFalta($id)
     {
         $faltaId = (int)($this->request->getJSON(true)['falta_id'] ?? 0);
         if (!$faltaId) return $this->failValidationErrors('falta_id requerido');
         $uc = new AttachFalta(new FurdFaltaModel());
         $uc((int)$id, $faltaId);
-        return $this->respond(['ok'=>true]);
+        return $this->respond(['ok' => true]);
     }
 
-    public function detachFalta($id,$faltaId)
+    public function detachFalta($id, $faltaId)
     {
         $uc = new DetachFalta(new FurdFaltaModel());
         $uc((int)$id, (int)$faltaId);
-        return $this->respond(['ok'=>true]);
+        return $this->respond(['ok' => true]);
     }
 
     public function uploadAdjunto($id)
@@ -101,6 +139,6 @@ class FurdController extends ResourceController
     {
         $uc = new DeleteAdjunto(new AdjuntoModel());
         $uc((int)$idAdj);
-        return $this->respondDeleted(['id'=>(int)$idAdj]);
+        return $this->respondDeleted(['id' => (int)$idAdj]);
     }
 }

@@ -13,3 +13,11 @@
  *
  * @see: https://codeigniter.com/user_guide/extending/common.html
  */
+
+if (! function_exists('asset')) {
+    function asset(string $path): string {
+        $file = FCPATH . ltrim($path, '/');
+        $v = is_file($file) ? filemtime($file) : time();
+        return base_url($path) . '?v=' . $v;
+    }
+}

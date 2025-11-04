@@ -1,0 +1,22 @@
+/* Scope exclusivo para FURD */
+.page-furd .scroll-area .list-group-item:hover{
+  background: var(--sage);
+  transform: scale(1.01);
+}
+
+/* Toolbar y chips de selección de faltas */
+.page-furd .faltas-toolbar{
+  border-top: 1px dashed rgba(0,0,0,.12);
+  background: linear-gradient(180deg, #ffffff 0%, #f5fbf7 100%);
+  padding: .8rem 1rem;
+  border-radius: var(--r-md);
+}
+.page-furd .faltas-pill{
+  border-radius:999px;
+  font-weight:700;
+  padding:.38rem .65rem;
+  background:#eefcf6;
+  color:#065f46;
+  border:1px solid rgba(16,185,129,.28);
+  box-shadow: 0 1px 0 rgba(0,0,0,.04);
+}
