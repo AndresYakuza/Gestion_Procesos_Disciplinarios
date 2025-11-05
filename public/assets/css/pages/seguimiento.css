@@ -1,0 +1,135 @@
+/* ===============================
+   Seguimiento (tabla + filtros)
+   =============================== */
+
+/* Cabecera de tabla */
+.table-seg thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, #f7fbf9, #eef8f2);
+  border-bottom: 1px solid var(--border-strong);
+  font-weight: 600;
+  padding: 1rem;
+}
+
+/* Filas y celdas */
+.table-seg th,
+.table-seg td {
+  padding: 0.9rem 1rem;
+  vertical-align: middle;
+}
+
+.table-seg tbody tr {
+  border-bottom: 1px solid #f1f1f1;
+}
+
+.table-seg tbody tr:hover {
+  background: #f8fdf9;
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Texto truncado en la columna "Hecho" */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Campo "Hecho" clicable con color y feedback */
+td[data-key="hecho"] {
+  color: #2e7d32;
+  cursor: pointer;
+}
+
+td[data-key="hecho"]:hover {
+  text-decoration: underline;
+  color: #1b5e20;
+}
+
+/* Badges de estado */
+.table-seg .badge {
+  font-weight: 700;
+  border-radius: 0.6rem;
+  letter-spacing: 0.3px;
+}
+
+/* Botón de Línea de Tiempo */
+.btn-linea-tiempo {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-linea-tiempo:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 10px rgba(25, 135, 84, 0.25);
+  background-color: rgba(25, 135, 84, 0.05);
+}
+
+/* ===============================
+   Modal Detalle del Hecho
+   =============================== */
+
+#modalHecho .modal-content {
+  border-radius: 1rem;
+  border: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+#modalHecho .modal-header {
+  border-bottom: none;
+  background: #f1f8f4;
+}
+
+#modalHecho .modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
+#modalHecho p#hechoTexto {
+  font-size: 0.95rem;
+  color: #333;
+}
+
+#modalHecho .modal-footer {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* ===============================
+   Panel de filtros (mejor espaciado)
+   =============================== */
+.card-body .row.g-2 {
+  row-gap: 1rem;
+}
+
+.card-body label.form-label {
+  font-weight: 600;
+  color: var(--text-surface-text-secondary, #444);
+}
+
+/* ===== Botón "Ver detalle" ===== */
+.btn-hecho-detalle {
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-hecho-detalle:hover {
+  transform: scale(1.04);
+  box-shadow: 0 3px 8px rgba(25, 135, 84, 0.25);
+  background-color: rgba(25, 135, 84, 0.05);
+}
+
+/* ===== Modal Detalle ===== */
+#modalHecho .modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
+#modalHecho .modal-footer {
+  border-top: none;
+  padding-top: 0;
+}
+

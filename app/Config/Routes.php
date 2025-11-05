@@ -33,3 +33,26 @@ $routes->post('furd', 'FurdController::create');
 $routes->get('furd/(:num)', 'FurdController::show/$1');
 $routes->put('furd/(:num)', 'FurdController::update/$1');
 $routes->delete('furd/(:num)', 'FurdController::delete/$1');
+
+// CITACIÓN (esta es la nueva vista)
+$routes->get('citacion',               'CitacionController::create');
+$routes->post('citacion',              'CitacionController::store');
+$routes->get('citacion/adjuntos/(:num)','CitacionController::adjuntosByFurd/$1');
+
+// Cargos y Descargos
+$routes->get('cargos-descargos',  'CargosDescargosController::create');
+$routes->post('cargos-descargos', 'CargosDescargosController::store');
+
+// Soporte de citación y acta
+$routes->get('soporte',  'SoporteController::create');
+$routes->post('soporte', 'SoporteController::store');
+
+// Decisión
+$routes->get('decision',  'DecisionController::create');
+$routes->post('decision', 'DecisionController::store');
+
+// Seguimiento (listado de solicitudes)
+$routes->get('seguimiento', 'SeguimientoController::index', ['as' => 'seguimiento.index']);
+
+// Línea de tiempo (detalle por consecutivo o id)
+$routes->get('linea-tiempo/(:segment)', 'LineaTiempoController::show/$1', ['as' => 'linea_tiempo.show']);

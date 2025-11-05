@@ -7,10 +7,14 @@
 
   <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Icons -->
+
+  <!-- Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
   <!-- App CSS -->
   <link rel="stylesheet" href="<?= base_url('assets/css/app.css'); ?>">
+
+  <!-- Estilos adicionales (por vista) -->
   <?= $this->renderSection('styles') ?> 
 
   <style>
@@ -23,9 +27,6 @@
   </style>
 </head>
 
-<script src="<?= asset('assets/js/app.js') ?>"></script>
-<?= $this->renderSection('scripts') ?> 
-
 <body class="theme-rich">
 
   <?= $this->include('partials/navbar'); ?>
@@ -34,10 +35,15 @@
     <?= $this->renderSection('content'); ?>
   </main>
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Bootstrap JS (bundle con Popper incluido) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+          crossorigin="anonymous"></script>
+
   <!-- App JS -->
   <script src="<?= base_url('assets/js/app.js'); ?>"></script>
+
+  <!-- Scripts adicionales (por vista) -->
   <?= $this->renderSection('scripts'); ?>
 
 </body>

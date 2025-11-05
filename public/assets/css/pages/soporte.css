@@ -1,0 +1,13 @@
+/* public/assets/css/pages/soporte.css */
+.dropzone{
+  background: var(--surface);
+  border: 2px dashed var(--border-strong)!important;
+  border-radius: 12px;
+  transition: .15s ease;
+}
+.dropzone.dragging{
+  background: #f3fff8;
+  border-color: var(--emerald)!important;
+}
+.filelist li{ list-style: none; }
+.adj-card{ background: var(--surface); }

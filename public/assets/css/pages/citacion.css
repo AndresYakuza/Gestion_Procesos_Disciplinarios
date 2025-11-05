@@ -1,0 +1,103 @@
+/* Scope para la pantalla de citación */
+.page-citacion .nav-tabs .nav-link.active{
+  font-weight: 700;
+  color: var(--brand);
+  border-color: var(--border);
+  border-bottom-color: transparent;
+}
+
+.page-citacion .adjuntos-grid{
+  display: grid;
+  grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) );
+  gap: .75rem;
+  min-height: 60px;
+}
+
+.page-citacion .adj-card{
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: .65rem;
+  align-items: center;
+  padding: .7rem .8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  transition: transform .08s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.page-citacion .adj-card:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(16,185,129,.10);
+  border-color: var(--emerald);
+}
+
+.page-citacion .adj-icon{
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #e7f7ef, #eaf4ff);
+  color: var(--brand-600);
+  font-size: 1.1rem;
+}
+.page-citacion .adj-meta .adj-name{
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.page-citacion .adj-meta .adj-sub{
+  font-size: .8rem;
+  color: var(--muted);
+}
+.page-citacion .adj-actions .btn{
+  white-space: nowrap;
+}
+
+/* Estado de carga visual del input consecutivo (usa clase .loading del app.css) */
+.page-citacion #consecutivo.loading{
+  background-position: right .9rem center;
+}
+
+/* Alinea visualmente el input de "Consecutivo" con los de "Fecha" y "Hora" */
+.page-citacion .row.align-items-end .col-md-4 {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.page-citacion .row.align-items-end .col-md-4 .form-text {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.page-citacion .row.align-items-end .col-md-4 .input-group {
+  flex: 1 1 auto;
+}
+
+/* --- Alineación visual de la fila de campos principales --- */
+.page-citacion .row.g-3.align-items-end > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.page-citacion .row.g-3.align-items-end > [class*="col-"] .form-label {
+  margin-bottom: 0.4rem;
+}
+
+.page-citacion .row.g-3.align-items-end > [class*="col-"] .input-group,
+.page-citacion .row.g-3.align-items-end > [class*="col-"] .form-control {
+  height: 42px; /* iguala la altura entre todos */
+}
+
+.page-citacion .row.g-3.align-items-end > [class*="col-"] .form-text {
+  position: absolute;
+  bottom: -1.2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.page-citacion .row.g-3.align-items-end {
+  position: relative;
+  padding-bottom: 1.5rem; /* espacio para el texto de ayuda */
+}
+
