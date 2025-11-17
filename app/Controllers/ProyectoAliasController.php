@@ -1,56 +1,73 @@
-<?php
-namespace App\Controllers;
+<?php namespace App\Controllers;
 
-use CodeIgniter\RESTful\ResourceController;
+use App\Controllers\BaseController;
 use App\Models\ProyectoAliasModel;
-use App\Requests\Projects\StoreAliasRequest;
-use App\Requests\Projects\UpdateAliasRequest;
-use App\UseCases\Projects\CreateAlias;
-use App\UseCases\Projects\UpdateAlias as UpdateUC;
-use App\UseCases\Projects\DeleteAlias;
+use App\Models\ProyectoModel;
 
-/**
- * @property \CodeIgniter\HTTP\IncomingRequest $request
- */
-
-class ProyectoAliasController extends ResourceController
+class ProyectoAliasController extends BaseController
 {
-    protected $modelName = ProyectoAliasModel::class;
-    protected $format    = 'json';
-
     public function index()
     {
-        $proyectoId = $this->request->getGet('proyecto_id');
-        $q = $proyectoId ? $this->model->where('proyecto_id',$proyectoId) : $this->model;
-        return $this->respond($q->orderBy('alias','ASC')->findAll(500));
-    }
+        $q = (string)$this->request->getGet('q');
+        $m = new ProyectoAliasModel();
+        $builder = $m->builder()->select('proyecto_aliases.*, proyectos.nombre AS proyecto')
+                   ->join('proyectos','proyectos.id=proyecto_aliases.proyecto_id','left');
 
-    public function create()
-    {
-        try {
-            $data = StoreAliasRequest::validated($this->request, service('validation'));
-            $uc   = new CreateAlias($this->model);
-            return $this->respondCreated($uc($data));
-        } catch (\Throwable $e) {
-            return $this->failValidationErrors($e->getMessage());
+        if ($q !== '') {
+            $builder->groupStart()
+               ->like('alias', $q)
+               ->orLike('proyectos.nombre', $q)
+               ->groupEnd();
         }
+
+        $rows = $builder->orderBy('proyectos.nombre','ASC')->orderBy('alias','ASC')->get(500)->getResultArray();
+        $proyectos = (new ProyectoModel())->orderBy('nombre','ASC')->findAll();
+
+        return view('proyecto_alias/index', ['rows'=>$rows, 'proyectos'=>$proyectos, 'q'=>$q]);
     }
 
-    public function update($id = null)
+    public function store()
     {
-        try {
-            $data = UpdateAliasRequest::validated($this->request, service('validation'));
-            $uc   = new UpdateUC($this->model);
-            return $this->respond($uc((int)$id, $data));
-        } catch (\Throwable $e) {
-            return $this->failValidationErrors($e->getMessage());
+        $projId = (int)$this->request->getPost('proyecto_id');
+        $alias  = (string)$this->request->getPost('alias');
+
+        if ($projId <= 0 || $alias === '') {
+            return redirect()->back()->with('errors',['Proyecto y alias son obligatorios'])->withInput();
         }
+
+        $m = new ProyectoAliasModel();
+        $data = [
+            'proyecto_id' => $projId,
+            'alias'       => $alias,
+            'alias_norm'  => ProyectoAliasModel::norm($alias)
+        ];
+
+        $m->insert($data);
+        return redirect()->back()->with('ok','Alias creado');
     }
 
-    public function delete($id = null)
+    public function update(int $id)
     {
-        $uc = new DeleteAlias($this->model);
-        $ok = $uc((int)$id);
-        return $ok ? $this->respondDeleted(['id'=>(int)$id]) : $this->failServerError('No se pudo borrar');
+        $projId = (int)$this->request->getPost('proyecto_id');
+        $alias  = (string)$this->request->getPost('alias');
+
+        if ($projId <= 0 || $alias === '') {
+            return redirect()->back()->with('errors',['Proyecto y alias son obligatorios'])->withInput();
+        }
+
+        $m = new ProyectoAliasModel();
+        $m->update($id, [
+            'proyecto_id' => $projId,
+            'alias'       => $alias,
+            'alias_norm'  => ProyectoAliasModel::norm($alias)
+        ]);
+
+        return redirect()->back()->with('ok','Alias actualizado');
+    }
+
+    public function delete(int $id)
+    {
+        (new ProyectoAliasModel())->delete($id, true);
+        return redirect()->back()->with('ok','Alias eliminado');
     }
 }

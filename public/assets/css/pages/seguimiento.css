@@ -1,19 +1,33 @@
-/* ===============================
-   Seguimiento (tabla + filtros)
-   =============================== */
+/* =========================================================
+   📊 SEGUIMIENTO – Estilo moderno glass y consistente
+   ========================================================= */
 
-/* Cabecera de tabla */
+/* ---------- Contenedor principal ---------- */
+.card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(79,70,229,0.08);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ---------- Cabecera de tabla ---------- */
 .table-seg thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: linear-gradient(180deg, #f7fbf9, #eef8f2);
-  border-bottom: 1px solid var(--border-strong);
+  background: linear-gradient(180deg, rgba(240,253,244,0.95), rgba(236,253,245,0.85));
+  border-bottom: 1px solid rgba(16,185,129,0.15);
   font-weight: 600;
-  padding: 1rem;
+  color: #064e3b;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.4px;
+  padding: 0.9rem 1rem;
 }
 
-/* Filas y celdas */
+/* ---------- Filas y celdas ---------- */
 .table-seg th,
 .table-seg td {
   padding: 0.9rem 1rem;
@@ -21,115 +35,294 @@
 }
 
 .table-seg tbody tr {
-  border-bottom: 1px solid #f1f1f1;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  transition: background-color 0.25s ease;
 }
 
 .table-seg tbody tr:hover {
-  background: #f8fdf9;
-  transition: background-color 0.2s ease-in-out;
+  background: rgba(240,253,244,0.7);
 }
 
-/* Texto truncado en la columna "Hecho" */
+/* ---------- Texto truncado ---------- */
 .text-truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Campo "Hecho" clicable con color y feedback */
+/* ---------- Campo "Hecho" ---------- */
 td[data-key="hecho"] {
-  color: #2e7d32;
+  color: #15803d;
   cursor: pointer;
 }
 
 td[data-key="hecho"]:hover {
+  color: #065f46;
   text-decoration: underline;
-  color: #1b5e20;
 }
 
-/* Badges de estado */
+/* ---------- Badges de estado ---------- */
 .table-seg .badge {
   font-weight: 700;
   border-radius: 0.6rem;
   letter-spacing: 0.3px;
+  text-transform: uppercase;
+  font-size: 0.7rem;
 }
 
-/* Botón de Línea de Tiempo */
+/* ---------- Botón de línea temporal ---------- */
 .btn-linea-tiempo {
-  transition: all 0.2s ease-in-out;
+  transition: all 0.25s ease;
+  border-radius: 8px;
 }
 
 .btn-linea-tiempo:hover {
-  transform: scale(1.06);
-  box-shadow: 0 4px 10px rgba(25, 135, 84, 0.25);
-  background-color: rgba(25, 135, 84, 0.05);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(16,185,129,0.25);
+  background-color: rgba(16,185,129,0.05);
 }
 
-/* ===============================
-   Modal Detalle del Hecho
-   =============================== */
-
-#modalHecho .modal-content {
-  border-radius: 1rem;
-  border: none;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+/* ---------- Botón "Ver detalle" ---------- */
+.btn-hecho-detalle {
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.25s ease;
 }
 
-#modalHecho .modal-header {
-  border-bottom: none;
-  background: #f1f8f4;
+.btn-hecho-detalle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(16,185,129,0.25);
+  background-color: rgba(16,185,129,0.05);
 }
 
-#modalHecho .modal-body {
-  max-height: 60vh;
-  overflow-y: auto;
-  line-height: 1.6;
+/* ---------- Panel de filtros ---------- */
+.card-body label.form-label {
+  font-weight: 600;
+  color: #1e293b;
 }
 
-#modalHecho p#hechoTexto {
-  font-size: 0.95rem;
-  color: #333;
-}
-
-#modalHecho .modal-footer {
-  border-top: none;
-  padding-top: 0;
-}
-
-/* ===============================
-   Panel de filtros (mejor espaciado)
-   =============================== */
 .card-body .row.g-2 {
   row-gap: 1rem;
 }
 
-.card-body label.form-label {
+.input-group .form-control {
+  border-radius: 10px 0 0 10px;
+  border-color: rgba(16,185,129,0.25);
+}
+
+.input-group .btn-outline-success {
+  border-radius: 0 10px 10px 0;
+  color: #16a34a;
+  border-color: rgba(16,185,129,0.25);
+  transition: all 0.25s ease;
+}
+
+.input-group .btn-outline-success:hover {
+  background: linear-gradient(90deg, #16a34a, #10b981);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(16,185,129,0.25);
+}
+
+/* ---------- Filtros Select y Fecha ---------- */
+.form-select,
+.form-control {
+  border-radius: 10px;
+  border-color: rgba(37,99,235,0.2);
+  transition: all 0.25s ease;
+}
+
+.form-select:focus,
+.form-control:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+/* ---------- Modal Detalle del Hecho ---------- */
+#modalHecho .modal-content {
+  border-radius: 1rem;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  backdrop-filter: blur(10px);
+}
+
+#modalHecho .modal-header {
+  background: linear-gradient(90deg, #d1fae5, #ecfdf5);
+  border-bottom: none;
+}
+
+#modalHecho .modal-title {
   font-weight: 600;
-  color: var(--text-surface-text-secondary, #444);
+  color: #065f46;
 }
 
-/* ===== Botón "Ver detalle" ===== */
-.btn-hecho-detalle {
-  font-weight: 600;
-  border-radius: 8px;
-  transition: all 0.2s ease-in-out;
-}
-
-.btn-hecho-detalle:hover {
-  transform: scale(1.04);
-  box-shadow: 0 3px 8px rgba(25, 135, 84, 0.25);
-  background-color: rgba(25, 135, 84, 0.05);
-}
-
-/* ===== Modal Detalle ===== */
 #modalHecho .modal-body {
   max-height: 60vh;
   overflow-y: auto;
   line-height: 1.6;
+  font-size: 0.95rem;
+  color: #334155;
 }
 
 #modalHecho .modal-footer {
   border-top: none;
   padding-top: 0;
 }
+
+/* ---------- Botón copiar ---------- */
+#btnCopiarHecho {
+  transition: all 0.25s ease;
+}
+
+#btnCopiarHecho:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(37,99,235,0.25);
+}
+
+/* ---------- Scrollbar sutil ---------- */
+.table-responsive::-webkit-scrollbar,
+#modalHecho .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+#modalHecho .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(37,99,235,0.25);
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover,
+#modalHecho .modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(37,99,235,0.4);
+}
+
+/* ---------- Animación de entrada ---------- */
+.animate-in {
+  animation: fadeInUp 0.35s ease both;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Pequeñas utilidades ---------- */
+.text-mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.text-muted.small {
+  color: #64748b !important;
+}
+
+/* =========================================================
+   🌿 Modal Moderno - Detalle del Hecho
+   ========================================================= */
+#modalHecho .modal-content {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-radius: 18px;
+  border: 1px solid rgba(22, 163, 74, 0.15);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.18);
+  overflow: hidden;
+  animation: fadeInModal 0.35s ease;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; transform: translateY(15px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* --- Header --- */
+#modalHecho .modal-header {
+  background: linear-gradient(90deg, #22c55e1a, #a7f3d02a);
+  border-bottom: 1px solid rgba(22, 163, 74, 0.15);
+  color: #166534;
+  padding: 1rem 1.25rem;
+}
+
+#modalHecho .modal-title {
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#modalHecho .btn-close {
+  filter: invert(45%) sepia(18%) saturate(500%) hue-rotate(90deg);
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+#modalHecho .btn-close:hover { opacity: 1; }
+
+/* --- Body --- */
+#modalHecho .modal-body {
+  padding: 1.5rem 1.75rem;
+  color: #1e293b;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 0 0 12px 12px;
+}
+
+/* Subtítulos / Metadatos */
+#modalHecho .modal-body p.small {
+  color: #475569 !important;
+  margin-bottom: 0.25rem;
+}
+
+/* Texto principal del hecho */
+#modalHecho #hechoTexto {
+  font-size: 1rem;
+  color: #0f172a;
+  background: rgba(240, 253, 244, 0.6);
+  border-left: 4px solid #22c55e;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+  white-space: pre-line;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.05);
+}
+
+/* --- Footer --- */
+#modalHecho .modal-footer {
+  border-top: 1px solid rgba(22, 163, 74, 0.1);
+  background: rgba(240, 253, 244, 0.45);
+  padding: 1rem 1.25rem;
+  justify-content: space-between;
+}
+
+/* Botones */
+#modalHecho .modal-footer .btn {
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+#modalHecho .btn-outline-primary {
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+#modalHecho .btn-outline-primary:hover {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(37,99,235,0.25);
+}
+
+#modalHecho .btn-outline-secondary {
+  border-color: rgba(71,85,105,0.3);
+  color: #475569;
+}
+#modalHecho .btn-outline-secondary:hover {
+  background: #f1f5f9;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
 

@@ -1,126 +1,138 @@
-<?php
-namespace App\Controllers;
+<?php namespace App\Controllers;
 
 use App\Controllers\BaseController;
-use App\Models\AdjuntoModel; // opcional, si ya lo tienes
+use App\Controllers\Traits\HandlesAdjuntos;
+use App\Models\FurdModel;
+use App\Models\FurdSoporteModel;
+use App\Models\FurdAdjuntoModel;
+use App\Requests\FurdSoporteRequest;
+use App\Services\FurdWorkflow;
 
 class SoporteController extends BaseController
 {
-    /**
-     * Mostrar formulario
-     */
+    use HandlesAdjuntos;
+
     public function create()
     {
-        // si tienes usuario logueado, pásalo aquí
-        $data = [
-            'responsable' => '',
-            'decisiones'  => $this->decisiones(),
-        ];
-
-        return view('soporte/index', $data);
+        return view('soporte/create');
     }
 
-    /**
-     * Guardar soportes y datos
-     */
+    /** AJAX: trae adjuntos previos (registro, citación, descargos) */
+    public function find()
+    {
+        $consec = (string)$this->request->getGet('consecutivo');
+        $furd = (new FurdModel())->findByConsecutivo($consec);
+        if (!$furd) return $this->response->setJSON(['ok'=>false]);
+        $prev = [
+            'registro' => (new FurdAdjuntoModel())->listByFase((int)$furd['id'], 'registro'),
+            'citacion' => (new FurdAdjuntoModel())->listByFase((int)$furd['id'], 'citacion'),
+            'descargos'=> (new FurdAdjuntoModel())->listByFase((int)$furd['id'], 'descargos'),
+        ];
+        return $this->response->setJSON(['ok'=>true,'furd'=>$furd,'prevAdj'=>$prev]);
+    }
+
     public function store()
     {
-        $rules = [
-            'consecutivo' => 'required|is_natural_no_zero',
-            'responsable' => 'permit_empty|max_length[120]',
-            'decision'    => 'required|max_length[120]',
-            // archivos se validan manualmente abajo (por ser múltiples)
-        ];
+        $rules    = FurdSoporteRequest::rules();
+        $messages = FurdSoporteRequest::messages();
 
-        if (! $this->validate($rules)) {
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        if (!$this->validate($rules, $messages)) {
+            return redirect()->back()
+                ->with('errors', $this->validator->getErrors())
+                ->withInput();
         }
 
-        $consecutivo = (int) $this->request->getPost('consecutivo');
-        $responsable = (string) $this->request->getPost('responsable');
-        $decision    = (string) $this->request->getPost('decision');
-
-        // Carpeta destino pública: public/uploads/furd/{id}/soporte
-        $destDir = rtrim(FCPATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'furd' . DIRECTORY_SEPARATOR . $consecutivo . DIRECTORY_SEPARATOR . 'soporte';
-        if (! is_dir($destDir)) {
-            @mkdir($destDir, 0755, true);
+        // 1) Buscar FURD por consecutivo
+        $consec = (string)$this->request->getPost('consecutivo');
+        $furd   = (new FurdModel())->findByConsecutivo($consec);
+        if (!$furd) {
+            return redirect()->back()
+                ->with('errors', ['FURD no encontrado'])
+                ->withInput();
         }
 
-        // Procesar archivos múltiples (si hay)
-        $moved = [];
-        $files = $this->request->getFiles();
+        // 2) Validar flujo (que ya existan descargos, etc.)
+        $wf = new FurdWorkflow();
+        if (!$wf->canStartSoporte($furd)) {
+            return redirect()->back()
+                ->with('errors', ['Primero registra los descargos.'])
+                ->withInput();
+        }
 
-        if (! empty($files['soportes'])) {
-            foreach ($files['soportes'] as $file) {
-                if (! $file->isValid() || $file->hasMoved()) {
-                    continue;
-                }
+        // 3) Evitar soporte duplicado para el mismo FURD
+        $soporteModel = new FurdSoporteModel();
+        $existing     = $soporteModel->findByFurd((int)$furd['id']);
+        if ($existing) {
+            return redirect()->back()
+                ->with('errors', ['Ya existe un soporte registrado para este proceso. Si necesitas modificarlo, hazlo desde la edición.'])
+                ->withInput();
+        }
 
-                // Validación simple por tipo/tamaño
-                $okMime  = in_array($file->getMimeType(), [
-                    'application/pdf',
-                    'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/tiff',
-                ], true);
-                $okSize  = ($file->getSize() <= 20 * 1024 * 1024); // 20 MB
+        // 4) Guardar
+        $db = db_connect();
+        $db->transStart();
 
-                if (! $okMime || ! $okSize) {
-                    return redirect()->back()
-                        ->withInput()
-                        ->with('errors', ['soportes' => 'Alguno de los archivos no tiene un tipo permitido o excede el tamaño máximo (20 MB).']);
-                }
+        try {
+            $payload = [
+                'furd_id'            => (int)$furd['id'],
+                'responsable'        => (string)$this->request->getPost('responsable'),
+                'decision_propuesta' => (string)$this->request->getPost('decision_propuesta'),
+            ];
+            $id = (int)$soporteModel->insert($payload, true);
 
-                $newName = $file->getRandomName();
-                $file->move($destDir, $newName);
-
-                $publicUrl = base_url('uploads/furd/' . $consecutivo . '/soporte/' . $newName);
-                $moved[] = [
-                    'nombre_original' => $file->getClientName(),
-                    'ruta'            => $publicUrl,
-                    'mime'            => $file->getMimeType(),
-                    'tamano_bytes'    => $file->getSize(),
-                    'stored_path'     => $destDir . DIRECTORY_SEPARATOR . $newName, // por si necesitas
-                ];
+            // Adjuntos fase soporte
+            $files = $this->request->getFiles()['adjuntos'] ?? [];
+            if (!empty($files)) {
+                $this->saveAdjuntos((int)$furd['id'], 'soporte', is_array($files) ? $files : [$files]);
             }
+
+            // Actualizar estado del FURD
+            (new FurdModel())->update((int)$furd['id'], ['estado' => 'soporte']);
+
+            $db->transComplete();
+
+            return redirect()
+                ->to(site_url('decision'))
+                ->with('ok', 'Soporte registrado. Continúa con Decisión.');
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            return redirect()->back()
+                ->with('errors', [$e->getMessage()])
+                ->withInput();
         }
-
-        // === (OPCIONAL) Persistir en BD los adjuntos, si tienes App\Models\AdjuntoModel ===
-        if (! empty($moved) && class_exists(AdjuntoModel::class)) {
-            try {
-                $adj = new AdjuntoModel();
-                foreach ($moved as $a) {
-                    $adj->insert([
-                        'origen'          => 'furd',                // ajusta si tu enum/campo difiere
-                        'origen_id'       => $consecutivo,
-                        'nombre_original' => $a['nombre_original'],
-                        'ruta'            => $a['ruta'],
-                        'mime'            => $a['mime'],
-                        'tamano_bytes'    => $a['tamano_bytes'],
-                        'audit_created_by'=> $responsable ?: 'sistema',
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                // Si falla el registro, no impedimos la carga de archivos. Informamos.
-                return redirect()->back()
-                    ->with('errors', ['db' => 'Archivos subidos, pero ocurrió un error al registrar adjuntos: ' . $e->getMessage()]);
-            }
-        }
-
-        // TODO: si necesitas registrar "responsable" y "decisión" en otra tabla,
-        // hazlo aquí (p. ej., tabla soporte_furd o la misma FURD con columnas extra).
-
-        return redirect()->to(site_url('soporte'))
-            ->with('msg', 'Soportes guardados correctamente para el consecutivo #' . $consecutivo . '.');
     }
 
-    /**
-     * Catálogo simple de decisiones propuestas
-     */
-    private function decisiones(): array
+
+    public function update(int $id)
     {
-        return [
-            'Llamado de atención',
-            'Suspensión disciplinaria',
-            'Terminación de contrato',
+        $rules    = FurdSoporteRequest::rules();
+        $messages = FurdSoporteRequest::messages();
+
+        if (!$this->validate($rules, $messages)) {
+            return redirect()->back()
+                ->with('errors', $this->validator->getErrors())
+                ->withInput();
+        }
+
+        $s   = new FurdSoporteModel();
+        $row = $s->find($id);
+        if (!$row) {
+            return redirect()->back()
+                ->with('errors', ['Registro no existe']);
+        }
+
+        $payload = [
+            'responsable'        => (string)$this->request->getPost('responsable'),
+            'decision_propuesta' => (string)$this->request->getPost('decision_propuesta'),
         ];
+        $s->update($id, $payload);
+
+        $files = $this->request->getFiles()['adjuntos'] ?? [];
+        if (!empty($files)) {
+            $this->saveAdjuntos((int)$row['furd_id'], 'soporte', is_array($files) ? $files : [$files]);
+        }
+
+        return redirect()->back()->with('ok', 'Soporte actualizado');
     }
+
 }

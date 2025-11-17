@@ -52,7 +52,7 @@
   white-space: nowrap;
 }
 
-/* Estado de carga visual del input consecutivo (usa clase .loading del app.css) */
+/* Estado de carga visual del input consecutivo (usa clase .loading del global.css) */
 .page-citacion #consecutivo.loading{
   background-position: right .9rem center;
 }
@@ -100,4 +100,125 @@
   position: relative;
   padding-bottom: 1.5rem; /* espacio para el texto de ayuda */
 }
+
+/* =========================================================
+   UNIFICACIÓN VISUAL CON FURD / TEMA PRINCIPAL
+   ========================================================= */
+
+/* Sección visual como los bloques de FURD */
+.page-citacion .section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  margin: 2rem 0 1rem;
+  background: linear-gradient(90deg, rgba(79,70,229,0.08), rgba(6,182,212,0.05));
+  border-radius: 10px;
+  border: 1px solid rgba(79,70,229,0.08);
+  box-shadow: 0 2px 6px rgba(79,70,229,0.05);
+  transition: all 0.3s ease;
+}
+
+.page-citacion .section-header:hover {
+  background: linear-gradient(90deg, rgba(79,70,229,0.12), rgba(6,182,212,0.08));
+  transform: translateY(-1px);
+}
+
+.page-citacion .section-header i {
+  font-size: 1rem;
+  color: #4f46e5;
+}
+
+.page-citacion .section-header h6 {
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* Ajuste visual de la card principal */
+.page-citacion .card {
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(79,70,229,0.05);
+  overflow: hidden;
+}
+
+.page-citacion .card-header {
+  border-bottom: none;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+/* Consistencia de botones */
+.page-citacion .btn-success {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border: none;
+}
+.page-citacion .btn-success:hover {
+  background: linear-gradient(90deg, #16a34a, #15803d);
+}
+
+/* Mantiene espacio visual consistente */
+.page-citacion form {
+  padding-bottom: 3rem;
+}
+
+.page-citacion .adj-card {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(79,70,229,0.08);
+}
+.page-citacion .adj-card:hover {
+  box-shadow: 0 6px 18px rgba(79,70,229,0.15);
+  border-color: rgba(79,70,229,0.25);
+}
+.page-citacion .adj-icon {
+  background: linear-gradient(135deg, #ede9fe, #e0f2fe);
+  color: #4f46e5;
+}
+
+/* Contenedor */
+.choices {
+  border-radius: 10px !important;
+  border: 1px solid rgba(79, 70, 229, 0.25) !important;
+  transition: all 0.25s ease;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.05);
+}
+
+/* Estado enfocado */
+.choices.is-focused {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2) !important;
+}
+
+/* Menú desplegable */
+.choices__list--dropdown {
+  border-radius: 10px !important;
+  border: 1px solid rgba(79, 70, 229, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.15) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+}
+
+/* Opciones */
+.choices__list--dropdown .choices__item {
+  padding: 10px 12px;
+  color: #1e293b;
+  transition: background 0.2s ease;
+}
+.choices__list--dropdown .choices__item--selectable:hover {
+  background: rgba(79, 70, 229, 0.08);
+  color: #4f46e5;
+}
+
+/* Elemento seleccionado */
+.choices__item--selectable.is-highlighted {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+}
+
+
+
+
+
 

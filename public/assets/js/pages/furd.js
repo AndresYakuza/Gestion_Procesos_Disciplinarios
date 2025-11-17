@@ -170,14 +170,40 @@
     if (e.target.classList?.contains("faltas-check")) refresh();
   });
 
-  // 🛑 Validación antes de enviar
-  document.getElementById("furdForm")?.addEventListener("submit", (e) => {
+
+// 🛑 Validación + loader + evitar doble envío
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("furdForm");
+  const btn  = document.getElementById("btnGuardar");
+  if (!form || !btn) return;
+
+  const spin = btn.querySelector(".spinner-border");
+  const txt  = btn.querySelector(".btn-text");
+  let sending = false;
+
+  form.addEventListener("submit", (e) => {
+    // 1) Validación de faltas
     const faltas = document.querySelectorAll(".faltas-check:checked").length;
     if (faltas === 0) {
       e.preventDefault();
       showToast("Debes seleccionar al menos una falta.", "warning");
+      return; // 👉 importante: NO activar el loader
     }
-  });
 
-  refresh();
+    // 2) Evitar doble envío
+    if (sending) {
+      e.preventDefault();
+      return;
+    }
+    sending = true;
+
+    // 3) Activar loader
+    btn.disabled = true;
+    if (spin) spin.classList.remove("d-none");
+    if (txt)  txt.textContent = "Guardando...";
+  });
+});
+
+refresh();
 })();
+

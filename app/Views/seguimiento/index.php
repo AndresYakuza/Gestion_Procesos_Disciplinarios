@@ -6,6 +6,10 @@
 
 <?= $this->section('content'); ?>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+
 <?php
 // Espera un arreglo $registros desde el controlador con esta forma:
 /*
@@ -26,12 +30,15 @@ $registros = [
 $registros = $registros ?? [];
 ?>
 
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <h5 class="mb-0">
-    <i class="bi bi-list-check me-2 text-success"></i>
-    Seguimiento de Solicitudes
-  </h5>
-  <div class="small text-muted">Total: <span id="countTotal"><?= count($registros) ?></span></div>
+
+
+<div class="card-header main-header d-flex justify-content-between align-items-center">
+  <span class="fw-semibold">
+    📋 Seguimiento de Solicitudes
+  </span>
+  <span class="fw-semibold">
+    Total: <strong id="countTotal"><?= count($registros) ?></strong>
+  </span>
 </div>
 
 <div class="card animate-in">
@@ -56,17 +63,18 @@ $registros = $registros ?? [];
         </select>
       </div>
       <div class="col-6 col-md-3">
-        <label class="form-label">Fecha (desde)</label>
-        <input id="fDesde" type="date" class="form-control">
+        <label class="form-label">Fecha (desdee)</label>
+        <input id="fDesde" type="text" class="form-control" name="fecha" placeholder="Selecciona una fecha..." required>
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label">Fecha (hasta)</label>
-        <input id="fHasta" type="date" class="form-control">
+        <input id="fHasta" type="text" class="form-control" name="fecha" placeholder="Selecciona una fecha..." required>
       </div>
       <div class="col-6 col-md-1 d-grid">
         <button id="btnLimpiar" class="btn btn-outline-secondary"><i class="bi bi-eraser"></i></button>
       </div>
     </div>
+
 
     <!-- Tabla -->
     <div class="table-responsive">
@@ -91,18 +99,18 @@ $registros = $registros ?? [];
             </tr>
           <?php else: ?>
             <?php foreach ($registros as $r): ?>
-            <?php
-            $badgeClass = match (strtolower($r['estado'])) {
-              'decisión'           => 'badge bg-primary-subtle text-primary fw-semibold px-3 py-2',
-              'cargos y descargos' => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
-              'registro'           => 'badge bg-info-subtle text-info fw-semibold px-3 py-2',
-              'abierto'            => 'badge bg-success-subtle text-success fw-semibold px-3 py-2',
-              'en proceso'         => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
-              'cerrado'            => 'badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2',
-              'archivado'          => 'badge bg-danger-subtle text-danger fw-semibold px-3 py-2',
-              default              => 'badge bg-light text-dark fw-semibold px-3 py-2'
-            };
-            ?>
+              <?php
+              $badgeClass = match (strtolower($r['estado'])) {
+                'decisión'           => 'badge bg-primary-subtle text-primary fw-semibold px-3 py-2',
+                'cargos y descargos' => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
+                'registro'           => 'badge bg-info-subtle text-info fw-semibold px-3 py-2',
+                'abierto'            => 'badge bg-success-subtle text-success fw-semibold px-3 py-2',
+                'en proceso'         => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
+                'cerrado'            => 'badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2',
+                'archivado'          => 'badge bg-danger-subtle text-danger fw-semibold px-3 py-2',
+                default              => 'badge bg-light text-dark fw-semibold px-3 py-2'
+              };
+              ?>
               <tr data-row>
                 <td data-key="consecutivo"><?= esc($r['consecutivo']) ?></td>
                 <td data-key="cedula" class="text-mono"><?= esc($r['cedula']) ?></td>
@@ -110,7 +118,7 @@ $registros = $registros ?? [];
                 <td data-key="proyecto"><?= esc($r['proyecto']) ?></td>
                 <td data-key="fecha"><?= esc($r['fecha']) ?></td>
                 <td data-key="hecho" class="text-center">
-                  <button 
+                  <button
                     type="button"
                     class="btn btn-sm btn-outline-success btn-hecho-detalle"
                     data-hecho="<?= esc($r['hecho']) ?>"
@@ -176,105 +184,143 @@ $registros = $registros ?? [];
 
 <?= $this->section('scripts'); ?>
 <script>
-(() => {
-  const q = document.getElementById('q');
-  const fEstado = document.getElementById('fEstado');
-  const fDesde = document.getElementById('fDesde');
-  const fHasta = document.getElementById('fHasta');
-  const btnBuscar = document.getElementById('btnBuscar');
-  const btnLimpiar = document.getElementById('btnLimpiar');
-  const rows = [...document.querySelectorAll('tr[data-row]')];
-  const countTotal = document.getElementById('countTotal');
+  (() => {
+    const q = document.getElementById('q');
+    const fEstado = document.getElementById('fEstado');
+    const fDesde = document.getElementById('fDesde');
+    const fHasta = document.getElementById('fHasta');
+    const btnBuscar = document.getElementById('btnBuscar');
+    const btnLimpiar = document.getElementById('btnLimpiar');
+    const rows = [...document.querySelectorAll('tr[data-row]')];
+    const countTotal = document.getElementById('countTotal');
 
-  function matchDateRange(valueDate, d1, d2){
-    if(!valueDate) return true;
-    if(!d1 && !d2) return true;
-    const v = new Date(valueDate);
-    if(d1 && v < new Date(d1)) return false;
-    if(d2 && v > new Date(d2)) return false;
-    return true;
-  }
+    function matchDateRange(valueDate, d1, d2) {
+      if (!valueDate) return true;
+      if (!d1 && !d2) return true;
+      const v = new Date(valueDate);
+      if (d1 && v < new Date(d1)) return false;
+      if (d2 && v > new Date(d2)) return false;
+      return true;
+    }
 
-  function apply(){
-    const text = (q.value || '').toLowerCase().trim();
-    const est  = (fEstado.value || '').toLowerCase().trim();
-    const d1   = fDesde.value || '';
-    const d2   = fHasta.value || '';
+    function apply() {
+      const text = (q.value || '').toLowerCase().trim();
+      const est = (fEstado.value || '').toLowerCase().trim();
+      const d1 = fDesde.value || '';
+      const d2 = fHasta.value || '';
 
-    let visible = 0;
-    rows.forEach(tr => {
-      const data = {
-        consecutivo: tr.querySelector('[data-key="consecutivo"]')?.textContent.toLowerCase() || '',
-        cedula:      tr.querySelector('[data-key="cedula"]')?.textContent.toLowerCase() || '',
-        nombre:      tr.querySelector('[data-key="nombre"]')?.textContent.toLowerCase() || '',
-        proyecto:    tr.querySelector('[data-key="proyecto"]')?.textContent.toLowerCase() || '',
-        fecha:       tr.querySelector('[data-key="fecha"]')?.textContent || '',
-        hecho:       tr.querySelector('[data-key="hecho"]')?.textContent.toLowerCase() || '',
-        estado:      tr.querySelector('[data-key="estado"] .badge')?.textContent.toLowerCase() || '',
-      };
+      let visible = 0;
+      rows.forEach(tr => {
+        const data = {
+          consecutivo: tr.querySelector('[data-key="consecutivo"]')?.textContent.toLowerCase() || '',
+          cedula: tr.querySelector('[data-key="cedula"]')?.textContent.toLowerCase() || '',
+          nombre: tr.querySelector('[data-key="nombre"]')?.textContent.toLowerCase() || '',
+          proyecto: tr.querySelector('[data-key="proyecto"]')?.textContent.toLowerCase() || '',
+          fecha: tr.querySelector('[data-key="fecha"]')?.textContent || '',
+          hecho: tr.querySelector('[data-key="hecho"]')?.textContent.toLowerCase() || '',
+          estado: tr.querySelector('[data-key="estado"] .badge')?.textContent.toLowerCase() || '',
+        };
 
-      const textok = !text || Object.values(data).join(' ').includes(text);
-      const estok  = !est || data.estado === est;
-      const dateok = matchDateRange(data.fecha, d1, d2);
+        const textok = !text || Object.values(data).join(' ').includes(text);
+        const estok = !est || data.estado === est;
+        const dateok = matchDateRange(data.fecha, d1, d2);
 
-      const show = textok && estok && dateok;
-      tr.style.display = show ? '' : 'none';
-      if (show) visible++;
+        const show = textok && estok && dateok;
+        tr.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      if (countTotal) countTotal.textContent = visible;
+    }
+
+    btnBuscar?.addEventListener('click', apply);
+    q?.addEventListener('keyup', e => (e.key === 'Enter') && apply());
+    fEstado?.addEventListener('change', apply);
+    fDesde?.addEventListener('change', apply);
+    fHasta?.addEventListener('change', apply);
+    btnLimpiar?.addEventListener('click', () => {
+      q.value = '';
+      fEstado.value = '';
+      fDesde.value = '';
+      fHasta.value = '';
+      apply();
     });
-    if (countTotal) countTotal.textContent = visible;
-  }
+  })();
 
-  btnBuscar?.addEventListener('click', apply);
-  q?.addEventListener('keyup', e => (e.key === 'Enter') && apply());
-  fEstado?.addEventListener('change', apply);
-  fDesde?.addEventListener('change', apply);
-  fHasta?.addEventListener('change', apply);
-  btnLimpiar?.addEventListener('click', () => {
-    q.value = ''; fEstado.value = ''; fDesde.value = ''; fHasta.value = '';
-    apply();
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el);
   });
-})();
 
-document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-  new bootstrap.Tooltip(el);
-});
+  // === Mostrar modal de detalle del hecho ===
+  const modalElement = document.getElementById('modalHecho');
+  const modal = new bootstrap.Modal(modalElement);
+  let hechoActual = '';
 
-// === Mostrar modal de detalle del hecho ===
-const modalElement = document.getElementById('modalHecho');
-const modal = new bootstrap.Modal(modalElement);
-let hechoActual = '';
+  document.querySelectorAll('.btn-hecho-detalle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const hecho = btn.getAttribute('data-hecho') || '(Sin descripción)';
+      const nombre = btn.getAttribute('data-nombre') || '';
+      const consecutivo = btn.getAttribute('data-consecutivo') || '';
 
-document.querySelectorAll('.btn-hecho-detalle').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const hecho = btn.getAttribute('data-hecho') || '(Sin descripción)';
-    const nombre = btn.getAttribute('data-nombre') || '';
-    const consecutivo = btn.getAttribute('data-consecutivo') || '';
+      hechoActual = hecho;
+      document.getElementById('hechoTexto').textContent = hecho;
+      document.getElementById('hechoNombre').textContent = nombre;
+      document.getElementById('hechoConsecutivo').textContent = consecutivo;
 
-    hechoActual = hecho;
-    document.getElementById('hechoTexto').textContent = hecho;
-    document.getElementById('hechoNombre').textContent = nombre;
-    document.getElementById('hechoConsecutivo').textContent = consecutivo;
-
-    modal.show();
+      modal.show();
+    });
   });
-});
 
-// === Copiar texto del hecho ===
-document.getElementById('btnCopiarHecho').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(hechoActual);
-    const btn = document.getElementById('btnCopiarHecho');
-    const original = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copiado!';
-    btn.classList.replace('btn-outline-primary', 'btn-success');
-    setTimeout(() => {
-      btn.innerHTML = original;
-      btn.classList.replace('btn-success', 'btn-outline-primary');
-    }, 2000);
-  } catch (err) {
-    alert('No se pudo copiar el texto.');
-  }
-});
+  // === Copiar texto del hecho ===
+  document.getElementById('btnCopiarHecho').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(hechoActual);
+      const btn = document.getElementById('btnCopiarHecho');
+      const original = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copiado!';
+      btn.classList.replace('btn-outline-primary', 'btn-success');
+      setTimeout(() => {
+        btn.innerHTML = original;
+        btn.classList.replace('btn-success', 'btn-outline-primary');
+      }, 2000);
+    } catch (err) {
+      alert('No se pudo copiar el texto.');
+    }
+  });
 
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // Configuración común
+    const baseConfig = {
+      locale: "es",
+      dateFormat: "d/m/Y",
+      altInput: true,
+      altFormat: "F j, Y",
+      allowInput: false,
+      disableMobile: true,
+      monthSelectorType: "static",
+      yearSelectorType: "dropdown",
+    };
+
+    // Inicializa ambos campos
+    flatpickr("#fDesde", {
+      ...baseConfig,
+      onChange: function(selectedDates, dateStr, instance) {
+        const hasta = document.querySelector("#fHasta")._flatpickr;
+        if (hasta && selectedDates[0]) {
+          hasta.set("minDate", selectedDates[0]);
+        }
+      }
+    });
+
+    flatpickr("#fHasta", {
+      ...baseConfig,
+      onChange: function(selectedDates, dateStr, instance) {
+        const desde = document.querySelector("#fDesde")._flatpickr;
+        if (desde && selectedDates[0]) {
+          desde.set("maxDate", selectedDates[0]);
+        }
+      }
+    });
+  });
 </script>
 <?= $this->endSection(); ?>

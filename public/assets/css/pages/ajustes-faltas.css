@@ -1,0 +1,218 @@
+/* =========================================================
+   🎛️ AJUSTES - FALTAS DEL RIT
+   Diseño coherente con la interfaz principal
+   ========================================================= */
+
+/* --- Card principal --- */
+.card {
+  border-radius: 16px;
+  border: 1px solid rgba(16,185,129,0.15);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+  backdrop-filter: blur(8px);
+}
+
+/* --- Encabezado --- */
+.card-header {
+  background: linear-gradient(90deg, rgba(240,253,250,0.8), rgba(236,253,245,0.7));
+  border-bottom: 1px solid rgba(16,185,129,0.15);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.card-header h5 {
+  font-weight: 700;
+  color: #047857;
+}
+
+/* --- Botones --- */
+.btn-success.btn-sm {
+  background: linear-gradient(90deg, #10b981, #059669);
+  border: none;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-success.btn-sm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(16,185,129,0.35);
+}
+
+.btn-outline-primary,
+.btn-outline-danger {
+  border-width: 1.5px;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-primary:hover {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.btn-outline-danger:hover {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+/* =========================================================
+   📋 Tabla
+   ========================================================= */
+.table th {
+  color: #374151;
+  font-weight: 600;
+  background: #f9fafb;
+  border-bottom: 2px solid rgba(16,185,129,0.15);
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(240,253,244,0.6);
+  transition: background 0.2s ease;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* --- Tipografía monoespaciada --- */
+.table .text-mono {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* =========================================================
+   🟢 Badges de gravedad
+   ========================================================= */
+.badge {
+  border-radius: 999px;
+  font-weight: 700;
+  padding: .35rem .65rem;
+  font-size: .8rem;
+  letter-spacing: 0.2px;
+}
+
+.badge-soft-success {
+  background: #e6fdf4;
+  color: #047857;
+  border: 1px solid rgba(16,185,129,0.35);
+}
+.badge-soft-warning {
+  background: #fff5db;
+  color: #92400e;
+  border: 1px solid rgba(245,158,11,0.35);
+}
+.badge-soft-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid rgba(239,68,68,0.35);
+}
+
+/* =========================================================
+   ⚙️ Modal (crear / eliminar)
+   ========================================================= */
+.modal.show {
+  display: block !important;
+}
+.modal-backdrop {
+  display: none !important;
+}
+
+.modal-dialog {
+  max-width: 720px;
+  margin: 1.75rem auto !important;
+  transform: none !important;
+}
+
+.modal-content {
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+  overflow: hidden;
+  animation: fadeInScale .25s ease;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+}
+
+/* --- Encabezado modal --- */
+.modal-header {
+  padding: 0.9rem 1.2rem;
+  border-bottom: none;
+}
+.modal-header.bg-success-subtle {
+  background: linear-gradient(90deg, #ecfdf5, #d1fae5);
+  color: #047857;
+}
+.modal-header.bg-danger-subtle {
+  background: linear-gradient(90deg, #fef2f2, #fee2e2);
+  color: #b91c1c;
+}
+.modal-title i {
+  opacity: 0.8;
+}
+
+/* --- Cuerpo modal --- */
+.modal-body {
+  padding: 1.25rem 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.modal-body .form-label {
+  font-weight: 600;
+  color: #374151;
+}
+.modal-body .form-text {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* --- Footer modal --- */
+.modal-footer {
+  border-top: none;
+  background: #f9fafb;
+  padding: 0.75rem 1.2rem;
+}
+
+/* --- Animación modal --- */
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* =========================================================
+   📖 Paginador
+   ========================================================= */
+.pagination {
+  justify-content: flex-end;
+  margin-top: 1.2rem;
+  gap: 4px;
+}
+
+.pagination .page-link {
+  border-radius: 10px;
+  border: 1px solid rgba(16,185,129,0.35);
+  color: #047857;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+.pagination .page-link:hover {
+  background-color: rgba(16,185,129,0.08);
+  border-color: rgba(16,185,129,0.45);
+}
+.pagination .page-item.active .page-link {
+  background-color: #10b981;
+  border-color: #10b981;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.25);
+}
+
+/* =========================================================
+   ✅ Alertas
+   ========================================================= */
+.alert-success {
+  background: #ecfdf5;
+  border: 1px solid rgba(16,185,129,0.3);
+  color: #047857;
+}
+.alert-danger {
+  background: #fef2f2;
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #b91c1c;
+}

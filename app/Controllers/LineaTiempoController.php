@@ -3,313 +3,236 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\FurdModel;
-use App\Models\AdjuntoModel;
 use CodeIgniter\I18n\Time;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class LineaTiempoController extends BaseController
 {
+    public function show(string $consecutivo)
+    {
+        $id = $this->decodeConsecutivo($consecutivo);
+        if (!$id) {
+            throw PageNotFoundException::forPageNotFound('Consecutivo inválido');
+        }
 
-    // public function show(string $consecutivo)
-    // {
-    //     $id = $this->decodeConsecutivo($consecutivo);
-    //     if (!$id) {
-    //         throw PageNotFoundException::forPageNotFound('Consecutivo inválido');
-    //     }
+        // 🧠 Carga principal del FURD con empleado y proyecto
+        $furd = (new FurdModel())
+            ->select("
+                f.id,
+                f.consecutivo,
+                f.fecha_evento,
+                f.hora_evento,
+                f.estado,
+                f.empresa_usuaria,         
+                f.hecho,
+                f.created_at,
+                f.updated_at,
+                e.numero_documento AS cedula,
+                e.nombre_completo AS nombre,
+                p.nombre AS proyecto
+            ")
+            ->from('tbl_furd f')
+            ->join('tbl_empleados e', 'e.id = f.empleado_id', 'left')
+            ->join('tbl_proyectos p', 'p.id = f.proyecto_id', 'left')
+            ->where('f.id', $id)
+            ->first();
 
-    //     $furd = (new FurdModel())
-    //         ->select("
-    //             tbl_furd.*,
-    //             e.numero_documento AS cedula,
-    //             e.nombre_completo  AS nombre,
-    //             p.nombre           AS proyecto
-    //         ")
-    //         ->join('tbl_empleados e', 'e.id = tbl_furd.colaborador_id', 'left')
-    //         ->join('tbl_empleado_contratos c', 'c.empleado_id = e.id AND (c.activo=1 OR c.fecha_retiro IS NULL)', 'left')
-    //         ->join('tbl_proyectos p', 'p.id = c.proyecto_id', 'left')
-    //         ->where('tbl_furd.id', $id)
-    //         ->first();
+        if (!$furd) {
+            throw PageNotFoundException::forPageNotFound("No existe el proceso {$consecutivo}");
+        }
 
-    //     if (!$furd) {
-    //         throw PageNotFoundException::forPageNotFound("No existe el proceso {$consecutivo}");
-    //     }
+        $anio = Time::parse($furd['created_at'])->getYear();
+        $proceso = [
+            'consecutivo' => $furd['consecutivo'] ?? sprintf('PD-%06d', $furd['id']),
+            'cedula'      => $furd['cedula'] ?? '',
+            'nombre'      => $furd['nombre'] ?? '',
+            'proyecto'    => $furd['proyecto'] ?? '',
+            'estado'      => $furd['estado'] ?? '',
+        ];
 
-    //     $anio = Time::parse($furd['created_at'])->getYear();
-    //     $proceso = [
-    //         'consecutivo' => 'FURD-' . $anio . '-' . str_pad((string)$furd['id'], 4, '0', STR_PAD_LEFT),
-    //         'cedula'      => (string)($furd['cedula'] ?? ''),
-    //         'nombre'      => (string)($furd['nombre'] ?? ''),
-    //         'proyecto'    => (string)($furd['proyecto'] ?? ''),
-    //         'estado'      => (string)($furd['estado'] ?? ''),
-    //     ];
+        // 🧱 Inicializamos las etapas
+        $etapas = [];
 
-    //     // Etapas
-    //     $etapas = [];
 
-    //     // 1) Registro
-    //     $etapas[] = [
-    //         'clave'   => 'registro',
-    //         'titulo'  => 'Registro',
-    //         'fecha'   => substr((string)$furd['created_at'], 0, 10),
-    //         'resumen' => mb_strimwidth((string)($furd['hecho'] ?? ''), 0, 220, '…', 'UTF-8'),
-    //         'meta'    => [
-    //             'Turno'      => (string)($furd['turno'] ?? '—'),
-    //             'Supervisor' => $furd['supervisor_id'] ? ('#'.$furd['supervisor_id']) : '—',
-    //         ],
-    //         'adjuntos'=> [],
-    //     ];
-
-    //     // 2) Citación (usa campos propios si existen)
-    //     $etapas[] = [
-    //         'clave'   => 'citacion',
-    //         'titulo'  => 'Citación',
-    //         'fecha'   => (string)($furd['fecha_evento'] ?? ''),
-    //         'resumen' => !empty($furd['fecha_evento']) ? 'Citación programada' : '',
-    //         'meta'    => [
-    //             'Fecha' => (string)($furd['fecha_evento'] ?? '—'),
-    //             'Hora'  => (string)($furd['hora_evento'] ?? '—'),
-    //             'Turno' => (string)($furd['turno'] ?? '—'),
-    //         ],
-    //         'adjuntos'=> [],
-    //     ];
-
-    //     // 3) Cargos y Descargos (consideramos done si estado >= acta_generada)
-    //     $etapas[] = [
-    //         'clave'   => 'cargos_descargos',
-    //         'titulo'  => 'Cargos y Descargos',
-    //         'fecha'   => in_array($furd['estado'], ['acta_generada','decision_emitida'], true)
-    //                      ? substr((string)$furd['updated_at'], 0, 10) : '',
-    //         'resumen' => 'Acta de cargos/descargos',
-    //         'meta'    => [],
-    //         'adjuntos'=> [],
-    //     ];
-
-    //     // 4) Soporte de citación y acta (adjuntos sobre el FURD)
-    //     $adj = (new AdjuntoModel())
-    //         ->where(['origen' => 'furd', 'origen_id' => (int)$furd['id']])
-    //         ->orderBy('created_at', 'ASC')
-    //         ->findAll();
-
-    //     $etapas[] = [
-    //         'clave'   => 'soporte',
-    //         'titulo'  => 'Soporte de citación y acta',
-    //         'fecha'   => !empty($adj) ? substr((string)$adj[0]['created_at'], 0, 10) : '',
-    //         'resumen' => !empty($adj) ? 'Se cargaron soportes de citación/acta.' : '',
-    //         'meta'    => ['Adjuntos' => (string)count($adj)],
-    //         'adjuntos'=> array_map(
-    //             fn($a) => ['nombre' => ($a['nombre_original'] ?? basename((string)$a['ruta'])),
-    //                        'url'    => site_url((string)$a['ruta'])],
-    //             $adj
-    //         ),
-    //     ];
-
-    //     // 5) Decisión
-    //     $etapas[] = [
-    //         'clave'   => 'decision',
-    //         'titulo'  => 'Decisión',
-    //         'fecha'   => $furd['estado'] === 'decision_emitida'
-    //                      ? substr((string)$furd['updated_at'], 0, 10) : '',
-    //         'resumen' => $furd['estado'] === 'decision_emitida' ? 'Decisión emitida.' : '',
-    //         'meta'    => [],
-    //         'adjuntos'=> [],
-    //     ];
-
-    //     return view('linea_tiempo/index', compact('proceso', 'etapas'));
-    // }
-
-public function show(string $consecutivo)
-{
-    // === DEMO: base extendida con todos los estados posibles ===
-    $db = [
-
-        // 🔹 Caso 1: proceso COMPLETO (todas las etapas finalizadas)
-        'FURD-2025-0001' => [
-            'consecutivo' => 'FURD-2025-0001',
-            'empleado' => [
-                'cedula'   => '1049536932',
-                'nombre'   => 'Karina Blanco',
-                'proyecto' => 'CLARO WHATSAPP',
+        $faltas = $this->getFaltas((int)$furd['id']);
+        // 1️⃣ Registro
+        $etapas[] = [
+            'clave'   => 'registro',
+            'titulo'  => 'Registro',
+            'fecha'   => Time::parse($furd['created_at'])->format('d/m/Y'),
+            'resumen' => mb_strimwidth((string)($furd['hecho'] ?? ''), 0, 220, '…', 'UTF-8'),
+            'meta'    => [
+                'Fecha del evento' => $furd['fecha_evento']
+                    ? Time::parse($furd['fecha_evento'])->format('d/m/Y')
+                    : '—',
+                'Hora del evento'  => (string)($furd['hora_evento']    ?? '—'),
+                'Empresa usuaria'  => (string)($furd['empresa_usuaria']?? '—'),
+                'Faltas registradas' => (string)count($faltas),
+                // opcional:
+                // 'Proyecto'      => (string)($furd['proyecto'] ?? '—'),
+                // 'Cédula'        => (string)($furd['cedula']   ?? '—'),
             ],
-            'estado' => 'DECISIÓN',
-            'events' => [
-                [
-                    'tipo'    => 'registro',
-                    'fecha'   => '2025-10-21 09:20',
-                    'detalle' => 'Incumplimiento de instrucción operativa en turno.',
-                    'faltas'  => [
-                        ['codigo' => 'FLT-003', 'gravedad' => 'Gravísima', 'desc' => 'Entrega de documentos falsos como soporte'],
-                        ['codigo' => 'FLT-001', 'gravedad' => 'Grave', 'desc' => 'Pérdida de calidades exigidas para el cargo'],
-                    ],
-                    'adjuntos' => ['evidencia_turno.jpg', 'registro_sistema.pdf'],
-                ],
-                [
-                    'tipo'    => 'citacion',
-                    'fecha'   => '2025-10-21 10:00',
-                    'medio'   => 'PRESENCIAL',
-                    'adjuntos'=> ['carta_citacion.pdf'],
-                ],
-                [
-                    'tipo'    => 'cargos_descargos',
-                    'fecha'   => '2025-10-21 11:30',
-                    'medio'   => 'PRESENCIAL',
-                    'adjuntos'=> ['acta_cyd.pdf'],
-                ],
-                [
-                    'tipo'    => 'soporte',
-                    'fecha'   => '2025-10-21 12:40',
-                    'adjuntos'=> ['citacion_firmada.pdf', 'acta_firmada.pdf'],
-                ],
-                [
-                    'tipo'     => 'decision',
-                    'fecha'    => '2025-10-21 13:30',
-                    'decision' => 'Llamado de atención',
-                    'adjuntos' => ['comunicado_decision.pdf'],
-                ],
-            ],
-        ],
+            'faltas'  => $faltas,              // 🔸 clave que la vista espera
+            'adjuntos'=> $this->getAdjuntos($furd['id'], 'registro'),
+        ];
 
-        // 🔹 Caso 2: proceso EN PROCESO (hasta cargos y descargos)
-        'FURD-2025-0002' => [
-            'consecutivo' => 'FURD-2025-0002',
-            'empleado' => [
-                'cedula'   => '100200300',
-                'nombre'   => 'Andrés Yakuza',
-                'proyecto' => 'EXTRACCION_NOTAS_RR',
+        // 2️⃣ Citación
+        $citacion = db_connect()->table('tbl_furd_citacion')->where('furd_id', $furd['id'])->get()->getRowArray();
+        $etapas[] = [
+            'clave'   => 'citacion',
+            'titulo'  => 'Citación',
+            'fecha' => isset($citacion['created_at'])
+                ? Time::parse($citacion['created_at'])->format('d/m/Y')
+                : '',
+            'resumen' => $citacion ? $citacion['motivo'] : '',
+            'meta'    => [
+            'Fecha del evento' => isset($citacion['fecha_evento'])
+                ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
+                : '—',
+                'Hora'  => $citacion['hora'] ?? '—',
+                'Medio' => $citacion['medio'] ?? '—',
             ],
-            'estado' => 'CARGOS Y DESCARGOS',
-            'events' => [
-                [
-                    'tipo'    => 'registro',
-                    'fecha'   => '2025-10-20 08:15',
-                    'detalle' => 'Retraso reiterado en el inicio de sesión (3 días).',
-                    'faltas'  => [
-                        ['codigo' => 'FLT-020', 'gravedad' => 'Leve', 'desc' => 'Incumplimiento horario'],
-                    ],
-                    'adjuntos' => ['pantallazo_asistencia.xlsx'],
-                ],
-                [
-                    'tipo'    => 'citacion',
-                    'fecha'   => '2025-10-21 09:30',
-                    'medio'   => 'VIRTUAL',
-                    'adjuntos'=> ['carta_citacion_virtual.pdf'],
-                ],
-                [
-                    'tipo'    => 'cargos_descargos',
-                    'fecha'   => '2025-10-21 11:00',
-                    'medio'   => 'PRESENCIAL',
-                    'adjuntos'=> [],
-                ],
-                // aún sin soporte ni decisión
-            ],
-        ],
+            'adjuntos'=> $this->getAdjuntos($furd['id'], 'citacion'),
+        ];
 
-        // 🔹 Caso 3: proceso INICIADO (solo registro)
-        'FURD-2025-0003' => [
-            'consecutivo' => 'FURD-2025-0003',
-            'empleado' => [
-                'cedula'   => '800700600',
-                'nombre'   => 'David Rojas',
-                'proyecto' => 'FIJA LECTURABILIDAD',
+        // 3️⃣ Descargos
+        $descargos = db_connect()->table('tbl_furd_descargos')->where('furd_id', $furd['id'])->get()->getRowArray();
+        $etapas[] = [
+            'clave'   => 'descargos',
+            'titulo'  => 'Descargos',
+            'fecha' => isset($descargos['created_at'])
+                ? Time::parse($descargos['created_at'])->format('d/m/Y')
+                : '',
+            'resumen' => $descargos ? 'Descargo realizado de manera '.$descargos['medio'] : '',
+            'meta'    => [
+            'Fecha del evento' => isset($descargos['fecha_evento'])
+                ? Time::parse($descargos['fecha_evento'])->format('d/m/Y')
+                : '—',
+                'Hora'  => $descargos['hora'] ?? '—',
+                'Medio' => $descargos['medio'] ?? '—',
             ],
-            'estado' => 'REGISTRO',
-            'events' => [
-                [
-                    'tipo'    => 'registro',
-                    'fecha'   => '2025-10-19 16:40',
-                    'detalle' => 'Uso indebido de credenciales compartidas.',
-                    'faltas'  => [
-                        ['codigo' => 'FLT-011', 'gravedad' => 'Grave', 'desc' => 'Compartir credenciales corporativas'],
-                    ],
-                    'adjuntos' => ['log_accesos.pdf'],
-                ],
-            ],
-        ],
+            'adjuntos'=> $this->getAdjuntos($furd['id'], 'descargos'),
+        ];
 
-        // 🔹 Caso 4: proceso con soporte pero sin decisión
-        'FURD-2025-0004' => [
-            'consecutivo' => 'FURD-2025-0004',
-            'empleado' => [
-                'cedula'   => '1092837465',
-                'nombre'   => 'Lina Hurtado',
-                'proyecto' => 'CALL CENTER FIJA',
-            ],
-            'estado' => 'SOPORTE',
-            'events' => [
-                [
-                    'tipo'    => 'registro',
-                    'fecha'   => '2025-10-22 08:00',
-                    'detalle' => 'Ausencia sin justificación el 20 y 21 de octubre.',
-                    'faltas'  => [['codigo' => 'FLT-021', 'gravedad' => 'Grave', 'desc' => 'Inasistencia injustificada']],
-                    'adjuntos'=> ['pantallazo_turnos.pdf'],
-                ],
-                [
-                    'tipo'    => 'citacion',
-                    'fecha'   => '2025-10-23 09:30',
-                    'medio'   => 'VIRTUAL',
-                    'adjuntos'=> ['citacion_inasistencia.pdf'],
-                ],
-                [
-                    'tipo'    => 'cargos_descargos',
-                    'fecha'   => '2025-10-24 11:00',
-                    'medio'   => 'PRESENCIAL',
-                    'adjuntos'=> ['acta_inasistencia.pdf'],
-                ],
-                [
-                    'tipo'    => 'soporte',
-                    'fecha'   => '2025-10-24 15:00',
-                    'adjuntos'=> ['acta_firmada.pdf'],
-                ],
-                // sin decisión aún
-            ],
-        ],
+        // 4️⃣ Soporte
+        $soporte = db_connect()->table('tbl_furd_soporte')
+            ->where('furd_id', $furd['id'])
+            ->get()
+            ->getRowArray();
 
-        // 🔹 Caso 5: archivado (proceso cerrado sin decisión)
-        'FURD-2025-0005' => [
-            'consecutivo' => 'FURD-2025-0005',
-            'empleado' => [
-                'cedula'   => '1029384756',
-                'nombre'   => 'Carlos Montoya',
-                'proyecto' => 'VENTAS EMPRESARIALES',
+        $etapas[] = [
+            'clave'   => 'soporte',
+            'titulo'  => 'Soporte de Citación / Acta',
+            'fecha'   => isset($soporte['created_at'])
+                ? Time::parse($soporte['created_at'])->format('d/m/Y')
+                : '',
+            'resumen' => '', // Soporte no usa resumen
+            'meta'    => [
+                'Responsable'         => $soporte['responsable'] ?? '—',
+                'Decisión propuesta'  => $soporte['decision_propuesta'] ?? '—',
             ],
-            'estado' => 'ARCHIVADO',
-            'events' => [
-                [
-                    'tipo'    => 'registro',
-                    'fecha'   => '2025-10-10 09:00',
-                    'detalle' => 'Reporte de conducta inadecuada, no confirmado.',
-                    'faltas'  => [],
-                    'adjuntos'=> [],
-                ],
-                [
-                    'tipo'    => 'citacion',
-                    'fecha'   => '2025-10-11 10:00',
-                    'medio'   => 'VIRTUAL',
-                    'adjuntos'=> [],
-                ],
-                [
-                    'tipo'    => 'decision',
-                    'fecha'   => '2025-10-12 17:00',
-                    'decision' => 'Proceso archivado por falta de pruebas.',
-                    'adjuntos'=> ['acta_archivo.pdf'],
-                ],
-            ],
-        ],
-    ];
+            'adjuntos'=> $this->getAdjuntos($furd['id'], 'soporte'),
+        ];
 
-    $data = $db[$consecutivo] ?? null;
-    if (!$data) {
-        throw PageNotFoundException::forPageNotFound('Consecutivo no existe: ' . $consecutivo);
+
+// 5️⃣ Decisión
+$decision = db_connect()
+    ->table('tbl_furd_decision')
+    ->where('furd_id', $furd['id'])
+    ->get()
+    ->getRowArray();
+
+if ($decision) {
+
+    // Texto principal
+    $detalle   = trim((string)($decision['decision_text'] ?? ''));
+    // si tu nueva columna se llama distinto (p.e. detalle_text, fundamentacion, etc.)
+    // cambia aquí el índice:
+    $fundament = trim((string)($decision['fundamentacion'] ?? ($decision['detalle_text'] ?? '')));
+
+    $partes = [];
+    if ($detalle !== '') {
+        $partes[] =  $detalle;
+    }
+    if ($fundament !== '') {
+        $partes[] = 'Fundamentación: ' . $fundament;
     }
 
-    return view('linea_tiempo/show', $data);
+    $resumen = implode(' · ', $partes);
+
+    $etapas[] = [
+        'clave'   => 'decision',
+        'titulo'  => 'Decisión',
+
+        // 👉 fecha que se muestra en el “chiclet” rojo de la línea de tiempo
+        // usamos la fecha de creación del registro de decisión
+        'fecha' => isset($decision['created_at'])
+            ? Time::parse($decision['created_at'])->format('d/m/Y')
+            : '',
+
+        // 👉 texto que ves dentro de la tarjeta
+        'resumen' => $resumen,
+
+        // 👉 metadatos que se listan debajo del resumen
+        'meta'    => [
+            'Fecha de la decisión' => isset($decision['fecha_evento'])
+                ? Time::parse($decision['fecha_evento'])->format('d/m/Y')
+                : '—',
+        ],
+
+        'adjuntos'=> $this->getAdjuntos($furd['id'], 'decision'),
+    ];
 }
 
+        return view('linea_tiempo/show', compact('proceso', 'etapas'));
+    }
 
-    /** Acepta FURD-YYYY-#### o solo el número */
+    /**
+     * Decodifica PD-#### o solo el número
+     */
     private function decodeConsecutivo(string $s): ?int
     {
-        if (ctype_digit($s)) return (int)$s;
-        if (preg_match('/^FURD-\d{4}-0*([1-9]\d*)$/i', $s, $m)) return (int)$m[1];
+        if (preg_match('/^PD-0*([1-9]\d*)$/i', $s, $m)) {
+            return (int)$m[1];
+        }
+
         return null;
+    }
+
+    /**
+     * Obtiene adjuntos por fase
+     */
+    private function getAdjuntos(int $furdId, string $fase): array
+    {
+        $rows = db_connect()->table('tbl_adjuntos')
+            ->select('id, nombre_original, ruta, storage_provider')
+            ->where(['origen' => 'furd', 'origen_id' => $furdId, 'fase' => $fase])
+            ->orderBy('created_at', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        return array_map(static fn($a) => [
+            'id'       => (int) $a['id'],
+            'nombre'   => $a['nombre_original'] ?? basename((string)($a['ruta'] ?? '')),
+            'provider' => $a['storage_provider'] ?? 'local',
+        ], $rows);
+    }
+
+
+    private function getFaltas(int $furdId): array
+    {
+        $rows = db_connect()->table('tbl_furd_faltas ff')
+            ->select('rf.codigo, rf.gravedad, rf.descripcion')
+            ->join('tbl_rit_faltas rf', 'rf.id = COALESCE(ff.falta_id, ff.rit_falta_id)', 'left')
+            ->where('ff.furd_id', $furdId)
+            ->orderBy('rf.codigo', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        return array_map(static fn($r) => [
+            'codigo'   => (string)($r['codigo'] ?? ''),
+            'gravedad' => (string)($r['gravedad'] ?? ''),
+            'desc'     => (string)($r['descripcion'] ?? ''),
+        ], $rows);
     }
 }

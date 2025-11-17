@@ -7,116 +7,96 @@ use CodeIgniter\I18n\Time;
 
 class SeguimientoController extends BaseController
 {
-     public function index()
+    public function index()
     {
+        $f = new FurdModel();
 
-        // === DEMO: dataset estático ===
-        $rows = [
-            [
-                'id'             => 101,
-                'consecutivo'    => 'FURD-2025-0001',
-                'cedula'         => '1049536932',
-                'nombre'         => 'Karina Blanco',
-                'proyecto'       => 'CLARO WHATSAPP',
-                'fecha'          => '2025-10-21',
-                'hecho'          => 'Incumplimiento de instrucción operativa en turno.',
-                'estado'         => 'DECISIÓN',
-                'actualizado_en' => '2025-10-21 14:35:00',
-            ],
-            [
-                'id'             => 102,
-                'consecutivo'    => 'FURD-2025-0002',
-                'cedula'         => '100200300',
-                'nombre'         => 'Andrés Yakuza',
-                'proyecto'       => 'EXTRACCION_NOTAS_RR',
-                'fecha'          => '2025-10-20',
-                'hecho'          => 'Retraso reiterado en el inicio de sesión (3 días).',
-                'estado'         => 'CARGOS Y DESCARGOS',
-                'actualizado_en' => '2025-10-21 11:10:00',
-            ],
-            [
-                'id'             => 103,
-                'consecutivo'    => 'FURD-2025-0003',
-                'cedula'         => '800700600',
-                'nombre'         => 'David Rojas',
-                'proyecto'       => 'FIJA LECTURABILIDAD',
-                'fecha'          => '2025-10-19',
-                'hecho'          => 'Uso indebido de credenciales compartidas.',
-                'estado'         => 'REGISTRO',
-                'actualizado_en' => '2025-10-19 17:45:12',
-            ],
-            [
-                'id'             => 104,
-                'consecutivo'    => 'FURD-2025-0004',
-                'cedula'         => '1092837465',
-                'nombre'         => 'Lina Hurtado',
-                'proyecto'       => 'CALL CENTER FIJA',
-                'fecha'          => '2025-10-22',
-                'hecho'          => 'Ausencia sin justificación el 20 y 21 de octubre.',
-                'estado'         => 'SOPORTE',
-                'actualizado_en' => '2025-10-24 15:00:00',
-            ],
-            [
-                'id'             => 105,
-                'consecutivo'    => 'FURD-2025-0005',
-                'cedula'         => '1029384756',
-                'nombre'         => 'Carlos Montoya',
-                'proyecto'       => 'VENTAS EMPRESARIALES',
-                'fecha'          => '2025-10-10',
-                'hecho'          => 'Reporte de conducta inadecuada, no confirmado.',
-                'estado'         => 'ARCHIVADO',
-                'actualizado_en' => '2025-10-12 17:00:00',
-            ],
+        // Filtros desde la URL (?estado=xxx&q=xxx)
+        $estado = (string) $this->request->getGet('estado');
+        $q      = (string) $this->request->getGet('q');
+
+        // Construir la consulta base (evitar duplicados por múltiples contratos)
+        $builder = $f->select("
+                tbl_furd.id,
+                tbl_furd.hecho,
+                tbl_furd.estado,
+                tbl_furd.fecha_evento,
+                tbl_furd.created_at,
+                tbl_furd.updated_at,
+                e.numero_documento  AS cedula,
+                e.nombre_completo   AS nombre,
+                p.nombre            AS proyecto
+            ")
+            ->join('tbl_empleados e', 'e.id = tbl_furd.empleado_id', 'left')
+
+            // Subconsulta: tomar un solo contrato (el activo o el más reciente) por empleado
+            ->join("(SELECT empleado_id, MAX(id) AS max_id
+                     FROM tbl_empleado_contratos
+                     WHERE (activo = 1 OR fecha_retiro IS NULL)
+                     GROUP BY empleado_id) cmax", 'cmax.empleado_id = e.id', 'left')
+
+            // Ya con un único contrato, relacionar proyecto
+            ->join('tbl_empleado_contratos c', 'c.id = cmax.max_id', 'left')
+            ->join('tbl_proyectos p', 'p.id = c.proyecto_id', 'left');
+
+        // Aplicar filtros dinámicos si existen
+        if ($estado !== '') {
+            $builder->where('tbl_furd.estado', $estado);
+        }
+
+        if ($q !== '') {
+            $builder->groupStart()
+                ->like('tbl_furd.consecutivo', $q)
+                ->orLike('e.numero_documento', $q)
+                ->orLike('e.nombre_completo', $q)
+                ->orLike('p.nombre', $q)
+                ->groupEnd();
+        }
+
+        // Obtener los últimos 500 registros (forzando una fila por FURD)
+        $rows = $builder
+                    ->groupBy('tbl_furd.id')
+                    ->orderBy('tbl_furd.created_at', 'DESC')
+                    ->findAll(500);
+
+        // Mapear estados a textos legibles
+        $mapEstado = [
+            'registrado' => 'Abierto',
+            'citacion'   => 'En proceso',
+            'descargos'  => 'En proceso',
+            'soporte'    => 'En proceso',
+            'decision'   => 'Cerrado',
         ];
 
-return view('seguimiento/index', ['registros' => $rows]);
+        // Construir arreglo final para la vista
+        $registros = [];
+        foreach ($rows as $r) {
+            $anio   = Time::parse($r['created_at'])->getYear();
+            $consec = 'PD-' . str_pad((string)$r['id'], 6, '0', STR_PAD_LEFT);
 
+            $registros[] = [
+                'consecutivo'    => $consec,
+                'cedula'         => (string)($r['cedula'] ?? ''),
+                'nombre'         => (string)($r['nombre'] ?? ''),
+                'proyecto'       => (string)($r['proyecto'] ?? ''),
+                'fecha' => Time::parse($r['created_at'])->format('d/m/Y'),
+                'hecho'          => (string)($r['hecho'] ?? ''),
+                'estado'         => $mapEstado[$r['estado']] ?? ucfirst((string)$r['estado']),
+                'actualizado_en' => date('d-m-Y (H:i)', strtotime($r['updated_at'])),
+            ];
+        }
+
+        // Renderizar la vista con los datos
+        return view('seguimiento/index', [
+            'registros' => $registros,
+            'estado'    => $estado,
+            'q'         => $q
+        ]);
     }
-    // public function index()
-    // {
-    //     $f = new FurdModel();
 
-    //     // Trae últimos 500 procesos con datos de empleado y proyecto (si existe)
-    //     $rows = $f->select("
-    //             tbl_furd.id,
-    //             tbl_furd.hecho,
-    //             tbl_furd.estado,
-    //             tbl_furd.created_at,
-    //             tbl_furd.updated_at,
-    //             e.numero_documento  AS cedula,
-    //             e.nombre_completo   AS nombre,
-    //             p.nombre            AS proyecto
-    //         ")
-    //         ->join('tbl_empleados e', 'e.id = tbl_furd.colaborador_id', 'left')
-    //         ->join('tbl_empleado_contratos c', 'c.empleado_id = e.id AND (c.activo=1 OR c.fecha_retiro IS NULL)', 'left')
-    //         ->join('tbl_proyectos p', 'p.id = c.proyecto_id', 'left')
-    //         ->orderBy('tbl_furd.created_at', 'DESC')
-    //         ->findAll(500);
-
-    //     $mapEstado = [
-    //         'registrado'        => 'Abierto',
-    //         'citacion_generada' => 'En proceso',
-    //         'acta_generada'     => 'En proceso',
-    //         'decision_emitida'  => 'Cerrado',
-    //     ];
-
-    //     $registros = [];
-    //     foreach ($rows as $r) {
-    //         $anio  = Time::parse($r['created_at'])->getYear();
-    //         $consec = 'FURD-' . $anio . '-' . str_pad((string) $r['id'], 4, '0', STR_PAD_LEFT);
-
-    //         $registros[] = [
-    //             'consecutivo'    => $consec,
-    //             'cedula'         => (string)($r['cedula'] ?? ''),
-    //             'nombre'         => (string)($r['nombre'] ?? ''),
-    //             'proyecto'       => (string)($r['proyecto'] ?? ''),
-    //             'fecha'          => substr((string)$r['created_at'], 0, 10),
-    //             'hecho'          => (string)($r['hecho'] ?? ''),
-    //             'estado'         => $mapEstado[$r['estado']] ?? ucfirst((string)$r['estado']),
-    //             'actualizado_en' => (string)$r['updated_at'],
-    //         ];
-    //     }
-
-    //     return view('seguimiento/index', compact('registros'));
-    // }
+    public function show(string $consecutivo)
+    {
+        // Redirige a la línea temporal correspondiente
+        return redirect()->to(site_url('linea-temporal/' . $consecutivo));
+    }
 }

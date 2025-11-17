@@ -1,144 +1,293 @@
 <?php
+
 namespace App\Controllers;
 
-use CodeIgniter\RESTful\ResourceController;
+use App\Controllers\BaseController;
+use App\Controllers\Traits\HandlesAdjuntos;
 use App\Models\FurdModel;
 use App\Models\FurdFaltaModel;
-use App\Models\AdjuntoModel;
-use App\Requests\Furd\StoreFurdRequest;
-use App\Requests\Furd\UpdateFurdRequest;
-use App\UseCases\Furd\CreateFurd;
-use App\UseCases\Furd\UpdateFurd as UpdateUC;
-use App\UseCases\Furd\DeleteFurd as DeleteUC;
-use App\UseCases\Furd\AttachFalta;
-use App\UseCases\Furd\DetachFalta;
-use App\UseCases\Furd\UploadAdjunto;
-use App\UseCases\Furd\DeleteAdjunto;
+use App\Models\FurdAdjuntoModel;
+use App\Requests\FurdRegistroRequest;
 
-/**
- * @property \CodeIgniter\HTTP\IncomingRequest $request
- */
-
-class FurdController extends ResourceController
+class FurdController extends BaseController
 {
-    protected $modelName = FurdModel::class;
-    protected $format    = 'json';
+    use HandlesAdjuntos;
 
-    // ✅ Vista HTML
-    public function form()
-    {
-        return view('furd/create');
-    }
-
-    // ✅ Listado (JSON)
+    /** Formulario de registro (fase 1) */
     public function index()
     {
-        // Traer catálogo de faltas activas (ordenadas por gravedad y nombre)
-        $faltas = model(\App\Models\RitFaltaModel::class)
-            ->where('activo', 1)
-            ->orderBy('gravedad', 'DESC')
-            ->orderBy('codigo', 'ASC')
-            ->findAll();
-
-        return view('furd/index', [
-            'faltas' => $faltas,
-            'title'  => 'Registrar Proceso Disciplinario'
-        ]);
+        // $faltas debe venir del catálogo (tbl_rit_faltas). Si ya lo cargas en otro lado, ajusta aquí.
+        $faltas = model('RitFaltaModel')->orderBy('codigo')->findAll();
+        return view('furd/create', compact('faltas'));
     }
 
-    // ✅ Mostrar uno (JSON)
-    public function show($id = null)
+    /** (opcional) detalle de un FURD por consecutivo */
+    public function show(string $consecutivo)
     {
-        $row = $this->model->find($id);
-        if (!$row) return $this->failNotFound();
+        $fm = new FurdModel();
+        $furd = $fm->findByConsecutivo($consecutivo);
+        if (!$furd) {
+            return redirect()->to(site_url('/'))->with('errors', ['FURD no encontrado']);
+        }
 
-        $row['faltas'] = (new FurdFaltaModel())->where('furd_id', $id)->findAll();
-        $row['adjuntos'] = (new AdjuntoModel())->where(['origen' => 'furd', 'origen_id' => $id])->findAll();
-        return $this->respond($row);
+        $faltas = (new FurdFaltaModel())->listByFurd((int)$furd['id']);
+        $adj    = (new FurdAdjuntoModel())->listAllByFurd((int)$furd['id']);
+        return view('furd/show', compact('furd', 'faltas', 'adj'));
     }
 
-    // ✅ Crear (desde formulario o API)
-    public function create()
+    /** Crea FURD, genera consecutivo, guarda faltas (M:N) y adjuntos (fase=registro) */
+    public function store()
     {
+        helper(['filesystem']);
+
+        // 1) Subida temporal
+        $files = $this->request->getFiles()['evidencias'] ?? [];
+        $tmpDir = WRITEPATH . 'uploads/tmp';
+        if (!is_dir($tmpDir)) mkdir($tmpDir, 0777, true);
+
+        $temp = []; // [{tmp, original, mime, size}]
+        if (!empty($files)) {
+            foreach ($files as $file) {
+                if ($file->isValid() && !$file->hasMoved()) {
+                    $newName  = $file->getRandomName();
+                    $original = $file->getClientName();
+                    $mime     = $file->getClientMimeType();
+                    $size     = (int) $file->getSize();
+
+                    $file->move($tmpDir, $newName);
+                    $temp[] = [
+                        'tmp'      => $newName,
+                        'original' => $original,
+                        'mime'     => $mime,
+                        'size'     => $size,
+                    ];
+                }
+            }
+        }
+        if ($temp) session()->set('temp_evidencias', array_column($temp, 'original')); // solo para mostrar
+        session()->set('temp_evidencias_meta', $temp);
+
+        // 2) Normalizar fecha + validar (igual que tenías)
+        $rawFecha = trim((string)$this->request->getPost('fecha_evento'));
+        if ($rawFecha === '') {
+            return redirect()->back()->with('errors', ['fecha_evento' => 'La fecha del evento es obligatoria.'])->withInput();
+        }
+        $fechaTexto = mb_strtolower($rawFecha, 'UTF-8');
+        $fechaTexto = strtr($fechaTexto, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', ',' => '']);
+        $meses = ['enero' => 'january', 'febrero' => 'february', 'marzo' => 'march', 'abril' => 'april', 'mayo' => 'may', 'junio' => 'june', 'julio' => 'july', 'agosto' => 'august', 'septiembre' => 'september', 'setiembre' => 'september', 'octubre' => 'october', 'noviembre' => 'november', 'diciembre' => 'december'];
+        if (preg_match('~^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$~', $fechaTexto, $m)) {
+            $timestamp = strtotime(sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]));
+        } else {
+            $timestamp = strtotime(str_ireplace(array_keys($meses), array_values($meses), $fechaTexto));
+        }
+        if ($timestamp === false) {
+            return redirect()->back()->with('errors', ['fecha_evento' => 'La fecha ingresada no es válida.'])->withInput();
+        }
+        $fechaConvertida = date('Y-m-d', $timestamp);
+
+        $postData = $this->request->getPost();
+        $postData['fecha_evento'] = $fechaConvertida;
+
+        $validation = \Config\Services::validation();
+        $validation->setRules(\App\Requests\FurdRegistroRequest::rules(), \App\Requests\FurdRegistroRequest::messages());
+        if (!$validation->run($postData)) {
+            return redirect()->back()->with('errors', $validation->getErrors())->withInput();
+        }
+
+        // 3) Persistencia
+        $db = db_connect();
+        $db->transStart();
         try {
-            // Detectar si la solicitud viene desde un formulario o JSON
-            $input = $this->request->getPost() ?: $this->request->getJSON(true);
+            $fm = new \App\Models\FurdModel();
 
-            // Validación básica (por si no usas StoreFurdRequest en formularios)
-            if (empty($input['colaborador_id']) || empty($input['fecha_evento']) || empty($input['hecho'])) {
-                return $this->failValidationErrors('Faltan datos requeridos.');
+            // Resolver empleado/proyecto
+            $empleadoId = (int)($postData['empleado_id'] ?? 0);
+            $proyectoId = (int)($postData['proyecto_id'] ?? 0);
+            $cedulaNorm = preg_replace('/\D+/', '', (string)($postData['cedula'] ?? ''));
+
+            if ($empleadoId <= 0 && $cedulaNorm !== '') {
+                $rowEmp = $db->table('tbl_empleados')->select('id')->where('numero_documento', $cedulaNorm)->get()->getRowArray();
+                if ($rowEmp) $empleadoId = (int)$rowEmp['id'];
+
+                if ($empleadoId > 0) {
+                    $rowCtr = $db->table('vw_empleado_contrato_activo')
+                        ->select('proyecto_id, empresa_usuaria')
+                        ->where('empleado_id', $empleadoId)->get()->getRowArray();
+                    if ($rowCtr) {
+                        $proyectoId = (int)($rowCtr['proyecto_id'] ?? 0);
+                        if (empty($postData['empresa_usuaria']) && !empty($rowCtr['empresa_usuaria'])) {
+                            $postData['empresa_usuaria'] = (string)$rowCtr['empresa_usuaria'];
+                        }
+                    }
+                }
             }
 
-            // Si usas tu request custom:
-            // $data = StoreFurdRequest::validated($this->request, service('validation'));
-            $uc = new CreateFurd($this->model);
-            $result = $uc($input);
+            $payload = [
+                'empleado_id'     => $empleadoId ?: null,
+                'proyecto_id'     => $proyectoId ?: null,
+                'cedula'          => (string)($postData['cedula'] ?? ''),
+                'expedida_en'     => (string)($postData['expedida_en'] ?? ''),
+                'empresa_usuaria' => (string)($postData['empresa_usuaria'] ?? ''),
+                'nombre_completo' => (string)($postData['nombre_completo'] ?? ''),
+                'correo'          => (string)($postData['correo'] ?? ''),
+                'fecha_evento'    => $fechaConvertida,
+                'hora_evento'     => (string)($postData['hora'] ?? ''),
+                'superior'        => (string)($postData['superior'] ?? ''),
+                'hecho'           => (string)($postData['hecho'] ?? ''),
+                'estado'          => 'registrado',
+            ];
 
-            // Si viene de un formulario HTML -> redirigir
-            if ($this->request->is('web')) {
-                return redirect()->to('/furd')->with('success', 'Registro creado correctamente');
+            $id = (int)$fm->insert($payload, true);
+            if ($id <= 0) {
+                throw new \RuntimeException('No se pudo crear el FURD (ID=0).');
             }
 
-            // Si viene de una API -> responder JSON
-            return $this->respondCreated($result);
+            $consecutivo = sprintf('PD-%06d', $id);
+            $fm->update($id, ['consecutivo' => $consecutivo]);
 
+            // Faltas
+            $faltas = (array)($postData['faltas'] ?? []);
+            if ($id > 0 && !empty($faltas)) {
+                (new \App\Models\FurdFaltaModel())->syncFaltas($id, $faltas);
+            }
+
+            // 4) Adjuntos -> Google Drive
+            $meta = session('temp_evidencias_meta') ?? [];
+            if ($meta) {
+                $root = (string) env('GDRIVE_ROOT', 'FURD');
+                $g    = new \App\Libraries\GDrive();
+
+                // Carpeta: FURD/AAAA/{id}
+                $folderPath = rtrim($root, '/') . '/' . date('Y') . '/' . $id;
+                $parentId   = $g->ensurePath($folderPath);
+
+                $am = new \App\Models\FurdAdjuntoModel();
+
+                foreach ($meta as $m) {
+                    $src  = $tmpDir . '/' . $m['tmp'];
+                    if (!is_file($src)) continue;
+
+                    // hash para dedupe opcional
+                    $sha1 = @sha1_file($src) ?: null;
+
+                    $up = $g->upload($src, $m['original'], $m['mime'], $parentId);
+
+                    // limpia tmp
+                    @unlink($src);
+
+                    $am->insert([
+                        'origen'                => 'furd',
+                        'origen_id'             => $id,
+                        'fase'                  => 'registro',
+                        'nombre_original'       => $m['original'],
+                        'ruta'                  => $folderPath . '/' . $m['original'], // ruta "lógica"
+                        'mime'                  => $m['mime'],
+                        'tamano_bytes'          => (int)$m['size'],
+                        'sha1'                  => $sha1,
+                        'storage_provider'      => 'gdrive',
+                        'drive_file_id'         => $up['id'],
+                        'drive_web_view_link'   => $up['webViewLink'] ?? null,
+                        'drive_web_content_link' => $up['webContentLink'] ?? null,
+                        'created_at'            => date('Y-m-d H:i:s'),
+                    ]);
+                }
+
+                session()->remove('temp_evidencias');
+                session()->remove('temp_evidencias_meta');
+            }
+
+            $db->transComplete();
+
+            return redirect()
+                ->to(site_url('citacion'))
+                ->with('ok', "Registro creado con consecutivo {$consecutivo}. Continúa con la Citación.")
+                ->with('consecutivo', $consecutivo);
         } catch (\Throwable $e) {
-            return $this->failValidationErrors($e->getMessage());
+            log_message('error', 'Error al guardar FURD: ' . $e->getMessage());
+            $db->transRollback();
+            return redirect()->back()->with('errors', [$e->getMessage()])->withInput();
         }
     }
 
-    // ✅ Actualizar (solo API)
-    public function update($id = null)
+
+
+
+
+    /** (opcional) elimina todo el proceso */
+    public function destroy(int $id)
     {
+        $fm = new FurdModel();
+        $row = $fm->find($id);
+        if (!$row) return redirect()->back()->with('errors', ['Proceso no existe']);
+
+        $db = db_connect();
+        $db->transStart();
         try {
-            $data = UpdateFurdRequest::validated($this->request, service('validation'));
-            $uc = new UpdateUC($this->model);
-            return $this->respond($uc((int)$id, $data));
+            // Elimina pivote de faltas y adjuntos
+            (new FurdFaltaModel())->deleteByFurd($id);
+            (new FurdAdjuntoModel())->deleteByFurd($id);
+            // Elimina fases si las manejas en tablas separadas
+            db_connect()->table('tbl_furd_citacion')->where('furd_id', $id)->delete();
+            db_connect()->table('tbl_furd_descargos')->where('furd_id', $id)->delete();
+            db_connect()->table('tbl_furd_soporte')->where('furd_id', $id)->delete();
+            db_connect()->table('tbl_furd_decision')->where('furd_id', $id)->delete();
+            // Elimina el proceso
+            $fm->delete($id);
+
+            $db->transComplete();
+            return redirect()->to(site_url('seguimiento'))->with('ok', 'Proceso eliminado');
         } catch (\Throwable $e) {
-            return $this->failValidationErrors($e->getMessage());
+            $db->transRollback();
+            return redirect()->back()->with('errors', [$e->getMessage()]);
         }
     }
 
-    // ✅ Eliminar (solo API)
-    public function delete($id = null)
+    /** (AJAX) Adjuntar/Desasociar faltas si decides hacerlo en la vista vía XHR */
+    public function attachFalta(int $furdId)
     {
-        $uc = new DeleteUC($this->model, new FurdFaltaModel(), new AdjuntoModel());
-        $ok = $uc((int)$id);
-        return $ok
-            ? $this->respondDeleted(['id' => (int)$id])
-            : $this->failServerError('No se pudo borrar');
+        $faltaId = (int)$this->request->getPost('falta_id');
+        if (!$faltaId) return $this->response->setJSON(['ok' => false, 'msg' => 'Falta inválida']);
+        (new FurdFaltaModel())->attach($furdId, $faltaId);
+        return $this->response->setJSON(['ok' => true]);
     }
 
-    // ✅ Métodos extra (API)
-    public function attachFalta($id)
+    public function detachFalta(int $furdId, int $faltaId)
     {
-        $faltaId = (int)($this->request->getJSON(true)['falta_id'] ?? 0);
-        if (!$faltaId) return $this->failValidationErrors('falta_id requerido');
-        $uc = new AttachFalta(new FurdFaltaModel());
-        $uc((int)$id, $faltaId);
-        return $this->respond(['ok' => true]);
+        (new FurdFaltaModel())->detach($furdId, $faltaId);
+        return $this->response->setJSON(['ok' => true]);
     }
 
-    public function detachFalta($id, $faltaId)
+    public function adjuntos()
     {
-        $uc = new DetachFalta(new FurdFaltaModel());
-        $uc((int)$id, (int)$faltaId);
-        return $this->respond(['ok' => true]);
-    }
+        $consec = (string) $this->request->getGet('consecutivo');
 
-    public function uploadAdjunto($id)
-    {
-        $file = $this->request->getFile('file');
-        if (!$file || !$file->isValid()) return $this->failValidationErrors('Archivo inválido');
-        $uc = new UploadAdjunto(new AdjuntoModel());
-        $row = $uc((int)$id, $file, 'api');
-        return $this->respondCreated($row);
-    }
+        // Si no mandan consecutivo, devolvemos array vacío
+        if ($consec === '') {
+            return $this->response->setJSON([]);
+        }
 
-    public function deleteAdjunto($idAdj)
-    {
-        $uc = new DeleteAdjunto(new AdjuntoModel());
-        $uc((int)$idAdj);
-        return $this->respondDeleted(['id' => (int)$idAdj]);
+        $furd = (new FurdModel())->findByConsecutivo($consec);
+        if (!$furd) {
+            // El JS ya está preparado para recibir [] en caso de error
+            return $this->response->setJSON([]);
+        }
+
+        // Por defecto, trae adjuntos de la fase citación, que es lo que quieres mostrar en descargos.
+        $fase = (string) $this->request->getGet('fase') ?: 'citacion';
+
+        $rows = (new FurdAdjuntoModel())->listByFase((int) $furd['id'], $fase);
+
+        // Normalizamos a [{ nombre, mime, tamano, url }]
+        $out = array_map(static function (array $row) {
+            return [
+                'nombre' => $row['nombre']    ?? $row['filename']    ?? 'archivo',
+                'mime'   => $row['mime']      ?? $row['mimetype']    ?? '',
+                'tamano' => $row['tamano']    ?? $row['size']        ?? null,
+                'url'    => base_url('adjuntos/' . $row['id'] . '/open'),
+                // si tu tabla tiene otros campos, los puedes mapear aquí
+            ];
+        }, $rows ?? []);
+
+        return $this->response->setJSON($out);
     }
 }

@@ -2,57 +2,72 @@
 
 use CodeIgniter\Router\RouteCollection;
 
-/**
- * @var RouteCollection $routes
- */
+/** @var RouteCollection $routes */
+
 $routes->get('/', 'FurdController::index');
 
+/** Lookup de empleados por cédula (JSON) */
 $routes->get('empleados/lookup/(:segment)', 'EmpleadoLookupController::getByCedula/$1');
 
 
-$routes->group('contratos', static function ($routes) {
-    $routes->get('/',      'Api\ContratosController::index');
-    $routes->get('(:num)', 'Api\ContratosController::show/$1');
-});
-
-
-
-// $routes->resource('furd', [
-//     'controller' => 'FurdController',
-//     'only' => ['index','show','create','update','delete'],
-// ]);
-$routes->post('furd/(:num)/faltas',          'Api\FurdController::attachFalta/$1');
-$routes->delete('furd/(:num)/faltas/(:num)', 'Api\FurdController::detachFalta/$1/$2');
-$routes->post('furd/(:num)/adjuntos',        'Api\FurdController::uploadAdjunto/$1');
-$routes->delete('furd/adjuntos/(:num)',      'Api\FurdController::deleteAdjunto/$1');
-
+/** Registro FURD (fase 1) */
 $routes->get('furd', 'FurdController::index');
-$routes->get('furd/create', 'FurdController::form');
-$routes->post('furd', 'FurdController::store'); 
-$routes->post('furd', 'FurdController::create');
-$routes->get('furd/(:num)', 'FurdController::show/$1');
-$routes->put('furd/(:num)', 'FurdController::update/$1');
-$routes->delete('furd/(:num)', 'FurdController::delete/$1');
+$routes->post('furd', 'FurdController::store');
+$routes->delete('furd/(:num)', 'FurdController::destroy/$1');    // elimina proceso entero
+$routes->get('furd/adjuntos', 'FurdController::adjuntos');
+$routes->post('furd/(:num)/faltas', 'FurdController::attachFalta/$1');              // AJAX opcional
+$routes->delete('furd/(:num)/faltas/(:num)', 'FurdController::detachFalta/$1/$2');  // AJAX opcional
+$routes->get('furd/adjuntos', 'FurdController::adjuntos');
 
-// CITACIÓN (esta es la nueva vista)
-$routes->get('citacion',               'CitacionController::create');
-$routes->post('citacion',              'CitacionController::store');
-$routes->get('citacion/adjuntos/(:num)','CitacionController::adjuntosByFurd/$1');
+$routes->get('files/furd/(:segment)/(:any)', 'FileController::furd/$1/$2');
 
-// Cargos y Descargos
-$routes->get('cargos-descargos',  'CargosDescargosController::create');
-$routes->post('cargos-descargos', 'CargosDescargosController::store');
+$routes->get('adjuntos/(:num)/download', 'AdjuntosController::download/$1');
+$routes->post('adjuntos/(:num)/delete', 'AdjuntosController::delete/$1');
+$routes->get('adjuntos/(:num)/open', 'AdjuntosController::open/$1');
 
-// Soporte de citación y acta
-$routes->get('soporte',  'SoporteController::create');
+
+/** Citación (fase 2) */
+$routes->get('citacion', 'CitacionController::create');
+$routes->get('citacion/find', 'CitacionController::find'); // AJAX
+$routes->post('citacion', 'CitacionController::store');
+$routes->post('citacion/(:num)', 'CitacionController::update/$1'); // usa POST por simplicidad en formularios
+
+/** Descargos (fase 3) */
+$routes->get('descargos', 'DescargosController::create');
+$routes->get('descargos/find', 'DescargosController::find'); // AJAX
+$routes->post('descargos', 'DescargosController::store');
+$routes->post('descargos/(:num)', 'DescargosController::update/$1');
+
+/** Soporte citación y acta (fase 4) */
+$routes->get('soporte', 'SoporteController::create');
+$routes->get('soporte/find', 'SoporteController::find'); // AJAX
 $routes->post('soporte', 'SoporteController::store');
+$routes->post('soporte/(:num)', 'SoporteController::update/$1');
 
-// Decisión
-$routes->get('decision',  'DecisionController::create');
+/** Decisión (fase 5) */
+$routes->get('decision', 'DecisionController::create');
+$routes->get('decision/find', 'DecisionController::find'); // (AJAX)
 $routes->post('decision', 'DecisionController::store');
+$routes->post('decision/(:num)', 'DecisionController::update/$1');
+
+/** (Ya los tienes) Seguimiento / Línea temporal, Ajustes, etc. (si los vas a exponer ahora) */
+// $routes->get('seguimiento', 'SeguimientoController::index');
+// $routes->get('linea/(:segment)', 'LineaTemporalController::show/$1');
+
 
 // Seguimiento (listado de solicitudes)
 $routes->get('seguimiento', 'SeguimientoController::index', ['as' => 'seguimiento.index']);
 
 // Línea de tiempo (detalle por consecutivo o id)
-$routes->get('linea-tiempo/(:segment)', 'LineaTiempoController::show/$1', ['as' => 'linea_tiempo.show']);
+// $routes->get('linea-tiempo/(:segment)', 'LineaTiempoController::show/$1', ['as' => 'linea_tiempo.show']);
+$routes->get('linea-tiempo/(:segment)', 'LineaTiempoController::show/$1');
+
+
+// Ajustes 
+
+// Faltas 
+$routes->get('ajustes/faltas', 'RitFaltaController::index');
+$routes->post('ajustes/faltas', 'RitFaltaController::create');
+$routes->get('ajustes/faltas/(:num)/edit', 'RitFaltaController::edit/$1');
+$routes->post('ajustes/faltas/(:num)', 'RitFaltaController::update/$1');
+$routes->post('ajustes/faltas/(:num)/delete', 'RitFaltaController::delete/$1');

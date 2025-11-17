@@ -1,22 +1,242 @@
-/* Scope exclusivo para FURD */
-.page-furd .scroll-area .list-group-item:hover{
+/* =========================================================
+   🌿 Estilos exclusivos para página FURD
+   ========================================================= */
+
+/* ===== Hover general en listados ===== */
+.page-furd .scroll-area .list-group-item:hover {
   background: var(--sage);
   transform: scale(1.01);
 }
 
-/* Toolbar y chips de selección de faltas */
-.page-furd .faltas-toolbar{
-  border-top: 1px dashed rgba(0,0,0,.12);
+/* =========================================================
+   🧭 Toolbar y chips de selección de faltas
+   ========================================================= */
+.page-furd .faltas-toolbar {
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
   background: linear-gradient(180deg, #ffffff 0%, #f5fbf7 100%);
-  padding: .8rem 1rem;
+  padding: 0.8rem 1rem;
   border-radius: var(--r-md);
 }
-.page-furd .faltas-pill{
-  border-radius:999px;
-  font-weight:700;
-  padding:.38rem .65rem;
-  background:#eefcf6;
-  color:#065f46;
-  border:1px solid rgba(16,185,129,.28);
-  box-shadow: 0 1px 0 rgba(0,0,0,.04);
+
+.page-furd .faltas-pill {
+  border-radius: 999px;
+  font-weight: 700;
+  padding: 0.38rem 0.65rem;
+  background: #eefcf6;
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* =========================================================
+   🧩 Chips de faltas seleccionadas - Diseño moderno
+   ========================================================= */
+
+#faltasPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.faltas-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+  line-height: 1;
+  cursor: default;
+  user-select: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Efecto hover */
+.faltas-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+/* Animación al aparecer */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.faltas-pill {
+  animation: fadeInScale 0.25s ease;
+}
+
+/* === Colores según gravedad === */
+
+/* Gravísima */
+.faltas-pill.gravisima {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.faltas-pill.gravisima:hover {
+  background: #fecaca;
+}
+
+/* Grave */
+.faltas-pill.grave {
+  background: #fff4d7;
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.faltas-pill.grave:hover {
+  background: #ffe8b3;
+}
+
+/* Leve */
+.faltas-pill.leve {
+  background: #e6fdf4;
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.faltas-pill.leve:hover {
+  background: #d1fae5;
+}
+
+/* Secundario (fallback) */
+.faltas-pill.default {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+/* Ícono de eliminar (opcional) */
+.faltas-pill .bi-x-circle {
+  font-size: 0.95rem;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+.faltas-pill .bi-x-circle:hover {
+  opacity: 1;
+}
+
+/* =========================================================
+   📋 Listado de faltas - visual unificado
+   ========================================================= */
+
+.page-furd .scroll-area .list-group-item {
+  border: none;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  transition: all 0.2s ease;
+  padding: 0.65rem 0.8rem;
+}
+
+.page-furd .scroll-area .list-group-item:hover {
+  background: #f8fafc;
+  transform: scale(1.01);
+}
+
+/* --- Cabecera (código + gravedad) --- */
+.page-furd .list-group-item .falta-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2px;
+}
+
+.page-furd .list-group-item .falta-codigo {
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9rem;
+  color: #2563eb;
+  letter-spacing: 0.2px;
+}
+
+/* =========================================================
+   ⚠️ Gravedad con emoji y círculo colorido
+   ========================================================= */
+
+.page-furd .falta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  background: #f9fafb;
+  color: #334155;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease;
+}
+
+/* Gravísima */
+.page-furd .falta-badge.gravisima {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.page-furd .falta-badge.gravisima::before {
+  content: "🚨";
+  font-size: 0.9rem;
+}
+
+/* Grave */
+.page-furd .falta-badge.grave {
+  background: #fff4d7;
+  color: #92400e;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.page-furd .falta-badge.grave::before {
+  content: "⚠️";
+  font-size: 0.9rem;
+}
+
+/* Leve */
+.page-furd .falta-badge.leve {
+  background: #e6fdf4;
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.page-furd .falta-badge.leve::before {
+  content: "✅";
+  font-size: 0.9rem;
+}
+
+/* Hover sutil */
+.page-furd .falta-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================================================
+   ✏️ Descripción de la falta
+   ========================================================= */
+.page-furd .list-group-item .falta-desc {
+  font-size: 0.88rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.falta-gravedad-text {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+#faltasList {
+  overflow-x: hidden !important;
+}
+
+.is-invalid {
+  border-color: #dc3545 !important;
+  box-shadow: 0 0 0 .2rem rgba(220,53,69,.25);
 }

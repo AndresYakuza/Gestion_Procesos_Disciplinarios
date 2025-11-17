@@ -1,102 +1,157 @@
 <?php
+
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
-use App\Models\AdjuntoModel;
+use App\Controllers\Traits\HandlesAdjuntos;
+use App\Models\FurdModel;
+use App\Models\FurdCitacionModel;
+use App\Models\FurdAdjuntoModel;
+use App\Requests\FurdCitacionRequest;
+use App\Services\FurdWorkflow;
 
 class CitacionController extends BaseController
 {
-    protected $helpers = ['url', 'form', 'text'];
+    use HandlesAdjuntos;
 
-    /**
-     * GET /citacion
-     * Muestra el formulario de citación.
-     * Si viene ?furd_id=123, precarga los adjuntos de ese FURD.
-     */
-    public function create(): string
+    public function create()
     {
-        $furdId   = (int) ($this->request->getGet('furd_id') ?? 0);
-        $adjuntos = [];
-
-        if ($furdId > 0) {
-            $adjuntos = (new AdjuntoModel())
-                ->where(['origen' => 'furd', 'origen_id' => $furdId])
-                ->orderBy('id', 'desc')
-                ->findAll();
-        }
-
-        // Ajusta el nombre de la vista a como la tengas: 'citacion/index' o 'citacion/create'
-        return view('citacion/index', [
-            'titulo'   => 'Generar citación',
-            'furd_id'  => $furdId,
-            'adjuntos' => $adjuntos,
-        ]);
+        return view('citacion/create');
     }
 
-    /**
-     * POST /citacion
-     * Procesa el formulario (por ahora stub: valida y redirige con flash).
-     * En la siguiente iteración guardamos en BD y generamos PDF.
-     */
+    /** AJAX: busca por consecutivo y devuelve adjuntos del registro */
+    public function find()
+    {
+        $consec = (string)$this->request->getGet('consecutivo');
+        $furd = (new FurdModel())->findByConsecutivo($consec);
+        if (!$furd) return $this->response->setJSON(['ok' => false]);
+
+        $adj = (new FurdAdjuntoModel())->listByFase((int)$furd['id'], 'registro');
+        return $this->response->setJSON(['ok' => true, 'furd' => $furd, 'adjuntos' => $adj]);
+    }
+
     public function store()
     {
-        $data = $this->request->getPost();
 
-        // Normaliza fecha dd/mm/yyyy → yyyy-mm-dd (si llega así)
-        if (!empty($data['fecha']) && preg_match('~^\d{2}/\d{2}/\d{4}$~', $data['fecha'])) {
-            [$d, $m, $y] = explode('/', $data['fecha']);
-            $data['fecha'] = sprintf('%04d-%02d-%02d', $y, $m, $d);
-        }
-        // Normaliza hora a HH:MM
-        if (!empty($data['hora']) && preg_match('~^\d{1,2}:\d{2}~', $data['hora'])) {
-            [$h, $mm] = explode(':', $data['hora']);
-            $data['hora'] = sprintf('%02d:%02d', (int) $h, (int) $mm);
-        }
+        $rawFecha = trim((string)$this->request->getPost('fecha_evento'));
 
-        $rules = [
-            'consecutivo' => 'permit_empty|max_length[50]',
-            'fecha'       => 'required|valid_date[Y-m-d]',
-            'hora'        => 'required|regex_match[/^\d{2}:\d{2}$/]',
-            'medio'       => 'required|in_list[email,telefono,whatsapp,presencial,otro]',
-            'hecho'       => 'required|min_length[10]',
-            'furd_id'     => 'permit_empty|is_natural_no_zero',
+        $fechaTexto = mb_strtolower($rawFecha, 'UTF-8');
+        $fechaTexto = strtr($fechaTexto, [
+            'á' => 'a',
+            'é' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ú' => 'u',
+        ]);
+
+        // quitar días de la semana y la palabra "de"
+        $fechaTexto = str_ireplace(
+            ['lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado', 'domingo', ' de '],
+            ' ',
+            $fechaTexto
+        );
+
+        // quitar comas dobles espacios, etc.
+        $fechaTexto = str_replace(',', ' ', $fechaTexto);
+        $fechaTexto = preg_replace('/\s+/', ' ', trim($fechaTexto));
+
+        $map = [
+            'enero' => 'january',
+            'febrero' => 'february',
+            'marzo' => 'march',
+            'abril' => 'april',
+            'mayo' => 'may',
+            'junio' => 'june',
+            'julio' => 'july',
+            'agosto' => 'august',
+            'septiembre' => 'september',
+            'setiembre' => 'september',
+            'octubre' => 'october',
+            'noviembre' => 'november',
+            'diciembre' => 'december',
         ];
 
-        if (!$this->validate($rules)) {
+        $fechaIngles = str_ireplace(array_keys($map), array_values($map), $fechaTexto);
+        $timestamp   = strtotime($fechaIngles);
+
+        if ($timestamp === false) {
             return redirect()->back()
-                ->with('errors', $this->validator->getErrors())
+                ->with('errors', ['fecha' => 'La fecha de citación no es válida.'])
                 ->withInput();
         }
 
-        // TODO: guardar en BD (CitacionModel) y generar PDF / notificación.
-        // $id = (new CitacionModel())->insert([...], true);
+        $fechaConvertida = date('Y-m-d', $timestamp);
+        $_POST['fecha_evento']  = $fechaConvertida;
 
-        return redirect()->to(site_url('citacion'))
-            ->with('success', 'Citación generada (demo). Guardado en BD y PDF se implementará en el siguiente paso.');
+
+        // 3) Obtener FURD
+        $consec = (string)$this->request->getPost('consecutivo');
+        $furd   = (new FurdModel())->findByConsecutivo($consec);
+        if (!$furd) return redirect()->back()->with('errors', ['FURD no encontrado'])->withInput();
+
+        $wf = new FurdWorkflow();
+        if (!$wf->canStartCitacion($furd)) {
+            return redirect()->back()->with('errors', ['La fase previa (registro) no está completa o ya existe citación.'])->withInput();
+        }
+
+
+        // 4) Guardar
+        $db = db_connect();
+        $db->transStart();
+
+        try {
+            $cit = new FurdCitacionModel();
+            $payload = [
+                'furd_id' => (int)$furd['id'],
+                'fecha_evento'   => $fechaConvertida,
+                'hora'    => (string)$this->request->getPost('hora'),
+                'medio'   => (string)$this->request->getPost('medio'),
+                'motivo'  => (string)$this->request->getPost('motivo'),
+            ];
+            $cit->insert($payload);
+
+            // Adjuntos fase citación
+            $files = $this->request->getFiles()['adjuntos'] ?? [];
+            if (!empty($files)) {
+                $this->saveAdjuntos((int)$furd['id'], 'citacion', is_array($files) ? $files : [$files]);
+            }
+
+            $db->transComplete();
+            return redirect()->to(site_url('descargos'))->with('ok', 'Citación registrada. Continúa con Descargos.');
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            return redirect()->back()->with('errors', [$e->getMessage()])->withInput();
+        }
     }
 
-    /**
-     * GET /citacion/adjuntos/{furdId}
-     * Endpoint JSON para que la vista consulte los adjuntos de un FURD.
-     */
-    public function adjuntosByFurd(int $furdId)
+
+    public function update(int $id)
     {
-        $rows = (new AdjuntoModel())
-            ->where(['origen' => 'furd', 'origen_id' => $furdId])
-            ->orderBy('id', 'desc')
-            ->findAll();
+        $rules = FurdCitacionRequest::rules();
+        $messages = FurdCitacionRequest::messages();
 
-        // Devuelve lo esencial; ajusta "url" según tu ruta de descarga
-        $items = array_map(static function ($r) {
-            return [
-                'id'           => (int) ($r['id'] ?? 0),
-                'nombre'       => $r['nombre_original'] ?? ($r['ruta'] ?? 'archivo'),
-                'mime'         => $r['mime'] ?? null,
-                'tamano_bytes' => isset($r['tamano_bytes']) ? (int) $r['tamano_bytes'] : null,
-                'ruta'         => $r['ruta'] ?? null,
-            ];
-        }, $rows);
+        if (!$this->validate($rules, $messages)) {
+            return redirect()->back()->with('errors', $this->validator->getErrors())->withInput();
+        }
 
-        return $this->response->setJSON(['items' => $items]);
+        $cit = new FurdCitacionModel();
+        $row = $cit->find($id);
+        if (!$row) return redirect()->back()->with('errors', ['Registro no existe']);
+
+        $payload = [
+            'fecha_evento'   => (string)$this->request->getPost('fecha_evento'),
+            'hora'    => (string)$this->request->getPost('hora'),
+            'medio'   => (string)$this->request->getPost('medio'),
+            'motivo'  => (string)$this->request->getPost('motivo'),
+        ];
+        $cit->update($id, $payload);
+
+        // Adjuntos adicionales
+        $files = $this->request->getFiles()['adjuntos'] ?? [];
+        if (!empty($files)) {
+            $this->saveAdjuntos((int)$row['furd_id'], 'citacion', is_array($files) ? $files : [$files]);
+        }
+
+        return redirect()->back()->with('ok', 'Citación actualizada');
     }
 }
