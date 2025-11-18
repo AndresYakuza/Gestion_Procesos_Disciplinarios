@@ -1,4 +1,6 @@
-<?php namespace App\Controllers;
+<?php
+
+namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Controllers\Traits\HandlesAdjuntos;
@@ -18,12 +20,20 @@ class DecisionController extends BaseController
 
     public function store()
     {
-        // 1) Normalizar fecha_evento antes de validar
+        // 0) Normalizar fecha_evento antes de validar
         $rawFecha = trim((string)$this->request->getPost('fecha_evento'));
 
         if ($rawFecha === '') {
+            $errors = ['fecha_evento' => 'La fecha de la decisión es obligatoria.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response
+                    ->setStatusCode(422)
+                    ->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
             return redirect()->back()
-                ->with('errors', ['fecha_evento' => 'La fecha de la decisión es obligatoria.'])
+                ->with('errors', $errors)
                 ->withInput();
         }
 
@@ -69,14 +79,22 @@ class DecisionController extends BaseController
         }
 
         if ($timestamp === false) {
+            $errors = ['fecha_evento' => 'La fecha de la decisión no es válida.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response
+                    ->setStatusCode(422)
+                    ->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
             return redirect()->back()
-                ->with('errors', ['fecha_evento' => 'La fecha de la decisión no es válida.'])
+                ->with('errors', $errors)
                 ->withInput();
         }
 
         $fechaConvertida = date('Y-m-d', $timestamp);
 
-        // 2) Validar con Request
+        // 1) Validar con Request
         $postData = $this->request->getPost();
         $postData['fecha_evento'] = $fechaConvertida;
 
@@ -84,34 +102,60 @@ class DecisionController extends BaseController
         $validation->setRules(FurdDecisionRequest::rules(), FurdDecisionRequest::messages());
 
         if (!$validation->run($postData)) {
+            $errors = $validation->getErrors();
+
+            if ($this->request->isAJAX()) {
+                return $this->response
+                    ->setStatusCode(422)
+                    ->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
             return redirect()->back()
-                ->with('errors', $validation->getErrors())
+                ->with('errors', $errors)
                 ->withInput();
         }
 
-        // 3) Buscar FURD por consecutivo
+        // 2) Buscar FURD por consecutivo (ya viene en formato PD-000123 del front)
         $consec = (string)$postData['consecutivo'];
         $furd   = (new FurdModel())->findByConsecutivo($consec);
         if (!$furd) {
+            $errors = ['FURD no encontrado'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
             return redirect()->back()
-                ->with('errors', ['FURD no encontrado'])
+                ->with('errors', $errors)
                 ->withInput();
         }
 
-        // 4) Validar flujo (que ya exista soporte)
+        // 3) Validar flujo (que ya exista soporte)
         $wf = new FurdWorkflow();
         if (!$wf->canStartDecision($furd)) {
+            $errors = ['La fase previa (Soporte) no está completa o ya existe una decisión.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
             return redirect()->back()
-                ->with('errors', ['Primero registra el soporte.'])
+                ->with('errors', $errors)
                 ->withInput();
         }
 
-        // 5) Evitar decisión duplicada para el mismo FURD
+        // 4) Evitar decisión duplicada para el mismo FURD
         $decisionModel = new FurdDecisionModel();
         $existing      = $decisionModel->findByFurd((int)$furd['id'] ?? 0);
         if ($existing) {
+            $errors = ['Ya existe una decisión registrada para este proceso.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
             return redirect()->back()
-                ->with('errors', ['Ya existe una decisión registrada para este proceso.'])
+                ->with('errors', $errors)
                 ->withInput();
         }
 
@@ -119,7 +163,7 @@ class DecisionController extends BaseController
         $db->transStart();
 
         try {
-            // Construir texto final: tipo + detalle
+            // 5) Construir texto final: tipo + detalle
             $tipo    = (string)$postData['decision'];
             $detalle = trim((string)($postData['decision_text'] ?? ''));
 
@@ -136,27 +180,49 @@ class DecisionController extends BaseController
 
             $id = (int)$decisionModel->insert($payload, true);
 
-            // Adjuntos fase decision -> Google Drive (via HandlesAdjuntos)
+            // 6) Adjuntos fase decision -> Google Drive (via HandlesAdjuntos)
             $files = $this->request->getFiles()['adjuntos'] ?? [];
             if (!empty($files)) {
                 $this->saveAdjuntos((int)$furd['id'], 'decision', is_array($files) ? $files : [$files]);
             }
 
-            // No es necesario actualizar estado aquí: lo hace el trigger
-            // trg_decision_ai_estado en la BD
-
+            // Estado lo maneja el trigger en BD
             $db->transComplete();
+
+            $mensajeOk = 'Decisión registrada. Proceso finalizado.';
+
+            if ($this->request->isAJAX()) {
+                // Flash para el siguiente GET
+                session()->setFlashdata('ok', $mensajeOk);
+                session()->setFlashdata('consecutivo', $consec);
+
+                return $this->response->setJSON([
+                    'ok'         => true,
+                    'redirectTo' => site_url('seguimiento'),
+                ]);
+            }
 
             return redirect()
                 ->to(site_url('seguimiento'))
-                ->with('ok', 'Decisión registrada. Proceso finalizado.');
+                ->with('ok', $mensajeOk)
+                ->with('consecutivo', $consec);
         } catch (\Throwable $e) {
             $db->transRollback();
+
+            $errors = [$e->getMessage()];
+
+            if ($this->request->isAJAX()) {
+                return $this->response
+                    ->setStatusCode(500)
+                    ->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
             return redirect()->back()
-                ->with('errors', [$e->getMessage()])
+                ->with('errors', $errors)
                 ->withInput();
         }
     }
+
 
     public function update(int $id)
     {
@@ -171,7 +237,11 @@ class DecisionController extends BaseController
 
         $fechaTexto = mb_strtolower($rawFecha, 'UTF-8');
         $fechaTexto = strtr($fechaTexto, [
-            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+            'á' => 'a',
+            'é' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ú' => 'u',
         ]);
         $fechaTexto = str_replace(',', ' ', $fechaTexto);
         $fechaTexto = preg_replace('/\s+/', ' ', trim($fechaTexto));
@@ -249,7 +319,7 @@ class DecisionController extends BaseController
         return redirect()->back()->with('ok', 'Decisión actualizada');
     }
 
-        public function find()
+    public function find()
     {
         $consec = (string) $this->request->getGet('consecutivo');
         $furd   = (new FurdModel())->findByConsecutivo($consec);
@@ -265,7 +335,7 @@ class DecisionController extends BaseController
         $prev = [
             'registro' => $am->listByFase($fid, 'registro'),
             'citacion' => $am->listByFase($fid, 'citacion'),
-            'descargos'=> $am->listByFase($fid, 'descargos'),
+            'descargos' => $am->listByFase($fid, 'descargos'),
             'soporte'  => $am->listByFase($fid, 'soporte'),
             'decision' => $am->listByFase($fid, 'decision'),
         ];
@@ -276,5 +346,4 @@ class DecisionController extends BaseController
             'prevAdj' => $prev,
         ]);
     }
-
 }

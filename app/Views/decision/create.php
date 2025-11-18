@@ -7,7 +7,6 @@
 <?= $this->section('content'); ?>
 
 <?php
-// fallback por si el controlador no pasa el catálogo
 $decisiones = $decisiones ?? [
   'Llamado de atención',
   'Suspensión disciplinaria',
@@ -143,19 +142,39 @@ $msg    = session('msg') ?? null;
           </div>
         </div>
 
-        <div class="row g-3 mt-1">
-          <!-- Soporte subida -->
-          <div class="col-12 col-md-6 col-lg-4">
-            <label class="form-label">Soporte firmado (opcional)</label>
-            <input
-              id="dec_soporte"
-              name="adjuntos[]"
-              type="file"
-              class="form-control"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xlsx,.xls"
-            >
-            <div class="form-text">Puedes adjuntar uno o varios documentos de decisión firmados.</div>
+        <!-- Uploader de soportes -->
+        <div class="section-header mt-3">
+          <i class="bi bi-paperclip me-1"></i>
+          <h6>Soportes de decisión (Obligatorio)</h6>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-8">
+            <label class="form-label">Archivos de soporte</label>
+            <div class="dropzone text-center p-4 border" id="dzDecision">
+              <i class="bi bi-cloud-arrow-up fs-2 d-block mb-2"></i>
+              <div class="fw-semibold">Arrastra y suelta tus archivos aquí</div>
+              <div class="text-muted small">o haz clic para seleccionarlos desde tu equipo.</div>
+
+              <!-- input real, oculto -->
+              <input
+                id="dec_adjuntos"
+                name="adjuntos[]"
+                type="file"
+                class="d-none"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xls,.xlsx">
+            </div>
+            <div class="form-text">
+              Se permiten varios archivos (PDF, imágenes, Office). Máx. 16 MB por archivo.
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <div class="filelist border rounded p-2">
+              <div class="small text-muted mb-2">Archivos seleccionados para subir:</div>
+              <ul id="dec_fileList" class="list-unstyled mb-0"></ul>
+            </div>
           </div>
         </div>
 
@@ -185,159 +204,505 @@ $msg    = session('msg') ?? null;
   </div>
 </div>
 
+<!-- Toasts por si el layout no los tiene -->
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000;"></div>
+
+<!-- Loader global -->
+<div id="globalLoader" class="loader-overlay d-none">
+  <div class="loader-content">
+    <lottie-player
+      class="loader-lottie"
+      src="<?= base_url('assets/lottie/dancing_dog.json') ?>"
+      background="transparent"
+      speed="1"
+      style="width: 220px; height: 220px;"
+      loop
+      autoplay>
+    </lottie-player>
+    <p class="loader-text mb-0 text-muted">
+      Guardando decisión, por favor espera…
+    </p>
+  </div>
+</div>
+
 <?= $this->endSection(); ?>
 
 <?= $this->section('scripts'); ?>
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <script>
-  (() => {
-    const $cons  = document.getElementById('dec_consecutivo');
-    const $btn   = document.getElementById('btnDecBuscar');
-    const $grid  = document.getElementById('dec_prev_adjuntos');
-    const baseFind = '<?= base_url('decision/find'); ?>';
+(() => {
+  const PREFIX = 'PD-';
+  const baseFind = '<?= base_url('decision/find'); ?>';
 
-    function notify(msg, type = 'info', ms = 3800) {
-      if (typeof showToast === 'function') {
-        showToast(msg, type, ms);
-      } else {
-        console[type === 'error' ? 'error' : 'log'](msg);
-        alert(msg);
-      }
-    }
+  const form         = document.getElementById('decForm');
+  const consecutivo  = document.getElementById('dec_consecutivo');
+  const btnBuscar    = document.getElementById('btnDecBuscar');
+  const prevWrap     = document.getElementById('dec_prev_wrap');
+  const prevGrid     = document.getElementById('dec_prev_adjuntos');
+  const dz           = document.getElementById('dzDecision');
+  const adjuntos     = document.getElementById('dec_adjuntos');
+  const fileList     = document.getElementById('dec_fileList');
+  const btnGuardar   = document.getElementById('btnDecGuardar');
+  const globalLoader = document.getElementById('globalLoader');
 
-    const iconByMime = (mime = '') => {
-      mime = mime.toLowerCase();
-      if (mime.includes('pdf'))   return 'bi-filetype-pdf text-danger';
-      if (mime.includes('image')) return 'bi-image text-success';
-      if (mime.includes('excel') || mime.includes('spreadsheet')) return 'bi-filetype-xls text-success';
-      if (mime.includes('word') || mime.includes('msword'))       return 'bi-filetype-doc text-primary';
-      return 'bi-file-earmark text-muted';
+  const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
+  const ALLOWED_EXT = ['pdf','jpg','jpeg','png','heic','doc','docx','xls','xlsx'];
+
+  const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
+  const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+  // Toast simple (si no existe showToast global)
+  function showToast(message, type = 'info') {
+    const colors = {
+      success: 'bg-success text-white',
+      error:   'bg-danger text-white',
+      warning: 'bg-warning text-dark',
+      info:    'bg-info text-dark',
+    };
+    const icon = {
+      success: 'bi-check-circle-fill',
+      error:   'bi-x-circle-fill',
+      warning: 'bi-exclamation-triangle-fill',
+      info:    'bi-info-circle-fill',
     };
 
-    // Render igual que en Soporte, pero con Soporte/Decisión también
-    function renderAdjuntosExistentes(prevAdj) {
-      $grid.innerHTML = '';
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center border-0 show ${colors[type]} mt-2 shadow`;
+    toast.role = 'alert';
+    toast.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi ${icon[type]} me-2"></i>${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>`;
 
-      const fases = [
-        { key: 'registro', label: 'Fase 1 · Registro'   },
-        { key: 'citacion', label: 'Fase 2 · Citación'   },
-        { key: 'descargos', label: 'Fase 3 · Descargos' },
-        { key: 'soporte',  label: 'Fase 4 · Soporte'    },
-        { key: 'decision', label: 'Fase 5 · Decisión'   },
-      ];
+    const container =
+      document.getElementById('toastContainer') ||
+      (() => {
+        const c = document.createElement('div');
+        c.id = 'toastContainer';
+        c.className = 'toast-container position-fixed top-0 end-0 p-3';
+        c.style.zIndex = 2000;
+        document.body.appendChild(c);
+        return c;
+      })();
 
-      let tieneAlgo = false;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
 
-      fases.forEach(f => {
-        const arr = (prevAdj && prevAdj[f.key]) ? prevAdj[f.key] : [];
-        if (!arr.length) return;
+  const notify = (msg, type = 'info') => showToast(msg, type);
 
-        tieneAlgo = true;
+  // ----- Normalización PD- -----
+  const onlyDigits = (str) => (str || '').replace(/\D/g, '');
 
-        const header = document.createElement('div');
-        header.className = 'col-12';
-        header.innerHTML = `<h6 class="text-muted mb-2">${f.label}</h6>`;
-        $grid.appendChild(header);
+  function normalizeConsecutivoSixDigits(value) {
+    const digits = onlyDigits(String(value));
+    if (!digits) return '';
+    return PREFIX + digits.padStart(6, '0');
+  }
 
-        arr.forEach(it => {
-          const col    = document.createElement('div');
-          col.className = 'col-12 col-md-6 col-xl-4';
+  consecutivo?.addEventListener('focus', () => {
+    if (!consecutivo.value.trim()) {
+      consecutivo.value = PREFIX;
+      setTimeout(() => {
+        const len = consecutivo.value.length;
+        consecutivo.setSelectionRange(len, len);
+      }, 0);
+    }
+  });
 
-          const nombre = it.nombre_original || it.nombre || it.filename || `Adjunto #${it.id}`;
-          const mime   = it.mime || '';
-          const url    = it.url || it.display_url || '<?= base_url('adjuntos'); ?>/' + it.id + '/open';
+  consecutivo?.addEventListener('input', () => {
+    const digits = onlyDigits(consecutivo.value);
+    consecutivo.value = PREFIX + digits;
+  });
 
-          col.innerHTML = `
-            <div class="adj-card border rounded p-3 h-100 d-flex flex-column gap-2">
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi ${iconByMime(mime)} fs-4"></i>
-                <div class="small fw-semibold text-truncate" title="${nombre}">${nombre}</div>
-              </div>
-              <div class="small text-muted">${mime || 'archivo'}</div>
-              <div class="mt-auto">
-                <a class="btn btn-sm btn-outline-primary" href="${url}" target="_blank" rel="noopener">
-                  <i class="bi bi-box-arrow-up-right me-1"></i>Ver / Descargar
-                </a>
-              </div>
-            </div>`;
-          $grid.appendChild(col);
-        });
-      });
+  // ----- Adjuntos previos (registro/citación/descargos/soporte/decisión) -----
+  const iconByMime = (mime = '') => {
+    mime = mime.toLowerCase();
+    if (mime.includes('pdf'))   return 'bi-filetype-pdf text-danger';
+    if (mime.includes('image')) return 'bi-image text-success';
+    if (mime.includes('excel') || mime.includes('spreadsheet')) return 'bi-filetype-xls text-success';
+    if (mime.includes('word') || mime.includes('msword'))       return 'bi-filetype-doc text-primary';
+    return 'bi-file-earmark text-muted';
+  };
 
-      if (!tieneAlgo) {
-        $grid.innerHTML = `
-          <div class="col-12">
-            <div class="alert alert-secondary small mb-0">
-              Este proceso no tiene soportes previos.
+  function renderAdjuntosExistentes(prevAdj) {
+    if (!prevGrid) return;
+    prevGrid.innerHTML = '';
+
+    const fases = [
+      { key: 'registro', label: 'Fase 1 · Registro' },
+      { key: 'citacion', label: 'Fase 2 · Citación' },
+      { key: 'descargos',label: 'Fase 3 · Descargos' },
+      { key: 'soporte',  label: 'Fase 4 · Soporte' },
+      { key: 'decision', label: 'Fase 5 · Decisión' },
+    ];
+
+    let tieneAlgo = false;
+
+    fases.forEach(f => {
+      const arr = (prevAdj && prevAdj[f.key]) ? prevAdj[f.key] : [];
+      if (!arr.length) return;
+
+      tieneAlgo = true;
+
+      const header = document.createElement('div');
+      header.className = 'col-12';
+      header.innerHTML = `<h6 class="text-muted mb-2">${f.label}</h6>`;
+      prevGrid.appendChild(header);
+
+      arr.forEach(it => {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-md-6 col-xl-4';
+
+        const nombre = it.nombre_original || it.nombre || it.filename || `Adjunto #${it.id}`;
+        const mime   = it.mime || '';
+        const url    = it.url || it.display_url || '<?= base_url('adjuntos'); ?>/' + it.id + '/open';
+
+        col.innerHTML = `
+          <div class="adj-card border rounded p-3 h-100 d-flex flex-column gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi ${iconByMime(mime)} fs-4"></i>
+              <div class="small fw-semibold text-truncate" title="${nombre}">${nombre}</div>
+            </div>
+            <div class="small text-muted">${mime || 'archivo'}</div>
+            <div class="mt-auto">
+              <a class="btn btn-sm btn-outline-primary" href="${url}" target="_blank" rel="noopener">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Ver / Descargar
+              </a>
             </div>
           </div>`;
-      }
+        prevGrid.appendChild(col);
+      });
+    });
+
+    if (tieneAlgo) {
+      prevWrap?.classList.remove('d-none');
+    } else {
+      prevWrap?.classList.add('d-none');
+    }
+  }
+
+  async function buscar() {
+    if (!consecutivo) return;
+
+    const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+    if (!normalized) {
+      notify('Debes escribir un consecutivo válido (ej: PD-000123).', 'warning');
+      consecutivo.focus();
+      return;
     }
 
-    async function buscar() {
-      const id = ($cons.value || '').trim();
+    consecutivo.value = normalized;
+    consecutivo.classList.add('loading');
 
-      if (!id) {
-        notify('Ingresa un consecutivo para buscar.', 'info');
-        $cons.focus();
+    try {
+      const url = `${baseFind}?consecutivo=${encodeURIComponent(normalized)}`;
+      const res = await fetch(url);
+      const data = res.ok ? await res.json() : null;
+
+      if (!data || !data.ok) {
+        renderAdjuntosExistentes(null);
+        notify('No se encontró un FURD con ese consecutivo.', 'error');
         return;
       }
 
-      if (!/^PD-\d{6}$/i.test(id)) {
-        notify('Formato inválido. Usa algo como PD-000123.', 'error');
+      renderAdjuntosExistentes(data.prevAdj || {});
+      notify('Registro cargado correctamente.', 'success');
+    } catch (e) {
+      console.error(e);
+      renderAdjuntosExistentes(null);
+      notify('Ocurrió un error al consultar el FURD.', 'error');
+    } finally {
+      consecutivo.classList.remove('loading');
+    }
+  }
+
+  btnBuscar?.addEventListener('click', buscar);
+  consecutivo?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      buscar();
+    }
+  });
+
+  // ----- Adjuntos nuevos: validación + listado + recorte de nombres + quitar -----
+  const shortenName = (name, max = 28) => {
+    if (!name) return '';
+    if (name.length <= max) return name;
+
+    const dotIndex = name.lastIndexOf('.');
+    const hasExt   = dotIndex > 0;
+    const ext      = hasExt ? name.slice(dotIndex) : '';
+    const base     = hasExt ? name.slice(0, dotIndex) : name;
+
+    const maxBase = Math.max(8, max - ext.length - 1);
+    const start   = base.slice(0, maxBase);
+    return `${start}…${ext}`;
+  };
+
+  function refreshFileList() {
+    if (!fileList || !adjuntos) return;
+    fileList.innerHTML = '';
+
+    const files = Array.from(adjuntos.files || []);
+    if (!files.length) {
+      fileList.innerHTML = '<li class="text-muted small">No hay archivos seleccionados.</li>';
+      return;
+    }
+
+    files.forEach((f, idx) => {
+      const sizeMb      = (f.size / (1024 * 1024)).toFixed(2);
+      const displayName = shortenName(f.name);
+
+      const li = document.createElement('li');
+      li.className = 'd-flex flex-column gap-1 py-1 border-bottom';
+
+      li.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-paperclip"></i>
+          <span class="flex-grow-1 text-truncate file-name" title="${f.name}">${displayName}</span>
+          <span class="badge text-bg-light">${sizeMb} MB</span>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0 js-remove-file"
+                  data-file-idx="${idx}" title="Quitar archivo">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="progress mt-1" style="height:4px;">
+          <div class="progress-bar" role="progressbar" data-file-idx="${idx}" style="width:0%;"></div>
+        </div>`;
+      fileList.appendChild(li);
+    });
+  }
+
+  function handleAdjuntosChange() {
+    if (!adjuntos) return;
+    const dt = new DataTransfer();
+
+    Array.from(adjuntos.files || []).forEach((file) => {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const isAllowedExt  = ALLOWED_EXT.includes(ext);
+      const isAllowedSize = file.size <= MAX_FILE_SIZE;
+
+      if (!isAllowedExt) {
+        notify(
+          `El archivo "${file.name}" no está permitido. Solo se permiten imágenes (JPG, JPEG, PNG, HEIC), PDF y Office (DOC, DOCX, XLS, XLSX).`,
+          'warning'
+        );
         return;
       }
 
-      $cons.classList.add('loading');
+      if (!isAllowedSize) {
+        notify(
+          `El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`,
+          'warning'
+        );
+        return;
+      }
 
-      try {
-        const url = `${baseFind}?consecutivo=${encodeURIComponent(id)}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('No se pudo consultar el FURD.');
+      dt.items.add(file);
+    });
 
-        const data = await res.json();
-        if (!data.ok) {
-          renderAdjuntosExistentes(null);
-          throw new Error('No se encontró un FURD con ese consecutivo.');
+    adjuntos.files = dt.files;
+    refreshFileList();
+  }
+
+  adjuntos?.addEventListener('change', handleAdjuntosChange);
+
+  fileList?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-remove-file');
+    if (!btn || !adjuntos) return;
+
+    const idx = parseInt(btn.dataset.fileIdx, 10);
+    if (Number.isNaN(idx)) return;
+
+    const dt = new DataTransfer();
+    Array.from(adjuntos.files || []).forEach((file, i) => {
+      if (i !== idx) dt.items.add(file);
+    });
+
+    adjuntos.files = dt.files;
+    refreshFileList();
+
+    if (!dt.files.length) {
+      notify('Se han quitado todos los archivos seleccionados.', 'info');
+    }
+  });
+
+  // Dropzone click + drag&drop
+  if (dz && adjuntos) {
+    dz.addEventListener('click', () => adjuntos.click());
+
+    dz.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dz.classList.add('dragging');
+    });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragging'));
+    dz.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dz.classList.remove('dragging');
+      if (!e.dataTransfer?.files?.length) return;
+
+      const dt = new DataTransfer();
+      [...(adjuntos.files || []), ...e.dataTransfer.files].forEach(f => dt.items.add(f));
+      adjuntos.files = dt.files;
+      handleAdjuntosChange();
+    });
+  }
+
+  // ----- Progreso por archivo -----
+  let uploadFilesMeta = [];
+
+  const buildUploadMeta = () => {
+    if (!adjuntos) {
+      uploadFilesMeta = [];
+      return 0;
+    }
+
+    const files = Array.from(adjuntos.files || []);
+    let offset = 0;
+    uploadFilesMeta = files.map((file, idx) => {
+      const start = offset;
+      const end   = start + file.size;
+      offset = end;
+      return { index: idx, start, end, size: file.size };
+    });
+
+    return offset;
+  };
+
+  const updateUploadProgressBars = (loaded) => {
+    if (!uploadFilesMeta.length || !fileList) return;
+
+    uploadFilesMeta.forEach((meta) => {
+      const bar = fileList.querySelector(`.progress-bar[data-file-idx="${meta.index}"]`);
+      if (!bar) return;
+
+      let percent = 0;
+      if (loaded <= meta.start) {
+        percent = 0;
+      } else if (loaded >= meta.end) {
+        percent = 100;
+      } else {
+        percent = ((loaded - meta.start) / meta.size) * 100;
+      }
+
+      bar.style.width = `${percent}%`;
+    });
+  };
+
+  // ----- Envío AJAX con loader y manejo de errores sin perder adjuntos -----
+  if (form && btnGuardar) {
+    const spin = btnGuardar.querySelector('.spinner-border');
+    const txt  = btnGuardar.querySelector('.btn-text');
+    let sending = false;
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      // Normalizar consecutivo antes de enviar
+      if (consecutivo) {
+        const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+        if (!normalized) {
+          notify('El consecutivo es obligatorio y debe tener formato PD-000123.', 'error');
+          consecutivo.focus();
+          return;
+        }
+        consecutivo.value = normalized;
+      }
+
+      if (sending) return;
+      sending = true;
+
+      btnGuardar.disabled = true;
+      if (spin) spin.classList.remove('d-none');
+      if (txt)  txt.textContent = 'Guardando...';
+
+      showGlobalLoader();
+
+      const formData  = new FormData(form);
+      const totalByte = buildUploadMeta(); // por si quieres usar totalByte a futuro
+
+      const xhr = new XMLHttpRequest();
+      xhr.open(form.method || 'POST', form.action);
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        updateUploadProgressBars(evt.loaded);
+      };
+
+      const resetBtn = () => {
+        sending = false;
+        btnGuardar.disabled = false;
+        if (spin) spin.classList.add('d-none');
+        if (txt)  txt.textContent = 'Guardar';
+      };
+
+      xhr.onload = () => {
+        hideGlobalLoader();
+
+        const contentType = xhr.getResponseHeader('Content-Type') || '';
+        let data = null;
+
+        if (contentType.includes('application/json')) {
+          try {
+            data = JSON.parse(xhr.responseText || '{}');
+          } catch (_) {
+            data = null;
+          }
         }
 
-        renderAdjuntosExistentes(data.prevAdj || {});
-        notify('Registro cargado correctamente.', 'success');
-      } catch (e) {
-        renderAdjuntosExistentes(null);
-        notify(e.message || 'No se encontró el registro.', 'error');
-      } finally {
-        $cons.classList.remove('loading');
-      }
-    }
+        if (data) {
+          if (data.ok && data.redirectTo) {
+            window.location.href = data.redirectTo;
+            return;
+          }
 
-    $btn?.addEventListener('click', buscar);
-    $cons?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        buscar();
-      }
+          if (data.ok === false && data.errors) {
+            const allErrors = Array.isArray(data.errors)
+              ? data.errors
+              : Object.values(data.errors);
+
+            const firstError = allErrors.length
+              ? allErrors[0]
+              : 'Revisa los campos obligatorios.';
+
+            notify(firstError, 'warning');
+            resetBtn();
+            return;
+          }
+
+          notify('Error inesperado al registrar la decisión.', 'error');
+          resetBtn();
+          return;
+        }
+
+        if (xhr.status >= 200 && xhr.status < 400) {
+          const finalURL = xhr.responseURL || form.action;
+          window.location.href = finalURL;
+        } else {
+          notify('Ocurrió un error al registrar la decisión.', 'error');
+          resetBtn();
+        }
+      };
+
+      xhr.onerror = () => {
+        hideGlobalLoader();
+        notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
+        resetBtn();
+      };
+
+      xhr.send(formData);
     });
-  })();
+  }
 
-  // (opcional) loader del botón Guardar, igual que en Soporte
-  (() => {
-    const form = document.querySelector('form[action$="decision"]');
-    if (!form) return;
-
-    const submitBtn = form.querySelector('button[type="submit"], .btn-success');
-
-    form.addEventListener('submit', () => {
-      if (!submitBtn) return;
-      submitBtn.disabled = true;
-      if (!submitBtn.dataset.originalHtml) {
-        submitBtn.dataset.originalHtml = submitBtn.innerHTML;
-      }
-      submitBtn.innerHTML = `
-        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-        Guardando...
-      `;
-    });
-  })();
+  // Inicializar lista vacía
+  refreshFileList();
+})();
 </script>
-<?= $this->endSection(); ?>
 
+<?= $this->endSection(); ?>
