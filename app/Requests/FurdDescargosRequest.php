@@ -9,8 +9,8 @@ class FurdDescargosRequest
             'fecha_evento'           => 'required|valid_date[Y-m-d]',
             'hora'   => 'required',
             'medio'  => 'required|in_list[presencial,virtual]',
-            'observacion'     => 'permit_empty|min_length[3]',
-            'adjuntos'        => 'permit_empty',
+            // 'observacion'     => 'permit_empty|min_length[3]',
+            // 'adjuntos'        => 'permit_empty',
         ];
     }
 

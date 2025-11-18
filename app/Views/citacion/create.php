@@ -6,7 +6,10 @@
 
 <?= $this->section('content'); ?>
 
-<?php $errors = session('errors') ?? []; ?>
+<?php
+$errors         = session('errors') ?? [];
+$oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
+?>
 
 <div class="page-citacion">
   <div class="card animate-in">
@@ -14,7 +17,7 @@
       <span>📅 Registro de citación</span>
     </div>
 
-    <form class="card-body" method="post" action="<?= base_url('citacion'); ?>" novalidate>
+    <form id="citacionForm" class="card-body" method="post" action="<?= base_url('citacion'); ?>" novalidate>
       <?= csrf_field(); ?>
 
       <div class="section-header">
@@ -34,7 +37,6 @@
             </i>
           </label>
 
-          <!-- Input + lupa, igual que en Descargos -->
           <div class="input-group">
             <input
               type="text"
@@ -42,11 +44,10 @@
               name="consecutivo"
               class="form-control <?= !empty($errors['consecutivo']) ? 'is-invalid' : '' ?>"
               placeholder="Ej: PD-000123"
-              value="<?= old('consecutivo') ?>"
+              value="<?= esc($oldConsecutivo) ?>"
               required
               pattern="PD-[0-9]{6}"
-              title="Formato esperado: PD-000123"
-            >
+              title="Formato esperado: PD-000123">
             <button
               type="button"
               id="btnLoad"
@@ -54,11 +55,9 @@
               title="Buscar registro">
               <i class="bi bi-search"></i>
             </button>
+
           </div>
 
-          <div class="form-text">
-            Ingresa el consecutivo completo del proceso, por ejemplo: <strong>PD-000123</strong>.
-          </div>
 
           <?php if (!empty($errors['consecutivo'] ?? null)): ?>
             <div class="invalid-feedback d-block">
@@ -66,30 +65,41 @@
             </div>
           <?php endif; ?>
 
-        </div>
 
+
+
+        </div>
+        <br><br>
         <div class="col-6 col-md-4">
           <label class="form-label">Fecha</label>
-          <input id="fecha" type="text" class="form-control" name="fecha_evento" value="<?= old('fecha_evento') ?>" placeholder="Selecciona una fecha..." required>
+          <input id="fecha" type="text" class="form-control" name="fecha_evento"
+            value="<?= old('fecha_evento') ?>"
+            placeholder="Selecciona una fecha..." required>
         </div>
 
         <div class="col-6 col-md-4">
           <label class="form-label">Hora</label>
-          <input id="hora" type="time" class="form-control" name="hora" placeholder="Selecciona hora..." required>
+          <input id="hora" type="time" class="form-control" name="hora"
+            placeholder="Selecciona hora..." required>
         </div>
 
         <div class="col-12 col-md-6">
+          <i>
+            Ingresa el consecutivo completo del proceso, por ejemplo: <strong>PD-000123</strong>.
+          </i>
+          <br>
           <label class="form-label">Medio de la citación</label>
           <select name="medio" class="form-select" required>
-            <option value="" selected disabled>Elige una opción…</option>
-            <option value="virtual">Virtual</option>
-            <option value="presencial">Presencial</option>
+            <option value="" disabled <?= old('medio') ? '' : 'selected' ?>>Elige una opción…</option>
+            <option value="virtual" <?= old('medio') === 'virtual'    ? 'selected' : '' ?>>Virtual</option>
+            <option value="presencial" <?= old('medio') === 'presencial' ? 'selected' : '' ?>>Presencial</option>
           </select>
         </div>
 
         <div class="col-12">
           <label class="form-label">Hecho o motivo de la intervención</label>
-          <textarea name="motivo" rows="3" class="form-control" placeholder="Describe el evento en forma detallada…" required></textarea>
+          <textarea name="motivo" rows="3" class="form-control"
+            placeholder="Describe el evento en forma detallada…" required><?= old('motivo') ?></textarea>
         </div>
       </div>
 
@@ -108,143 +118,320 @@
           <a href="<?= base_url('/') ?>" class="btn btn-outline-secondary">
             <i class="bi bi-x-circle me-1"></i> Cancelar
           </a>
-          <button class="btn btn-success">
-            <i class="bi bi-send-check me-1"></i> Generar
+          <button id="btnGenerar" type="submit" class="btn btn-success">
+            <span class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true"></span>
+            <span class="btn-text">Generar citación</span>
           </button>
         </div>
       </div>
     </form>
   </div>
-</div>
 
-<?= $this->endSection(); ?>
+  <!-- Loader global, misma estructura que FURD -->
+  <div id="globalLoader" class="loader-overlay d-none">
+    <div class="loader-content">
+      <lottie-player
+        class="loader-lottie"
+        src="<?= base_url('assets/lottie/typing-animation.json') ?>"
+        background="transparent"
+        speed="1"
+        style="width: 220px; height: 220px;"
+        loop
+        autoplay>
+      </lottie-player>
+      <p class="loader-text mb-0 text-muted">
+        Generando citación, por favor espera…
+      </p>
+    </div>
+  </div>
+
+  <?= $this->endSection(); ?>
 
 
-<?= $this->section('scripts'); ?>
-<script>
-  (() => {
-    const baseFind    = '<?= base_url('citacion/find'); ?>';
-    const baseAdjunto = '<?= base_url('furd/adjuntos'); ?>';
+  <?= $this->section('scripts'); ?>
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 
-    const consecutivo = document.getElementById('consecutivo');
-    const btnLoad     = document.getElementById('btnLoad');
-    const wrap        = document.getElementById('adjuntosWrap');
+  <script>
+    (() => {
+      const baseFind = '<?= base_url('citacion/find'); ?>';
 
-    // wrapper para usar el toast moderno global
-    function notify(msg, type = 'info', ms = 3800) {
-      if (typeof showToast === 'function') {
-        showToast(msg, type, ms);
-      } else {
-        console[type === 'error' ? 'error' : 'log'](msg);
-        alert(msg);
+      const PREFIX = 'PD-';
+      const consecutivo = document.getElementById('consecutivo');
+      const btnLoad = document.getElementById('btnLoad');
+      const wrap = document.getElementById('adjuntosWrap');
+      const motivoField = document.querySelector('textarea[name="motivo"]');
+      const form = document.getElementById('citacionForm');
+      const btnGenerar = document.getElementById('btnGenerar');
+      const globalLoader = document.getElementById('globalLoader');
+
+      const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
+      const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+      function notify(msg, type = 'info', ms = 3800) {
+        if (typeof showToast === 'function') {
+          showToast(msg, type, ms);
+        } else {
+          console[type === 'error' ? 'error' : 'log'](msg);
+          alert(msg);
+        }
       }
-    }
 
-    const iconByMime = (mime = '') => {
-      mime = mime.toLowerCase();
-      if (mime.includes('pdf')) return 'filetype-pdf';
-      if (mime.includes('image')) return 'image';
-      if (mime.includes('excel') || mime.includes('spreadsheet')) return 'filetype-xls';
-      if (mime.includes('word') || mime.includes('msword')) return 'filetype-doc';
-      if (mime.includes('zip')) return 'file-zip';
-      return 'file-earmark';
-    };
+      // ---------- Consecutivo: siempre con prefijo PD- ----------
 
-    const human = (bytes = 0) => {
-      const u = ['B', 'KB', 'MB', 'GB'];
-      let i = 0;
-      while (bytes >= 1024 && i < u.length - 1) {
-        bytes /= 1024;
-        i++;
+      function onlyDigits(str) {
+        return (str || '').replace(/\D/g, '');
       }
-      return `${bytes.toFixed(i ? 1 : 0)} ${u[i]}`;
-    };
 
-    const card = (a) => {
-      const url  = `${baseAdjunto}/${a.id}`;
-      const ico  = iconByMime(a.mime);
-      const name = a.nombre_original || `Adjunto #${a.id}`;
-      const size = a.tamano_bytes ? human(Number(a.tamano_bytes)) : '';
+      function normalizeConsecutivoForUI(value) {
+        const digits = onlyDigits(String(value));
+        if (!digits) return PREFIX;
+        return PREFIX + digits;
+      }
 
-      return `
+      function normalizeConsecutivoSixDigits(value) {
+        const digits = onlyDigits(String(value));
+        if (!digits) return '';
+        return PREFIX + digits.padStart(6, '0');
+      }
+
+      consecutivo?.addEventListener('focus', () => {
+        if (!consecutivo.value.trim()) {
+          consecutivo.value = PREFIX;
+          setTimeout(() => {
+            const len = consecutivo.value.length;
+            consecutivo.setSelectionRange(len, len);
+          }, 0);
+        }
+      });
+
+      consecutivo?.addEventListener('input', () => {
+        // el usuario solo escribe números, nosotros mantenemos el PD-
+        const digits = onlyDigits(consecutivo.value);
+        consecutivo.value = PREFIX + digits;
+      });
+
+      // ---------- Adjuntos: helpers UI ----------
+
+      const setLoadingInput = (loading) => {
+        if (!consecutivo) return;
+        consecutivo.classList.toggle('loading', loading);
+        if (btnLoad) btnLoad.disabled = loading;
+      };
+
+      const clearAdjuntos = () => {
+        if (!wrap) return;
+        wrap.innerHTML = '<div class="text-center text-muted py-4 small">Sin adjuntos para mostrar.</div>';
+      };
+
+      const iconByMime = (mime = '') => {
+        mime = mime.toLowerCase();
+        if (mime.includes('pdf')) return 'filetype-pdf';
+        if (mime.includes('image')) return 'image';
+        if (mime.includes('excel') || mime.includes('spreadsheet')) return 'filetype-xls';
+        if (mime.includes('word') || mime.includes('msword')) return 'filetype-doc';
+        if (mime.includes('zip')) return 'file-zip';
+        return 'file-earmark';
+      };
+
+      const human = (bytes = 0) => {
+        const u = ['B', 'KB', 'MB', 'GB'];
+        let i = 0;
+        while (bytes >= 1024 && i < u.length - 1) {
+          bytes /= 1024;
+          i++;
+        }
+        return `${bytes.toFixed(i ? 1 : 0)} ${u[i]}`;
+      };
+
+      const card = (a) => {
+        const url = a.url;
+        const ico = iconByMime(a.mime || '');
+        const name = a.nombre || a.nombre_original || `Adjunto #${a.id}`;
+        const size = a.tamano ? human(Number(a.tamano)) : '';
+
+        return `
       <div class="adj-card">
         <div class="adj-icon">
           <i class="bi bi-${ico}"></i>
         </div>
         <div class="adj-meta">
           <div class="adj-name" title="${name}">${name}</div>
-          <div class="adj-sub">${a.mime || 'archivo'} · ${size}</div>
+          <div class="adj-sub">${(a.mime || 'archivo')}${size ? ' · ' + size : ''}</div>
         </div>
         <div class="adj-actions">
-          <a class="btn btn-sm btn-outline-secondary" target="_blank" href="${url}">
+          <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="${url}">
             <i class="bi bi-eye"></i> Ver
           </a>
         </div>
-      </div>`;
-    };
+      </div>
+    `;
+      };
 
-    const setLoading = (loading) => {
-      if (btnLoad) btnLoad.disabled = loading;
-      if (consecutivo) consecutivo.classList.toggle('loading', loading);
-    };
+      const renderAdjuntos = (arr = []) => {
+        if (!wrap) return;
+        if (!arr.length) {
+          clearAdjuntos();
+          return;
+        }
+        wrap.innerHTML = arr.map(card).join('');
+      };
 
-    const clearAdjuntos = () => {
-      wrap.innerHTML = `
-        <div class="text-center text-muted py-4 small">Sin adjuntos para mostrar.</div>`;
-    };
+      // ---------- Cargar adjuntos + hecho desde el FURD ----------
 
-    const render = (arr = []) => {
-      if (!arr.length) return clearAdjuntos();
-      wrap.innerHTML = arr.map(card).join('');
-    };
+      const loadAdjuntos = async () => {
+        if (!consecutivo) return;
 
-    const loadAdjuntos = async () => {
-      const id = (consecutivo.value || '').trim();
-      if (!id) {
-        notify('Ingresa un consecutivo para buscar.', 'info');
-        return;
-      }
-
-      if (!/^PD-\d{6}$/i.test(id)) {
-        notify('Formato inválido. Usa algo como PD-000123.', 'error');
-        return;
-      }
-
-      try {
-        setLoading(true);
-        clearAdjuntos();
-
-        const res = await fetch(`${baseFind}?consecutivo=${encodeURIComponent(id)}`);
-        if (!res.ok) throw new Error('No se pudo consultar el FURD');
-
-        const data = await res.json();
-
-        if (!data.ok) {
-          render([]);
-          notify('No se encontró ningún registro con ese consecutivo.', 'error');
+        const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+        if (!normalized) {
+          notify('Debes escribir un consecutivo válido (ej: PD-000123).', 'error');
+          consecutivo.focus();
           return;
         }
 
-        render(data.adjuntos || []);
-        notify('Registro encontrado y cargado.', 'success');
-      } catch (e) {
-        console.error(e);
-        render([]);
-        notify('No se encontraron adjuntos para ese consecutivo.', 'error');
-      } finally {
-        setLoading(false);
+        // dejamos el consecutivo formateado en el input
+        consecutivo.value = normalized;
+
+        try {
+          setLoadingInput(true);
+          clearAdjuntos();
+
+          const res = await fetch(`${baseFind}?consecutivo=${encodeURIComponent(normalized)}`);
+          if (!res.ok) throw new Error('No se pudo consultar el FURD');
+
+          const data = await res.json();
+
+          if (!data.ok) {
+            renderAdjuntos([]);
+            notify('No se encontró ningún registro con ese consecutivo.', 'error');
+            return;
+          }
+
+          // adjuntos ya vienen con "url" apuntando al visor en Drive
+          renderAdjuntos(data.adjuntos || []);
+          notify('Registro encontrado y cargado.', 'success');
+
+          // rellenar el motivo con el "hecho" del FURD (solo si está vacío)
+          if (data.furd && data.furd.hecho && motivoField && !motivoField.value.trim()) {
+            motivoField.value = data.furd.hecho;
+          }
+        } catch (e) {
+          console.error(e);
+          renderAdjuntos([]);
+          notify('No se encontraron adjuntos para ese consecutivo.', 'error');
+        } finally {
+          setLoadingInput(false);
+        }
+      };
+
+      btnLoad?.addEventListener('click', loadAdjuntos);
+
+      consecutivo?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          loadAdjuntos();
+        }
+      });
+
+      // ---------- Envío del formulario con loader global ----------
+
+      if (form && btnGenerar) {
+        let sending = false;
+        const spin = btnGenerar.querySelector('.spinner-border');
+        const txt = btnGenerar.querySelector('.btn-text');
+
+        const resetButton = () => {
+          sending = false;
+          btnGenerar.disabled = false;
+          if (spin) spin.classList.add('d-none');
+          if (txt) txt.textContent = 'Generar citación';
+        };
+
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+
+          // normalizamos consecutivo a PD-000000 antes de enviar
+          if (consecutivo) {
+            const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+            if (!normalized) {
+              notify('El consecutivo es obligatorio y debe tener formato PD-000123.', 'error');
+              consecutivo.focus();
+              return;
+            }
+            consecutivo.value = normalized;
+          }
+
+          if (sending) return;
+          sending = true;
+
+          btnGenerar.disabled = true;
+          if (spin) spin.classList.remove('d-none');
+          if (txt) txt.textContent = 'Generando…';
+
+          showGlobalLoader();
+
+          const formData = new FormData(form);
+          const xhr = new XMLHttpRequest();
+          xhr.open(form.method || 'POST', form.action);
+          xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+          xhr.onload = () => {
+            hideGlobalLoader();
+
+            const contentType = xhr.getResponseHeader('Content-Type') || '';
+            let data = null;
+
+            if (contentType.includes('application/json')) {
+              try {
+                data = JSON.parse(xhr.responseText || '{}');
+              } catch (e) {
+                data = null;
+              }
+            }
+
+            if (data) {
+              if (data.ok && data.redirectTo) {
+                // Seguimiento (lleva flash con el mensaje)
+                window.location.href = data.redirectTo;
+                return;
+              }
+
+              if (data.ok === false && data.errors) {
+                const allErrors = Array.isArray(data.errors) ?
+                  data.errors :
+                  Object.values(data.errors);
+                const firstError = allErrors.length ?
+                  allErrors[0] :
+                  'Revisa los campos obligatorios.';
+
+                notify(firstError, 'warning');
+                resetButton();
+                return;
+              }
+
+              notify('Error inesperado al registrar la citación.', 'error');
+              resetButton();
+              return;
+            }
+
+            if (xhr.status >= 200 && xhr.status < 400) {
+              const finalURL = xhr.responseURL || form.action;
+              window.location.href = finalURL;
+            } else {
+              notify('Ocurrió un error al registrar la citación.', 'error');
+              resetButton();
+            }
+          };
+
+          xhr.onerror = () => {
+            hideGlobalLoader();
+            notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
+            resetButton();
+          };
+
+          xhr.send(formData);
+        });
       }
-    };
+    })();
+  </script>
 
-    btnLoad?.addEventListener('click', loadAdjuntos);
-
-    consecutivo?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        loadAdjuntos();
-      }
-    });
-  })();
-</script>
-
-<?= $this->endSection(); ?>
+  <?= $this->endSection(); ?>

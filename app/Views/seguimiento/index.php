@@ -6,31 +6,27 @@
 
 <?= $this->section('content'); ?>
 
+<?php if ($msg = session('ok')): ?>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      Swal.fire({
+        icon: 'success',
+        title: 'FURD creado',
+        text: <?= json_encode($msg) ?>,
+        timer: 4500,
+        showConfirmButton: false,
+      });
+    });
+  </script>
+<?php endif; ?>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 
 <?php
-// Espera un arreglo $registros desde el controlador con esta forma:
-/*
-$registros = [
-  [
-    'consecutivo'     => 'FURD-2025-0001',
-    'cedula'          => '1049536932',
-    'nombre'          => 'Karina Blanco',
-    'proyecto'        => 'CLARO WHATSAPP',
-    'fecha'           => '2025-10-21',
-    'hecho'           => 'Hecho resumido...',
-    'estado'          => 'En proceso', // Abierto | En proceso | Cerrado | Archivado
-    'actualizado_en'  => '2025-10-22 09:30'
-  ],
-  // ...
-];
-*/
 $registros = $registros ?? [];
 ?>
-
-
 
 <div class="card-header main-header d-flex justify-content-between align-items-center">
   <span class="fw-semibold">
@@ -41,40 +37,54 @@ $registros = $registros ?? [];
   </span>
 </div>
 
-<div class="card animate-in">
+<div class="card animate-in seguimiento-card">
   <div class="card-body">
     <!-- Filtros -->
     <div class="row g-2 align-items-end mb-3">
       <div class="col-12 col-md-3">
         <label class="form-label">Buscar</label>
-        <div class="input-group">
-          <input id="q" type="search" class="form-control" placeholder="Consecutivo, cédula, nombre, proyecto...">
-          <button id="btnBuscar" class="btn btn-outline-success" type="button"><i class="bi bi-search"></i></button>
-        </div>
+        <input
+          id="q"
+          type="search"
+          class="form-control"
+          placeholder="Consecutivo, cédula, nombre, proyecto...">
       </div>
+
       <div class="col-6 col-md-2">
         <label class="form-label">Estado</label>
         <select id="fEstado" class="form-select">
           <option value="">Todos</option>
-          <option>Abierto</option>
-          <option>En proceso</option>
-          <option>Cerrado</option>
-          <option>Archivado</option>
+          <option value="abierto">Abierto</option>
+          <option value="en proceso">En proceso</option>
+          <option value="cerrado">Cerrado</option>
+          <option value="archivado">Archivado</option>
         </select>
       </div>
+
       <div class="col-6 col-md-3">
-        <label class="form-label">Fecha (desdee)</label>
-        <input id="fDesde" type="text" class="form-control" name="fecha" placeholder="Selecciona una fecha..." required>
+        <label class="form-label">Fecha (desde)</label>
+        <input
+          id="fDesde"
+          type="text"
+          class="form-control"
+          placeholder="Selecciona una fecha...">
       </div>
+
       <div class="col-6 col-md-3">
         <label class="form-label">Fecha (hasta)</label>
-        <input id="fHasta" type="text" class="form-control" name="fecha" placeholder="Selecciona una fecha..." required>
+        <input
+          id="fHasta"
+          type="text"
+          class="form-control"
+          placeholder="Selecciona una fecha...">
       </div>
+
       <div class="col-6 col-md-1 d-grid">
-        <button id="btnLimpiar" class="btn btn-outline-secondary"><i class="bi bi-eraser"></i></button>
+        <button id="btnLimpiar" class="btn btn-outline-secondary" type="button">
+          <i class="bi bi-eraser"></i>
+        </button>
       </div>
     </div>
-
 
     <!-- Tabla -->
     <div class="table-responsive">
@@ -116,7 +126,11 @@ $registros = $registros ?? [];
                 <td data-key="cedula" class="text-mono"><?= esc($r['cedula']) ?></td>
                 <td data-key="nombre"><?= esc($r['nombre']) ?></td>
                 <td data-key="proyecto"><?= esc($r['proyecto']) ?></td>
-                <td data-key="fecha"><?= esc($r['fecha']) ?></td>
+                <td
+                  data-key="fecha"
+                  data-fecha-creado="<?= esc($r['creado_en_iso'] ?? '') ?>">
+                  <?= esc($r['fecha']) ?>
+                </td>
                 <td data-key="hecho" class="text-center">
                   <button
                     type="button"
@@ -128,7 +142,7 @@ $registros = $registros ?? [];
                     <i class="bi bi-eye me-1"></i> Ver detalle
                   </button>
                 </td>
-                <td data-key="estado">
+                <td data-key="estado" data-estado="<?= esc(strtolower($r['estado'])) ?>">
                   <span class="<?= $badgeClass ?>"><?= esc(strtoupper($r['estado'])) ?></span>
                 </td>
                 <td data-key="actualizado"><?= esc($r['actualizado_en']) ?></td>
@@ -179,86 +193,98 @@ $registros = $registros ?? [];
   </div>
 </div>
 
-
 <?= $this->endSection(); ?>
 
 <?= $this->section('scripts'); ?>
 <script>
   (() => {
-    const q = document.getElementById('q');
-    const fEstado = document.getElementById('fEstado');
-    const fDesde = document.getElementById('fDesde');
-    const fHasta = document.getElementById('fHasta');
-    const btnBuscar = document.getElementById('btnBuscar');
+    const q        = document.getElementById('q');
+    const fEstado  = document.getElementById('fEstado');
+    const fDesde   = document.getElementById('fDesde');
+    const fHasta   = document.getElementById('fHasta');
     const btnLimpiar = document.getElementById('btnLimpiar');
-    const rows = [...document.querySelectorAll('tr[data-row]')];
+    const rows     = [...document.querySelectorAll('tr[data-row]')];
     const countTotal = document.getElementById('countTotal');
 
     function matchDateRange(valueDate, d1, d2) {
+      // valueDate, d1, d2 vienen en formato YYYY-MM-DD
       if (!valueDate) return true;
       if (!d1 && !d2) return true;
-      const v = new Date(valueDate);
-      if (d1 && v < new Date(d1)) return false;
-      if (d2 && v > new Date(d2)) return false;
+
+      const v  = new Date(valueDate);
+      const v1 = d1 ? new Date(d1) : null;
+      const v2 = d2 ? new Date(d2) : null;
+
+      if (v1 && v < v1) return false;
+      if (v2 && v > v2) return false;
       return true;
     }
 
     function apply() {
       const text = (q.value || '').toLowerCase().trim();
-      const est = (fEstado.value || '').toLowerCase().trim();
-      const d1 = fDesde.value || '';
-      const d2 = fHasta.value || '';
+      const est  = (fEstado.value || '').toLowerCase().trim();
+      const d1   = fDesde.value || '';
+      const d2   = fHasta.value || '';
 
       let visible = 0;
+
       rows.forEach(tr => {
+        const fechaCell = tr.querySelector('[data-key="fecha"]');
+
         const data = {
           consecutivo: tr.querySelector('[data-key="consecutivo"]')?.textContent.toLowerCase() || '',
-          cedula: tr.querySelector('[data-key="cedula"]')?.textContent.toLowerCase() || '',
-          nombre: tr.querySelector('[data-key="nombre"]')?.textContent.toLowerCase() || '',
-          proyecto: tr.querySelector('[data-key="proyecto"]')?.textContent.toLowerCase() || '',
-          fecha: tr.querySelector('[data-key="fecha"]')?.textContent || '',
-          hecho: tr.querySelector('[data-key="hecho"]')?.textContent.toLowerCase() || '',
-          estado: tr.querySelector('[data-key="estado"] .badge')?.textContent.toLowerCase() || '',
+          cedula:      tr.querySelector('[data-key="cedula"]')?.textContent.toLowerCase() || '',
+          nombre:      tr.querySelector('[data-key="nombre"]')?.textContent.toLowerCase() || '',
+          proyecto:    tr.querySelector('[data-key="proyecto"]')?.textContent.toLowerCase() || '',
+          fecha:       fechaCell?.dataset.fechaCreado || '',
+          hecho:       tr.querySelector('[data-key="hecho"]')?.textContent.toLowerCase() || '',         
+          estado:      tr.querySelector('[data-key="estado"]')?.dataset.estado || '',
         };
 
         const textok = !text || Object.values(data).join(' ').includes(text);
-        const estok = !est || data.estado === est;
+        const estok  = !est || data.estado === est;
         const dateok = matchDateRange(data.fecha, d1, d2);
 
         const show = textok && estok && dateok;
         tr.style.display = show ? '' : 'none';
         if (show) visible++;
       });
+
       if (countTotal) countTotal.textContent = visible;
     }
 
-    btnBuscar?.addEventListener('click', apply);
-    q?.addEventListener('keyup', e => (e.key === 'Enter') && apply());
+    // 🔍 Búsqueda automática
+    q?.addEventListener('input', apply);
+
+    // Filtros de estado y fechas
     fEstado?.addEventListener('change', apply);
     fDesde?.addEventListener('change', apply);
     fHasta?.addEventListener('change', apply);
+
+    // Botón limpiar → todo a estado inicial
     btnLimpiar?.addEventListener('click', () => {
       q.value = '';
       fEstado.value = '';
-      fDesde.value = '';
-      fHasta.value = '';
+      if (fDesde._flatpickr) fDesde._flatpickr.clear();
+      if (fHasta._flatpickr) fHasta._flatpickr.clear();
       apply();
     });
   })();
 
+  // Tooltips Bootstrap
   document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
     new bootstrap.Tooltip(el);
   });
 
-  // === Mostrar modal de detalle del hecho ===
+  // === Modal detalle hecho ===
   const modalElement = document.getElementById('modalHecho');
   const modal = new bootstrap.Modal(modalElement);
   let hechoActual = '';
 
   document.querySelectorAll('.btn-hecho-detalle').forEach(btn => {
     btn.addEventListener('click', () => {
-      const hecho = btn.getAttribute('data-hecho') || '(Sin descripción)';
-      const nombre = btn.getAttribute('data-nombre') || '';
+      const hecho       = btn.getAttribute('data-hecho') || '(Sin descripción)';
+      const nombre      = btn.getAttribute('data-nombre') || '';
       const consecutivo = btn.getAttribute('data-consecutivo') || '';
 
       hechoActual = hecho;
@@ -270,7 +296,7 @@ $registros = $registros ?? [];
     });
   });
 
-  // === Copiar texto del hecho ===
+  // Copiar texto del hecho
   document.getElementById('btnCopiarHecho').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(hechoActual);
@@ -287,24 +313,22 @@ $registros = $registros ?? [];
     }
   });
 
-
+  // === Flatpickr fechas (usamos formato interno Y-m-d para filtrar bien) ===
   document.addEventListener("DOMContentLoaded", function() {
-    // Configuración común
     const baseConfig = {
       locale: "es",
-      dateFormat: "d/m/Y",
+      dateFormat: "Y-m-d",     // valor real del input → fácil de parsear
       altInput: true,
-      altFormat: "F j, Y",
+      altFormat: "d/m/Y",      // lo que ve el usuario
       allowInput: false,
       disableMobile: true,
       monthSelectorType: "static",
       yearSelectorType: "dropdown",
     };
 
-    // Inicializa ambos campos
     flatpickr("#fDesde", {
       ...baseConfig,
-      onChange: function(selectedDates, dateStr, instance) {
+      onChange: function(selectedDates, dateStr) {
         const hasta = document.querySelector("#fHasta")._flatpickr;
         if (hasta && selectedDates[0]) {
           hasta.set("minDate", selectedDates[0]);
@@ -314,7 +338,7 @@ $registros = $registros ?? [];
 
     flatpickr("#fHasta", {
       ...baseConfig,
-      onChange: function(selectedDates, dateStr, instance) {
+      onChange: function(selectedDates, dateStr) {
         const desde = document.querySelector("#fDesde")._flatpickr;
         if (desde && selectedDates[0]) {
           desde.set("maxDate", selectedDates[0]);

@@ -8,14 +8,14 @@
 
 .page-citacion .adjuntos-grid{
   display: grid;
-  grid-template-columns: repeat( auto-fill, minmax(260px, 1fr) );
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: .75rem;
   min-height: 60px;
 }
 
 .page-citacion .adj-card{
   display: grid;
-  grid-template-columns: 40px 1fr auto;
+  grid-template-columns: 40px minmax(0, 1fr) auto; /* ← la columna central puede encoger */
   gap: .65rem;
   align-items: center;
   padding: .7rem .8rem;
@@ -24,6 +24,7 @@
   background: var(--surface);
   transition: transform .08s ease, box-shadow .15s ease, border-color .15s ease;
 }
+
 .page-citacion .adj-card:hover{
   transform: translateY(-1px);
   box-shadow: 0 8px 24px rgba(16,185,129,.10);
@@ -31,26 +32,37 @@
 }
 
 .page-citacion .adj-icon{
-  width: 40px; height: 40px;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
-  display: grid; place-items: center;
+  display: grid;
+  place-items: center;
   background: linear-gradient(135deg, #e7f7ef, #eaf4ff);
   color: var(--brand-600);
   font-size: 1.1rem;
 }
+
+.page-citacion .adj-meta{
+  min-width: 0;               /* ← clave para que el ellipsis funcione en grid */
+}
+
 .page-citacion .adj-meta .adj-name{
   font-weight: 600;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
+
 .page-citacion .adj-meta .adj-sub{
   font-size: .8rem;
   color: var(--muted);
 }
+
 .page-citacion .adj-actions .btn{
   white-space: nowrap;
 }
+
 
 /* Estado de carga visual del input consecutivo (usa clase .loading del global.css) */
 .page-citacion #consecutivo.loading{
@@ -217,8 +229,44 @@
   color: #4f46e5;
 }
 
+/* LOADER CLEAN (mismo de FURD, compartido) */
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2050;
+  backdrop-filter: blur(3px);
+}
 
+.loader-overlay.d-none {
+  display: none !important;
+}
 
+.loader-content {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+  text-align: center;
 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: stretch;
+  min-width: 320px;
+  min-height: 240px;
+}
+
+.loader-lottie {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.loader-text {
+  margin-top: 0.75rem;
+}
 
 

@@ -9,7 +9,7 @@ class FurdDecisionRequest
             'fecha_evento'  => 'required|valid_date[Y-m-d]',
             'decision'      => 'required|min_length[3]',      // tipo: llamado, suspensión, etc.
             'decision_text' => 'permit_empty|min_length[3]',  // detalle/fundamentación
-            'adjuntos'      => 'permit_empty',
+            'adjuntos'      => 'required',
         ];
     }
 
@@ -30,6 +30,9 @@ class FurdDecisionRequest
             ],
             'decision_text' => [
                 'min_length' => 'Agrega un poco más de detalle a la decisión (opcional pero recomendado).',
+            ],
+            'decision_text' => [
+                'min_length' => 'Ups! El sorporte firmado es obligatorio, por favor adjuntar el documento.',
             ],
         ];
     }

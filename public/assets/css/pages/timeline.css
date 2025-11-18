@@ -161,6 +161,27 @@
   box-shadow: 0 0 0 6px rgba(234,179,8,0.15);
 }
 
+/* === DESCARGOS (siempre naranja, tenga o no info) === */
+.tl-item.descargos .tl-date,
+.tl-item.descargos .tl-dot {
+  background: #f97316 !important;
+  border: 2px solid #ea580c !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 6px rgba(234,179,8,0.25);
+}
+
+.tl-item.descargos h6 {
+  color: #ea580c !important;
+  border-left: 4px solid #f97316 !important;
+  padding-left: 0.4rem;
+}
+
+/* Borde de la card también naranja, sin importar done/pending */
+.tl-item.descargos .tl-card {
+  border-color: rgba(234,179,8,0.35) !important;
+}
+
+
 /* ==== Responsive ==== */
 @media (max-width: 768px) {
   .tl-item { grid-template-columns: 1fr; row-gap: 0.5rem; }
@@ -199,19 +220,6 @@
   padding-left: 0.4rem;
 }
 
-/* === CARGOS Y DESCARGOS === */
-.tl-item.cargos-descargos .tl-date,
-.tl-item.cargos-descargos .tl-dot {
-  background: #f97316 !important;
-  border: 2px solid #ea580c !important;
-  color: #fff !important;
-}
-.tl-item.cargos-descargos h6 {
-  color: #ea580c !important;
-  border-left: 4px solid #f97316 !important;
-  padding-left: 0.4rem;
-}
-
 /* === SOPORTE === */
 .tl-item.soporte .tl-date,
 .tl-item.soporte .tl-dot {
@@ -236,4 +244,53 @@
   color: #b91c1c !important;
   border-left: 4px solid #ef4444 !important;
   padding-left: 0.4rem;
+}
+
+/* ===== Adjuntos en la línea de tiempo ===== */
+
+.tl-attach-list {
+  margin: 0;
+  padding: 0;
+}
+
+.tl-attach-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.15rem 0;
+}
+
+.tl-attach-name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;          /* permite truncar texto correctamente */
+}
+
+.tl-attach-filename {
+  max-width: 100%;
+}
+
+/* Badge "Drive" más pill y uniforme */
+.tl-attach-name .badge {
+  border-radius: 999px;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+}
+
+/* Grupo de botones alineado a la derecha */
+.tl-attach-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* Botones chiquitos pero iguales */
+.tl-attach-actions .btn {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.6rem;
+  line-height: 1;
 }

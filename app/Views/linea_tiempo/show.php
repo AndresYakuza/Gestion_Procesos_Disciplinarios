@@ -119,38 +119,46 @@ $etapas = array_map(function($e){
                 </dl>
               <?php endif; ?>
 
-              <?php if (!empty($e['adjuntos'])): ?>
-                <div class="small">
-                  <i class="bi bi-paperclip me-1"></i><strong>Adjuntos:</strong>
-                  <ul class="list-unstyled ms-3 mt-2">
-                    <?php foreach ($e['adjuntos'] as $a): ?>
-                      <li class="mb-1 d-flex align-items-center gap-2">
-                        <span class="text-truncate">
-                          <i class="bi bi-file-earmark-text"></i>
-                          <?= esc($a['nombre']) ?>
-                          <?php if (($a['provider'] ?? 'local') === 'gdrive'): ?>
-                            <span class="badge bg-info-subtle text-info ms-1">Drive</span>
-                          <?php endif; ?>
-                        </span>
+<?php if (!empty($e['adjuntos'])): ?>
+  <div class="small">
+    <i class="bi bi-paperclip me-1"></i><strong>Adjuntos:</strong>
+    <ul class="list-unstyled ms-3 mt-2 tl-attach-list">
+      <?php foreach ($e['adjuntos'] as $a): ?>
+        <li class="tl-attach-item">
+          <!-- Nombre + Drive -->
+          <div class="tl-attach-name text-truncate">
+            <i class="bi bi-file-earmark-text me-1"></i>
+            <span class="tl-attach-filename text-truncate">
+              <?= esc($a['nombre']) ?>
+            </span>
+            <?php if (($a['provider'] ?? 'local') === 'gdrive'): ?>
+              <span class="badge bg-info-subtle text-info ms-1">Drive</span>
+            <?php endif; ?>
+          </div>
 
-                        <!-- Ver (abre visor de Google en otra pestaña) -->
-                        <a href="<?= site_url('adjuntos/'.$a['id'].'/open') ?>"
-                          target="_blank" rel="noopener"
-                          class="btn btn-xs btn-outline-secondary" title="Abrir">
-                          <i class="bi bi-box-arrow-up-right"></i>
-                        </a>
+          <!-- Acciones (simétricas) -->
+          <div class="tl-attach-actions">
+            <!-- Ver (abre visor de Google en otra pestaña) -->
+            <a href="<?= site_url('adjuntos/'.$a['id'].'/open') ?>"
+               target="_blank" rel="noopener"
+               class="btn btn-xs btn-outline-secondary"
+               title="Abrir">
+              <i class="bi bi-box-arrow-up-right"></i>
+            </a>
 
-                        <!-- Descargar (descarga directa) -->
-                        <a href="<?= site_url('adjuntos/'.$a['id'].'/download') ?>"
-                          class="btn btn-xs btn-outline-primary btn-download"
-                          data-loading="Preparando descarga…">
-                          <i class="bi bi-download"></i>
-                        </a>
-                      </li>
-                    <?php endforeach; ?>
-                  </ul>
-                </div>
-              <?php endif; ?>
+            <!-- Descargar (descarga directa) -->
+            <a href="<?= site_url('adjuntos/'.$a['id'].'/download') ?>"
+               class="btn btn-xs btn-outline-primary btn-download"
+               data-loading="Preparando descarga…">
+              <i class="bi bi-download"></i>
+            </a>
+          </div>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+<?php endif; ?>
+
 
 
             </div>
@@ -165,60 +173,104 @@ $etapas = array_map(function($e){
   </div>
 </div>
 
+  </div>
+</div>
+
+<!-- Loader global para descargas -->
+<div id="globalLoader" class="loader-overlay d-none">
+  <div class="loader-content">
+    <lottie-player
+      class="loader-lottie"
+      src="<?= base_url('assets/lottie/hand-loader.json') ?>" 
+      background="transparent"
+      speed="1"
+      style="width: 200px; height: 200px;"
+      loop
+      autoplay>
+    </lottie-player>
+    <p class="loader-text mb-0 text-muted">Preparando descarga, por favor espera...</p>
+  </div>
+</div>
+
+
 <style>
   /* Overlay del loader */
-  #page-loader{position:fixed;inset:0;display:none;z-index:1055;}
-  #page-loader.show{display:block;}
-  #page-loader .loader-backdrop{position:absolute;inset:0;background:#000;opacity:.25;}
-  #page-loader .loader-content{
-    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-    text-align:center;background:#fff;padding:1rem 1.25rem;border-radius:.75rem;
-    box-shadow:0 10px 30px rgba(0,0,0,.15);
-  }
+/* LOADER CLEAN – mismo estilo que FURD */
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2050;
+  backdrop-filter: blur(3px);
+}
+
+.loader-overlay.d-none {
+  display: none !important;
+}
+
+.loader-content {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
+  text-align: center;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: stretch;
+  min-width: 320px;
+  min-height: 240px;
+}
+
+/* Lottie centrado */
+.loader-lottie {
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+/* Texto pegado abajo */
+.loader-text {
+  margin-top: 0.75rem;
+}
+
 </style>
 
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <script>
-(function(){
-  function createOverlay(){
-    const el = document.createElement('div');
-    el.id = 'page-loader';
-    el.innerHTML = `
-      <div class="loader-backdrop"></div>
-      <div class="loader-content">
-        <div class="spinner-border" role="status" aria-hidden="true"></div>
-        <div class="mt-2 small text-muted" id="loader-text">Cargando…</div>
-      </div>`;
-    document.body.appendChild(el);
-    return el;
-  }
+(function () {
+  const globalLoader = document.getElementById('globalLoader');
+  const showGlobalLoader = () => globalLoader && globalLoader.classList.remove('d-none');
+  const hideGlobalLoader = () => globalLoader && globalLoader.classList.add('d-none');
 
-  let overlay;
-  function showLoader(text){
-    if (!overlay) overlay = createOverlay();
-    document.getElementById('loader-text').textContent = text || 'Cargando…';
-    overlay.classList.add('show');
-  }
-  function hideLoader(){ overlay && overlay.classList.remove('show'); }
-
-  // Click en botones de descarga
-  document.addEventListener('click', function(e){
+  // Click en botones de descarga de adjuntos
+  document.addEventListener('click', function (e) {
     const btn = e.target.closest('.btn-download');
     if (!btn) return;
 
-    // evita doble click
+    // Evita doble click
     btn.classList.add('disabled');
-    btn.setAttribute('aria-disabled','true');
+    btn.setAttribute('aria-disabled', 'true');
 
-    showLoader(btn.dataset.loading || 'Preparando descarga…');
+    // Mostrar loader Lottie
+    showGlobalLoader();
 
-    // si la navegación es lenta, el overlay queda visible.
-    // por seguridad, lo ocultamos si seguimos en la página tras X segundos.
-    setTimeout(() => { hideLoader(); btn.classList.remove('disabled'); }, 12000);
+    // Fallback: si seguimos en la página después de X segundos, ocultamos loader y reactivamos botón
+    setTimeout(() => {
+      hideGlobalLoader();
+      btn.classList.remove('disabled');
+      btn.removeAttribute('aria-disabled');
+    }, 12000);
   });
 
-  // cuando el navegador vuelva a mostrar la página (p.ej. después de back/forward)
-  window.addEventListener('pageshow', hideLoader);
+  // Cuando el navegador vuelve a mostrar la página (ej. después de back/forward)
+  window.addEventListener('pageshow', hideGlobalLoader);
 })();
 </script>
+
 
 <?= $this->endSection(); ?>

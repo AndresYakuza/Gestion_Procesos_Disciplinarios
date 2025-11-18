@@ -12,6 +12,11 @@
   -webkit-backdrop-filter: blur(10px);
 }
 
+/* 🔸 Card body sin esquinas redondeadas */
+.card-body {
+  border-radius: 0 !important;
+}
+
 /* ---------- Cabecera de tabla ---------- */
 .table-seg thead th {
   position: sticky;
@@ -129,6 +134,11 @@ td[data-key="hecho"]:hover {
   border-radius: 10px;
   border-color: rgba(37,99,235,0.2);
   transition: all 0.25s ease;
+}
+
+/* 🔸 Quitar border-radius SOLO del selector de estado */
+#fEstado {
+  border-radius: 0 !important;
 }
 
 .form-select:focus,
@@ -325,4 +335,33 @@ td[data-key="hecho"]:hover {
   box-shadow: 0 4px 10px rgba(0,0,0,0.08);
 }
 
+.card.animate-in {
+  border-radius: 0 0 14px 14px !important;
+}
 
+.main-header {
+  border-radius: 14px 14px 0 0;
+}
+
+.card-body #fEstado.form-select {
+  border-radius: 0 !important;
+}
+
+
+/* ====== CARD DE SEGUIMIENTO ====== */
+
+/* La cabecera morada sigue con las esquinas de arriba redondeadas */
+.main-header {
+  border-radius: 14px 14px 0 0;
+}
+
+/* La card blanca de abajo solo con esquinas inferiores + sin cortar el select */
+.seguimiento-card {
+  border-radius: 0 0 14px 14px !important;
+  overflow: visible !important;  /* dejar salir el desplegable del select */
+}
+
+/* Quitar border-radius SOLO del selector de estado dentro de esta card */
+.seguimiento-card #fEstado {
+  border-radius: 0 !important;
+}

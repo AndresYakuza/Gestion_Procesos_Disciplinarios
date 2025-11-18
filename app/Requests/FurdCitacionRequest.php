@@ -9,7 +9,7 @@ class FurdCitacionRequest
             'fecha_evento'           => 'required|valid_date[Y-m-d]',
             'hora'            => 'required',
             'medio'           => 'required|in_list[presencial,virtual]',
-            'motivo'         => 'permit_empty|min_length[3]',
+            'motivo'         => 'required|min_length[3]',
 
             // evidencias opcionales (si decides permitir aquí)
             'adjuntos'        => 'permit_empty',
@@ -33,6 +33,9 @@ class FurdCitacionRequest
             'medio' => [
                 'required' => 'Debes indicar el medio de citación.',
                 'in_list'  => 'Medio de citación inválido.',
+            ],
+            'motivo' => [
+                'required' => 'Debes indicar el hecho o motivo de la intervención.',
             ],
         ];
     }

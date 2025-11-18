@@ -7,18 +7,19 @@ class FurdRegistroRequest
         return [
             'cedula'          => 'required|min_length[5]|max_length[30]',
             'fecha_evento'    => 'required|valid_date[Y-m-d]',
-            'hora'            => 'required',           // <-- igual que el form
-            'superior'        => 'permit_empty|max_length[150]',
+            'hora'            => 'required',
+            'superior'        => 'required|max_length[150]',
             'hecho'           => 'required|min_length[5]',
 
             'correo'          => 'permit_empty|valid_email|max_length[150]',
-            'empresa_usuaria' => 'permit_empty|max_length[180]',
-            'nombre_completo' => 'permit_empty|max_length[180]',
-            'expedida_en'     => 'permit_empty|max_length[120]',
+            'empresa_usuaria' => 'required|max_length[180]',
+            'nombre_completo' => 'required|max_length[180]',
+            'expedida_en'     => 'required|max_length[120]',
 
             'faltas'          => 'required',
             'faltas.*'        => 'required|integer',
 
+            // 👉 Los adjuntos siguen siendo opcionales
             'evidencias'      => 'permit_empty',
         ];
     }
@@ -38,9 +39,28 @@ class FurdRegistroRequest
             'hora' => [
                 'required' => 'La hora del evento es obligatoria.',
             ],
+            'superior' => [
+                'required'   => 'El nombre del superior es obligatorio.',
+                'max_length' => 'El nombre del superior es muy largo.',
+            ],
             'hecho' => [
                 'required'   => 'Describe el hecho o motivo.',
                 'min_length' => 'Agrega más detalle al hecho.',
+            ],
+            'correo' => [
+                'valid_email' => 'El correo no es válido.',
+            ],
+            'empresa_usuaria' => [
+                'required'   => 'La empresa usuaria es obligatoria.',
+                'max_length' => 'La empresa usuaria es muy larga.',
+            ],
+            'nombre_completo' => [
+                'required'   => 'El nombre del trabajador es obligatorio.',
+                'max_length' => 'El nombre del trabajador es muy largo.',
+            ],
+            'expedida_en' => [
+                'required'   => 'La ciudad de expedición es obligatoria.',
+                'max_length' => 'La ciudad de expedición es muy larga.',
             ],
             'faltas' => [
                 'required' => 'Debes seleccionar al menos una falta.',
@@ -49,9 +69,7 @@ class FurdRegistroRequest
                 'required' => 'Falta inválida.',
                 'integer'  => 'Falta inválida.',
             ],
-            'correo' => [
-                'valid_email' => 'El correo no es válido.',
-            ],
         ];
     }
 }
+

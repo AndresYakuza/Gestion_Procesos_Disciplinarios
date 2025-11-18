@@ -127,6 +127,8 @@
               <?php endif; ?>
               <input id="evidencias" type="file" class="form-control" name="evidencias[]" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xlsx,.xls">
               <div class="form-text">Se permiten varios archivos (imágenes, PDF, Office).</div>
+
+              <div id="evidenciasPreview" class="mt-2 small"></div>
             </div>
           </div>
 
@@ -218,47 +220,32 @@
     </div>
   </div>
   <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000;"></div>
+
+<div id="globalLoader" class="loader-overlay d-none">
+  <div class="loader-content">
+    <lottie-player
+      class="loader-lottie"
+      src="<?= base_url('assets/lottie/furd-loader.json') ?>"
+      background="transparent"
+      speed="1"
+      style="width: 200px; height: 200px;"
+      loop
+      autoplay>
+    </lottie-player>
+    <p class="loader-text mb-0 text-muted">Guardando FURD, por favor espera...</p>
+  </div>
+</div>
+
+</div>
+
 </div>
 <?= $this->endSection(); ?>
 
 <?= $this->section('scripts'); ?>
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <script>
-  const BASE_LOOKUP_URL = "<?= base_url('empleados/lookup') ?>";
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const faltasList = document.getElementById('faltasList');
-    const pillsContainer = document.getElementById('faltasPills');
-    const selCount = document.getElementById('selCount');
-
-    // función para crear un "pill" visual
-    const crearPill = (codigo, gravedad, descripcion) => {
-      const pill = document.createElement('span');
-      pill.classList.add('badge', 'rounded-pill', 'faltas-pill');
-      pill.classList.add(
-        gravedad.toLowerCase().includes('gravisim') ? 'bg-danger-subtle' :
-        gravedad.toLowerCase().includes('grave') ? 'bg-warning-subtle' : 'bg-success-subtle'
-      );
-      pill.textContent = codigo + ' — ' + descripcion.substring(0, 40);
-      pillsContainer.appendChild(pill);
-    };
-
-    // reconstruir pills al cargar si hay faltas previas (old inputs)
-    faltasList.querySelectorAll('.faltas-check:checked').forEach(chk => {
-      crearPill(chk.dataset.codigo, chk.dataset.gravedad, chk.dataset.descripcion);
-    });
-    selCount.textContent = faltasList.querySelectorAll('.faltas-check:checked').length + ' seleccionadas';
-
-    // listeners para añadir/quitar pills dinámicamente
-    faltasList.querySelectorAll('.faltas-check').forEach(chk => {
-      chk.addEventListener('change', () => {
-        pillsContainer.innerHTML = '';
-        const seleccionadas = faltasList.querySelectorAll('.faltas-check:checked');
-        seleccionadas.forEach(c => crearPill(c.dataset.codigo, c.dataset.gravedad, c.dataset.descripcion));
-        selCount.textContent = seleccionadas.length + ' seleccionadas';
-      });
-    });
-  });
-  
+  const BASE_LOOKUP_URL = "<?= base_url('empleados/lookup') ?>";  
 </script>
 <script defer src="<?= base_url('assets/js/pages/furd.js') ?>"></script>
 <?= $this->endSection(); ?>
