@@ -8,7 +8,7 @@ class FurdSoporteRequest
             'consecutivo'        => 'required|is_not_unique[tbl_furd.consecutivo]',
             'responsable'        => 'required|min_length[3]|max_length[150]',
             'decision_propuesta' => 'required|min_length[3]',
-            'adjuntos'           => 'required',
+            'adjuntos'         => 'uploaded[adjuntos]',
         ];
     }
 
@@ -28,7 +28,7 @@ class FurdSoporteRequest
                 'min_length' => 'La decisión propuesta es muy corta.',
             ],
             'adjuntos' => [
-                'required'   => 'Ups! El o los soportes son obligatorios.',
+                'uploaded'   => 'Ups! El o los soportes son obligatorios.',
             ],
         ];
     }

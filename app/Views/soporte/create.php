@@ -25,10 +25,10 @@ $decisiones  = $decisiones ?? [
       </div>
 
       <form class="card-body"
-            method="post"
-            action="<?= base_url('soporte'); ?>"
-            enctype="multipart/form-data"
-            novalidate>
+        method="post"
+        action="<?= base_url('soporte'); ?>"
+        enctype="multipart/form-data"
+        novalidate>
         <?= csrf_field(); ?>
 
         <?php if (!empty($errors)): ?>
@@ -61,8 +61,7 @@ $decisiones  = $decisiones ?? [
                 value="<?= old('consecutivo') ?>"
                 required
                 pattern="[Pp][Dd]-[0-9]{6}"
-                title="Formato esperado: PD-000123"
-              >
+                title="Formato esperado: PD-000123">
               <button type="button" id="btnBuscar" class="btn btn-outline-success" title="Buscar FURD">
                 <i class="bi bi-search"></i>
               </button>
@@ -88,8 +87,7 @@ $decisiones  = $decisiones ?? [
               class="form-control <?= !empty($errors['responsable'] ?? null) ? 'is-invalid' : '' ?>"
               value="<?= old('responsable', $responsable) ?>"
               placeholder="Nombre de quien diligencia"
-              required
-            >
+              required>
             <?php if (!empty($errors['responsable'] ?? null)): ?>
               <div class="invalid-feedback d-block">
                 <?= esc($errors['responsable']) ?>
@@ -104,8 +102,7 @@ $decisiones  = $decisiones ?? [
               name="decision_propuesta"
               id="decision_propuesta"
               class="form-select <?= !empty($errors['decision_propuesta'] ?? null) ? 'is-invalid' : '' ?>"
-              required
-            >
+              required>
               <option value="">Elige una opción..</option>
               <?php foreach ($decisiones as $opt): ?>
                 <option value="<?= esc($opt) ?>"
@@ -130,26 +127,27 @@ $decisiones  = $decisiones ?? [
 
         <div class="row g-3">
           <div class="col-12 col-lg-8">
-            <label class="form-label">Seleccionar archivos</label>
-            <input
-              id="adjuntos"
-              name="adjuntos[]"
-              type="file"
-              class="form-control"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png,.heic,.tif,.tiff"
-            >
-            <div class="form-text">Puedes adjuntar varios archivos (PDF o imágenes).</div>
-          </div>
-
-          <div class="col-12 col-lg-4">
-            <div class="dropzone text-center p-4 border rounded">
+            <label class="form-label">Archivos de soporte</label>
+            <div class="dropzone text-center p-4 border" id="dzSoporte">
               <i class="bi bi-cloud-arrow-up fs-2 d-block mb-2"></i>
-              Arrastra y suelta tus archivos aquí
+              <div class="fw-semibold">Arrastra y suelta tus archivos aquí</div>
+              <div class="text-muted small">o haz clic para seleccionarlos desde tu equipo.</div>
+
+              <!-- input real, oculto -->
+              <input
+                id="adjuntos"
+                name="adjuntos[]"
+                type="file"
+                class="d-none"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xls,.xlsx">
+            </div>
+            <div class="form-text">
+              Se permiten varios archivos (PDF, imágenes, Office). Máx. 16 MB por archivo.
             </div>
           </div>
 
-          <div class="col-12">
+          <div class="col-12 col-lg-4">
             <div class="filelist border rounded p-2">
               <div class="small text-muted mb-2">Archivos seleccionados para subir:</div>
               <ul id="fileList" class="list-unstyled mb-0"></ul>
@@ -157,7 +155,8 @@ $decisiones  = $decisiones ?? [
           </div>
         </div>
 
-                <!-- Adjuntos existentes -->
+
+        <!-- Adjuntos existentes -->
         <div class="section-header mt-4">
           <i class="bi bi-clipboard2-pulse"></i>
           <h6>Adjuntos del FURD (existentes)</h6>
@@ -177,8 +176,9 @@ $decisiones  = $decisiones ?? [
             <a href="<?= base_url('/'); ?>" class="btn btn-outline-secondary">
               <i class="bi bi-x-circle me-1"></i>Cancelar
             </a>
-            <button class="btn btn-success">
-              <i class="bi bi-send-check me-1"></i>Guardar soporte
+            <button id="btnGuardarSoporte" type="submit" class="btn btn-success">
+              <span class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true"></span>
+              <span class="btn-text">Guardar soporte</span>
             </button>
           </div>
         </div>
@@ -188,29 +188,127 @@ $decisiones  = $decisiones ?? [
   </div>
 </div>
 
+<!-- Toasts (por si no existe en el layout) -->
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000;"></div>
+
+<!-- Loader global -->
+<div id="globalLoader" class="loader-overlay d-none">
+  <div class="loader-content">
+    <lottie-player
+      class="loader-lottie"
+      src="<?= base_url('assets/lottie/bear-dancing.json') ?>"
+      background="transparent"
+      speed="1"
+      style="width: 220px; height: 220px;"
+      loop
+      autoplay>
+    </lottie-player>
+    <p class="loader-text mb-0 text-muted">
+      Guardando soporte, por favor espera…
+    </p>
+  </div>
+</div>
+
+
 <?= $this->endSection(); ?>
 
+
 <?= $this->section('scripts'); ?>
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <script>
   (() => {
-    const $consec    = document.getElementById('consecutivo');
-    const $buscar    = document.getElementById('btnBuscar');
-    const $adjPrev   = document.getElementById('adjuntosPrev');
-    const $adjuntos  = document.getElementById('adjuntos');
-    const $fileList  = document.getElementById('fileList');
-
+    const PREFIX = 'PD-';
     const baseFind = '<?= base_url('soporte/find'); ?>';
 
-    // Wrapper para usar el toast global bonito
-    function notify(msg, type = 'info', ms = 3800) {
-      if (typeof showToast === 'function') {
-        showToast(msg, type, ms);
-      } else {
-        console[type === 'error' ? 'error' : 'log'](msg);
-        alert(msg);
-      }
+    const form = document.querySelector('form[action$="soporte"]');
+    const consecutivo = document.getElementById('consecutivo');
+    const btnBuscar = document.getElementById('btnBuscar');
+    const adjPrev = document.getElementById('adjuntosPrev');
+
+    const dz = document.getElementById('dzSoporte');
+    const adjuntos = document.getElementById('adjuntos');
+    const fileList = document.getElementById('fileList');
+    const btnGuardar = document.getElementById('btnGuardarSoporte');
+    const globalLoader = document.getElementById('globalLoader');
+
+    const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
+    const ALLOWED_EXT = ['pdf', 'jpg', 'jpeg', 'png', 'heic', 'doc', 'docx', 'xls', 'xlsx'];
+
+    const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
+    const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+    // --- Toast helper global ---
+    function showToast(message, type = 'info') {
+      const colors = {
+        success: 'bg-success text-white',
+        error: 'bg-danger text-white',
+        warning: 'bg-warning text-dark',
+        info: 'bg-info text-dark',
+      };
+      const icon = {
+        success: 'bi-check-circle-fill',
+        error: 'bi-x-circle-fill',
+        warning: 'bi-exclamation-triangle-fill',
+        info: 'bi-info-circle-fill',
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `toast align-items-center border-0 show ${colors[type]} mt-2 shadow`;
+      toast.role = 'alert';
+      toast.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="bi ${icon[type]} me-2"></i>${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    `;
+
+      const container =
+        document.getElementById('toastContainer') ||
+        (() => {
+          const c = document.createElement('div');
+          c.id = 'toastContainer';
+          c.className = 'toast-container position-fixed top-0 end-0 p-3';
+          c.style.zIndex = 2000;
+          document.body.appendChild(c);
+          return c;
+        })();
+
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
     }
 
+    function notify(msg, type = 'info', ms = 3800) {
+      showToast(msg, type);
+    }
+
+    // ---------- Consecutivo: PD- automático ----------
+    const onlyDigits = (str) => (str || '').replace(/\D/g, '');
+
+    function normalizeConsecutivoSixDigits(value) {
+      const digits = onlyDigits(String(value));
+      if (!digits) return '';
+      return PREFIX + digits.padStart(6, '0');
+    }
+
+    consecutivo?.addEventListener('focus', () => {
+      if (!consecutivo.value.trim()) {
+        consecutivo.value = PREFIX;
+        setTimeout(() => {
+          const len = consecutivo.value.length;
+          consecutivo.setSelectionRange(len, len);
+        }, 0);
+      }
+    });
+
+    consecutivo?.addEventListener('input', () => {
+      const digits = onlyDigits(consecutivo.value);
+      consecutivo.value = PREFIX + digits;
+    });
+
+    // ---------- Adjuntos existentes (previos) ----------
     const iconByMime = (mime = '') => {
       mime = mime.toLowerCase();
       if (mime.includes('pdf')) return 'bi-filetype-pdf text-danger';
@@ -220,14 +318,22 @@ $decisiones  = $decisiones ?? [
       return 'bi-file-earmark text-muted';
     };
 
-    // Render de adjuntos existentes agrupados por fase
     function renderAdjuntosExistentes(prevAdj) {
-      $adjPrev.innerHTML = '';
+      if (!adjPrev) return;
+      adjPrev.innerHTML = '';
 
-      const fases = [
-        { key: 'registro', label: 'Fase 1 · Registro'   },
-        { key: 'citacion', label: 'Fase 2 · Citación'   },
-        { key: 'descargos', label: 'Fase 3 · Descargos' },
+      const fases = [{
+          key: 'registro',
+          label: 'Fase 1 · Registro'
+        },
+        {
+          key: 'citacion',
+          label: 'Fase 2 · Citación'
+        },
+        {
+          key: 'descargos',
+          label: 'Fase 3 · Descargos'
+        },
       ];
 
       let tieneAlgo = false;
@@ -241,164 +347,380 @@ $decisiones  = $decisiones ?? [
         const header = document.createElement('div');
         header.className = 'col-12';
         header.innerHTML = `<h6 class="text-muted mb-2">${f.label}</h6>`;
-        $adjPrev.appendChild(header);
+        adjPrev.appendChild(header);
 
         arr.forEach(it => {
           const col = document.createElement('div');
           col.className = 'col-12 col-md-6 col-xl-4';
 
           const nombre = it.nombre_original || it.nombre || it.filename || `Adjunto #${it.id}`;
-          const mime   = it.mime || '';
-          const url    = it.url || it.display_url || `<?= base_url('adjuntos'); ?>/${it.id}/open`;
+          const mime = it.mime || '';
+          const url = it.url || it.display_url || `<?= base_url('adjuntos'); ?>/${it.id}/open`;
 
           col.innerHTML = `
-            <div class="adj-card border rounded p-3 h-100 d-flex flex-column gap-2">
-              <div class="d-flex align-items-center gap-2">
-                <i class="bi ${iconByMime(mime)} fs-4"></i>
-                <div class="small fw-semibold text-truncate" title="${nombre}">${nombre}</div>
-              </div>
-              <div class="small text-muted">${mime || 'archivo'}</div>
-              <div class="mt-auto">
-                <a class="btn btn-sm btn-outline-primary" href="${url}" target="_blank" rel="noopener">
-                  <i class="bi bi-box-arrow-up-right me-1"></i>Ver / Descargar
-                </a>
-              </div>
-            </div>`;
-          $adjPrev.appendChild(col);
+          <div class="adj-card border rounded p-3 h-100 d-flex flex-column gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi ${iconByMime(mime)} fs-4"></i>
+              <div class="small fw-semibold text-truncate" title="${nombre}">${nombre}</div>
+            </div>
+            <div class="small text-muted">${mime || 'archivo'}</div>
+            <div class="mt-auto">
+              <a class="btn btn-sm btn-outline-primary" href="${url}" target="_blank" rel="noopener">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Ver / Descargar
+              </a>
+            </div>
+          </div>`;
+          adjPrev.appendChild(col);
         });
       });
 
       if (!tieneAlgo) {
-        $adjPrev.innerHTML = `
-          <div class="col-12">
-            <div class="alert alert-secondary small mb-0">
-              No hay adjuntos anteriores para este FURD.
-            </div>
-          </div>`;
+        adjPrev.innerHTML = `
+        <div class="col-12">
+          <div class="alert alert-secondary small mb-0">
+            No hay adjuntos anteriores para este FURD.
+          </div>
+        </div>`;
       }
     }
 
-    // Buscar por consecutivo (lupa)
+    // ---------- Buscar consecutivo (lupa) ----------
     async function buscar() {
-      const id = ($consec.value || '').trim();
-      if (!id) {
-        $consec.focus();
-        notify('Ingresa un consecutivo para buscar.', 'info');
+      if (!consecutivo) return;
+
+      const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+      if (!normalized) {
+        notify('Debes escribir un consecutivo válido (ej: PD-000123).', 'warning');
+        consecutivo.focus();
         return;
       }
 
-      if (!/^PD-\d{6}$/i.test(id)) {
-        notify('Formato inválido. Usa algo como PD-000123.', 'error');
-        return;
-      }
-
-      $consec.classList.add('loading');
+      consecutivo.value = normalized;
+      consecutivo.classList.add('loading');
 
       try {
-        const url = `${baseFind}?consecutivo=${encodeURIComponent(id)}`;
+        const url = `${baseFind}?consecutivo=${encodeURIComponent(normalized)}`;
         const res = await fetch(url);
-        if (!res.ok) throw new Error('No se pudo consultar el FURD.');
+        const data = res.ok ? await res.json() : null;
 
-        const data = await res.json();
-        if (!data.ok) {
+        if (!data || !data.ok) {
           renderAdjuntosExistentes(null);
-          throw new Error('No se encontró un FURD con ese consecutivo.');
+          notify('No se encontró un FURD con ese consecutivo.', 'error');
+          return;
         }
 
         renderAdjuntosExistentes(data.prevAdj || {});
         notify('Registro cargado correctamente.', 'success');
       } catch (e) {
+        console.error(e);
         renderAdjuntosExistentes(null);
-        notify(e.message || 'No se encontró el registro.', 'error');
+        notify('Ocurrió un error al consultar el FURD.', 'error');
       } finally {
-        $consec.classList.remove('loading');
+        consecutivo.classList.remove('loading');
       }
     }
 
-    $buscar?.addEventListener('click', buscar);
-    $consec?.addEventListener('keydown', e => {
+    btnBuscar?.addEventListener('click', buscar);
+    consecutivo?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         buscar();
       }
     });
 
-    // Listado de archivos seleccionados
-    function refreshFileList() {
-      $fileList.innerHTML = '';
-      const files = [...($adjuntos?.files || [])];
+    // ---------- Adjuntos nuevos: validación + lista + eliminar ----------
 
-      if (!files.length) {
-        $fileList.innerHTML = '<li class="text-muted small">No hay archivos seleccionados.</li>';
-        return;
-      }
+    // Acorta nombres muy largos: parte inicial + "…" + extensión
+    const shortenName = (name, max = 28) => {
+      if (!name) return '';
+      if (name.length <= max) return name;
 
-      files.forEach(f => {
-        const li = document.createElement('li');
-        const icon = f.type.includes('pdf') ? 'bi-filetype-pdf text-danger'
-                                            : 'bi-image text-success';
-        const size = (f.size / 1024 / 1024).toFixed(2) + ' MB';
+      const dotIndex = name.lastIndexOf('.');
+      const hasExt = dotIndex > 0;
+      const ext = hasExt ? name.slice(dotIndex) : '';
+      const base = hasExt ? name.slice(0, dotIndex) : name;
 
-        li.className = 'd-flex align-items-center gap-2 py-1 border-bottom';
-        li.innerHTML = `
-          <i class="bi ${icon}"></i>
-          <span class="flex-grow-1 text-truncate" title="${f.name}">${f.name}</span>
-          <span class="badge text-bg-light">${size}</span>`;
-        $fileList.appendChild(li);
-      });
+      // dejamos un espacio para la extensión
+      const maxBase = Math.max(8, max - ext.length - 1);
+      const start = base.slice(0, maxBase);
+      return `${start}…${ext}`;
+    };
+
+  function refreshFileList() {
+    if (!fileList || !adjuntos) return;
+    fileList.innerHTML = '';
+
+    const files = Array.from(adjuntos.files || []);
+    if (!files.length) {
+      fileList.innerHTML = '<li class="text-muted small">No hay archivos seleccionados.</li>';
+      return;
     }
 
-    $adjuntos?.addEventListener('change', refreshFileList);
-    refreshFileList();
+    files.forEach((f, idx) => {
+      const sizeMb      = (f.size / (1024 * 1024)).toFixed(2);
+      const displayName = shortenName(f.name);  // 👈 aquí usamos el nombre recortado
 
-    // Dropzone simple
-    const dz = document.querySelector('.dropzone');
-    if (dz) {
-      dz.addEventListener('dragover', e => {
+      const li = document.createElement('li');
+      li.className = 'd-flex flex-column gap-1 py-1 border-bottom';
+
+      li.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-paperclip"></i>
+          <span class="flex-grow-1 text-truncate file-name" title="${f.name}">${displayName}</span>
+          <span class="badge text-bg-light">${sizeMb} MB</span>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0 js-remove-file" data-file-idx="${idx}" title="Quitar archivo">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="progress mt-1" style="height: 4px;">
+          <div class="progress-bar" role="progressbar" data-file-idx="${idx}" style="width: 0%;"></div>
+        </div>
+      `;
+
+      fileList.appendChild(li);
+    });
+  }
+
+
+    function handleAdjuntosChange() {
+      if (!adjuntos) return;
+      const dt = new DataTransfer();
+
+      Array.from(adjuntos.files || []).forEach((file) => {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const isAllowedExt = ALLOWED_EXT.includes(ext);
+        const isAllowedSize = file.size <= MAX_FILE_SIZE;
+
+        if (!isAllowedExt) {
+          notify(
+            `El archivo "${file.name}" no está permitido. Solo se permiten imágenes (JPG, PNG, HEIC), PDF y Office (DOC, DOCX, XLS, XLSX).`,
+            'warning'
+          );
+          return;
+        }
+
+        if (!isAllowedSize) {
+          notify(
+            `El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`,
+            'warning'
+          );
+          return;
+        }
+
+        dt.items.add(file);
+      });
+
+      adjuntos.files = dt.files;
+      refreshFileList();
+    }
+
+    adjuntos?.addEventListener('change', handleAdjuntosChange);
+
+    fileList?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.js-remove-file');
+      if (!btn || !adjuntos) return;
+
+      const idx = parseInt(btn.dataset.fileIdx, 10);
+      if (Number.isNaN(idx)) return;
+
+      const dt = new DataTransfer();
+      Array.from(adjuntos.files || []).forEach((file, i) => {
+        if (i !== idx) dt.items.add(file);
+      });
+
+      adjuntos.files = dt.files;
+      refreshFileList();
+
+      if (!dt.files.length) {
+        notify('Se han quitado todos los archivos seleccionados.', 'info');
+      }
+    });
+
+    // Dropzone: click + drag&drop
+    if (dz && adjuntos) {
+      dz.addEventListener('click', () => {
+        adjuntos.click();
+      });
+
+      dz.addEventListener('dragover', (e) => {
         e.preventDefault();
         dz.classList.add('dragging');
       });
-      dz.addEventListener('dragleave', () => dz.classList.remove('dragging'));
-      dz.addEventListener('drop', e => {
+
+      dz.addEventListener('dragleave', () => {
+        dz.classList.remove('dragging');
+      });
+
+      dz.addEventListener('drop', (e) => {
         e.preventDefault();
         dz.classList.remove('dragging');
         if (!e.dataTransfer?.files?.length) return;
 
         const dt = new DataTransfer();
-        [...($adjuntos.files || []), ...e.dataTransfer.files].forEach(f => dt.items.add(f));
-        $adjuntos.files = dt.files;
-        refreshFileList();
+        [...(adjuntos.files || []), ...e.dataTransfer.files].forEach((f) => dt.items.add(f));
+        adjuntos.files = dt.files;
+        handleAdjuntosChange();
       });
     }
-  })();
 
-  (() => {
-    // Formulario de soporte
-    const form = document.querySelector('form[action$="soporte"]');
-    if (!form) return;
+    // ---------- Progreso por archivo ----------
+    let uploadFilesMeta = [];
 
-    // Botón de enviar (usa el que ya tienes)
-    const submitBtn = form.querySelector('button[type="submit"], .btn-success');
-
-    form.addEventListener('submit', () => {
-      if (!submitBtn) return;
-
-      // Deshabilitar para evitar doble envío
-      submitBtn.disabled = true;
-      submitBtn.classList.add('loading');   // por si ya tienes estilos para .loading
-
-      // Guardar el contenido original por si algún día quieres restaurarlo
-      if (!submitBtn.dataset.originalHtml) {
-        submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+    const buildUploadMeta = () => {
+      if (!adjuntos) {
+        uploadFilesMeta = [];
+        return 0;
       }
 
-      // Spinner + texto
-      submitBtn.innerHTML = `
-        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-        Guardando...
-      `;
-      // NO hacemos preventDefault: el form se envía normal
-    });
+      const files = Array.from(adjuntos.files || []);
+      let offset = 0;
+      uploadFilesMeta = files.map((file, idx) => {
+        const start = offset;
+        const end = start + file.size;
+        offset = end;
+        return {
+          index: idx,
+          start,
+          end,
+          size: file.size
+        };
+      });
+
+      return offset;
+    };
+
+    const updateUploadProgressBars = (loaded) => {
+      if (!uploadFilesMeta.length || !fileList) return;
+
+      uploadFilesMeta.forEach((meta) => {
+        const bar = fileList.querySelector(
+          `.progress-bar[data-file-idx="${meta.index}"]`
+        );
+        if (!bar) return;
+
+        let percent = 0;
+        if (loaded <= meta.start) {
+          percent = 0;
+        } else if (loaded >= meta.end) {
+          percent = 100;
+        } else {
+          percent = ((loaded - meta.start) / meta.size) * 100;
+        }
+
+        bar.style.width = `${percent}%`;
+      });
+    };
+
+    // ---------- Envío AJAX (no perder datos ni adjuntos en errores) ----------
+    if (form && btnGuardar) {
+      const spin = btnGuardar.querySelector('.spinner-border');
+      const txt = btnGuardar.querySelector('.btn-text');
+      let sending = false;
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Normalizar consecutivo antes de enviar
+        if (consecutivo) {
+          const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+          if (!normalized) {
+            notify('El consecutivo es obligatorio y debe tener formato PD-000123.', 'error');
+            consecutivo.focus();
+            return;
+          }
+          consecutivo.value = normalized;
+        }
+
+        if (sending) return;
+        sending = true;
+
+        btnGuardar.disabled = true;
+        if (spin) spin.classList.remove('d-none');
+        if (txt) txt.textContent = 'Guardando...';
+
+        showGlobalLoader();
+
+        const formData = new FormData(form);
+        const totalBytes = buildUploadMeta();
+
+        const xhr = new XMLHttpRequest();
+        xhr.open(form.method || 'POST', form.action);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.upload.onprogress = (evt) => {
+          if (!evt.lengthComputable) return;
+          updateUploadProgressBars(evt.loaded);
+        };
+
+        const resetBtn = () => {
+          sending = false;
+          btnGuardar.disabled = false;
+          if (spin) spin.classList.add('d-none');
+          if (txt) txt.textContent = 'Guardar soporte';
+        };
+
+        xhr.onload = () => {
+          hideGlobalLoader();
+
+          const contentType = xhr.getResponseHeader('Content-Type') || '';
+          let data = null;
+
+          if (contentType.includes('application/json')) {
+            try {
+              data = JSON.parse(xhr.responseText || '{}');
+            } catch (_) {
+              data = null;
+            }
+          }
+
+          if (data) {
+            if (data.ok && data.redirectTo) {
+              window.location.href = data.redirectTo;
+              return;
+            }
+
+            if (data.ok === false && data.errors) {
+              const allErrors = Array.isArray(data.errors) ?
+                data.errors :
+                Object.values(data.errors);
+
+              const firstError = allErrors.length ?
+                allErrors[0] :
+                'Revisa los campos obligatorios.';
+
+              notify(firstError, 'warning');
+              resetBtn();
+              return;
+            }
+
+            notify('Error inesperado al registrar el soporte.', 'error');
+            resetBtn();
+            return;
+          }
+
+          if (xhr.status >= 200 && xhr.status < 400) {
+            const finalURL = xhr.responseURL || form.action;
+            window.location.href = finalURL;
+          } else {
+            notify('Ocurrió un error al registrar el soporte.', 'error');
+            resetBtn();
+          }
+        };
+
+        xhr.onerror = () => {
+          hideGlobalLoader();
+          notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
+          resetBtn();
+        };
+
+        xhr.send(formData);
+      });
+    }
+
+    // Inicializar lista vacía
+    refreshFileList();
   })();
 </script>
+
+
 <?= $this->endSection(); ?>

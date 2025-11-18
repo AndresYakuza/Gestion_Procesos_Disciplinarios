@@ -20,70 +20,154 @@ class SoporteController extends BaseController
     /** AJAX: trae adjuntos previos (registro, citación, descargos) */
     public function find()
     {
-        $consec = (string)$this->request->getGet('consecutivo');
+        $raw    = (string)$this->request->getGet('consecutivo');
+        $consec = $this->normalizeConsecutivo($raw);
+
+        if ($consec === null) {
+            return $this->response->setJSON(['ok' => false]);
+        }
+
         $furd = (new FurdModel())->findByConsecutivo($consec);
-        if (!$furd) return $this->response->setJSON(['ok'=>false]);
+        if (!$furd) {
+            return $this->response->setJSON(['ok' => false]);
+        }
+
+        $adjModel = new FurdAdjuntoModel();
         $prev = [
-            'registro' => (new FurdAdjuntoModel())->listByFase((int)$furd['id'], 'registro'),
-            'citacion' => (new FurdAdjuntoModel())->listByFase((int)$furd['id'], 'citacion'),
-            'descargos'=> (new FurdAdjuntoModel())->listByFase((int)$furd['id'], 'descargos'),
+            'registro' => $adjModel->listByFase((int)$furd['id'], 'registro'),
+            'citacion' => $adjModel->listByFase((int)$furd['id'], 'citacion'),
+            'descargos'=> $adjModel->listByFase((int)$furd['id'], 'descargos'),
         ];
-        return $this->response->setJSON(['ok'=>true,'furd'=>$furd,'prevAdj'=>$prev]);
+
+        return $this->response->setJSON([
+            'ok'          => true,
+            'consecutivo' => $consec,
+            'furd'        => $furd,
+            'prevAdj'     => $prev,
+        ]);
     }
 
     public function store()
     {
-        $rules    = FurdSoporteRequest::rules();
-        $messages = FurdSoporteRequest::messages();
+        // ---------- 0) Normalizar consecutivo ----------
+        $consecNorm = $this->normalizeConsecutivo(
+            (string)$this->request->getPost('consecutivo')
+        );
 
-        if (!$this->validate($rules, $messages)) {
-            return redirect()->back()
-                ->with('errors', $this->validator->getErrors())
-                ->withInput();
+        if ($consecNorm === null) {
+            $errors = ['consecutivo' => 'El consecutivo es obligatorio y debe tener formato PD-000123.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
+            return redirect()->back()->with('errors', $errors)->withInput();
         }
 
-        // 1) Buscar FURD por consecutivo
-        $consec = (string)$this->request->getPost('consecutivo');
-        $furd   = (new FurdModel())->findByConsecutivo($consec);
+        // ---------- 1) Validar datos de formulario ----------
+        $postData                 = $this->request->getPost();
+        $postData['consecutivo']  = $consecNorm;
+
+        $validation = \Config\Services::validation();
+        $validation->setRules(FurdSoporteRequest::rules(), FurdSoporteRequest::messages());
+
+        if (!$validation->run($postData)) {
+            $errors = $validation->getErrors();
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
+            return redirect()->back()->with('errors', $errors)->withInput();
+        }
+
+        // ---------- 2) Validar adjuntos (extensión + tamaño) ----------
+        $files = $this->request->getFiles()['adjuntos'] ?? [];
+        $files = is_array($files) ? $files : [$files];
+
+        $allowedExt = ['pdf','jpg','jpeg','png','heic','doc','docx','xls','xlsx'];
+        $maxSize    = 16 * 1024 * 1024; // 16 MB
+        $fileError  = null;
+
+        foreach ($files as $file) {
+            if (!$file || !$file->isValid() || $file->hasMoved()) {
+                continue;
+            }
+
+            $ext = strtolower($file->getExtension());
+            if (!in_array($ext, $allowedExt, true)) {
+                $fileError = 'Uno o más archivos tienen un formato no permitido. Solo se permiten PDF, imágenes (JPG, PNG, HEIC) y archivos de Office (DOC, DOCX, XLS, XLSX).';
+                break;
+            }
+
+            if ($file->getSize() > $maxSize) {
+                $fileError = 'Uno o más archivos superan el tamaño máximo de 16 MB.';
+                break;
+            }
+        }
+
+        if ($fileError !== null) {
+            $errors = ['adjuntos' => $fileError];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
+            return redirect()->back()->with('errors', $errors)->withInput();
+        }
+
+        // ---------- 3) Buscar FURD por consecutivo ----------
+        $furd = (new FurdModel())->findByConsecutivo($consecNorm);
         if (!$furd) {
-            return redirect()->back()
-                ->with('errors', ['FURD no encontrado'])
-                ->withInput();
+            $errors = ['consecutivo' => 'El consecutivo no existe.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
+            return redirect()->back()->with('errors', $errors)->withInput();
         }
 
-        // 2) Validar flujo (que ya existan descargos, etc.)
+        // ---------- 4) Validar flujo (que ya existan descargos, etc.) ----------
         $wf = new FurdWorkflow();
         if (!$wf->canStartSoporte($furd)) {
-            return redirect()->back()
-                ->with('errors', ['Primero registra los descargos.'])
-                ->withInput();
+            $errors = ['La fase previa (descargos) no está completa o ya existe un soporte registrado con este numero de consecutivo.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
+            return redirect()->back()->with('errors', $errors)->withInput();
         }
 
-        // 3) Evitar soporte duplicado para el mismo FURD
+        // Evitar soporte duplicado para el mismo FURD
         $soporteModel = new FurdSoporteModel();
         $existing     = $soporteModel->findByFurd((int)$furd['id']);
         if ($existing) {
-            return redirect()->back()
-                ->with('errors', ['Ya existe un soporte registrado para este proceso. Si necesitas modificarlo, hazlo desde la edición.'])
-                ->withInput();
+            $errors = ['Ya existe un soporte registrado para este proceso. Si necesitas modificarlo, hazlo desde la edición.'];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
+            return redirect()->back()->with('errors', $errors)->withInput();
         }
 
-        // 4) Guardar
+        // ---------- 5) Guardar ----------
         $db = db_connect();
         $db->transStart();
 
         try {
             $payload = [
                 'furd_id'            => (int)$furd['id'],
-                'responsable'        => (string)$this->request->getPost('responsable'),
-                'decision_propuesta' => (string)$this->request->getPost('decision_propuesta'),
+                'responsable'        => (string)$postData['responsable'],
+                'decision_propuesta' => (string)$postData['decision_propuesta'],
             ];
             $id = (int)$soporteModel->insert($payload, true);
 
             // Adjuntos fase soporte
-            $files = $this->request->getFiles()['adjuntos'] ?? [];
             if (!empty($files)) {
-                $this->saveAdjuntos((int)$furd['id'], 'soporte', is_array($files) ? $files : [$files]);
+                $this->saveAdjuntos((int)$furd['id'], 'soporte', $files);
             }
 
             // Actualizar estado del FURD
@@ -91,17 +175,34 @@ class SoporteController extends BaseController
 
             $db->transComplete();
 
+            $mensajeOk = 'Soporte registrado. Continúa con Decisión.';
+
+            if ($this->request->isAJAX()) {
+                session()->setFlashdata('ok', $mensajeOk);
+                session()->setFlashdata('consecutivo', $consecNorm);
+
+                return $this->response->setJSON([
+                    'ok'         => true,
+                    'redirectTo' => site_url('seguimiento'),
+                ]);
+            }
+
             return redirect()
-                ->to(site_url('decision'))
-                ->with('ok', 'Soporte registrado. Continúa con Decisión.');
+                ->to(site_url('seguimiento'))
+                ->with('ok', $mensajeOk)
+                ->with('consecutivo', $consecNorm);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return redirect()->back()
-                ->with('errors', [$e->getMessage()])
-                ->withInput();
+
+            $errors = [$e->getMessage()];
+
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
+
+            return redirect()->back()->with('errors', $errors)->withInput();
         }
     }
-
 
     public function update(int $id)
     {
@@ -135,4 +236,30 @@ class SoporteController extends BaseController
         return redirect()->back()->with('ok', 'Soporte actualizado');
     }
 
+    /**
+     * Normaliza un consecutivo a formato PD-000123.
+     * Devuelve null si es inválido.
+     */
+    private function normalizeConsecutivo(?string $value): ?string
+    {
+        $v = strtoupper(trim((string)$value));
+        if ($v === '') {
+            return null;
+        }
+
+        if (substr($v, 0, 3) !== 'PD-') {
+            $v = 'PD-' . preg_replace('/\D+/', '', $v);
+        }
+
+        if (!preg_match('~^PD-(\d+)~', $v, $m)) {
+            return null;
+        }
+
+        $num = preg_replace('/\D+/', '', $m[1]);
+        if ($num === '') {
+            return null;
+        }
+
+        return 'PD-' . str_pad($num, 6, '0', STR_PAD_LEFT);
+    }
 }
