@@ -146,6 +146,14 @@
   // 🔎 Buscar solo al hacer clic
   btnBuscar?.addEventListener("click", buscarEmpleado);
 
+  // ⌨️ Al presionar Enter en el campo cédula, NO hacer submit: solo buscar
+  cedula?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();          // evita el submit del formulario
+      buscarEmpleado();            // o: btnBuscar?.click();
+    }
+  });
+
   // 🔎 Filtro de faltas (código + descripción, ignorando acentos)
   const filtro = document.getElementById("filtroFaltas");
 

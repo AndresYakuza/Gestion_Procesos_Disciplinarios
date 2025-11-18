@@ -8,137 +8,156 @@
 
 <?php $errors = session('errors') ?? []; ?>
 
-<div class="row g-4">
-  <div class="col-12">
-    <div class="card animate-in">
+<div class="page-descargos">
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="card animate-in">
 
-
-      <div class="card-header main-header">
-        <span>📜 Acta de Cargos y Descargos</span>
-      </div>
-
-      <form class="card-body" method="post" action="<?= base_url('descargos'); ?>" novalidate>
-        <?= csrf_field(); ?>
-
-        <?php if (!empty($errors)): ?>
-          <div class="alert alert-danger">
-            <div class="fw-semibold mb-1">Corrige los siguientes campos:</div>
-            <ul class="mb-0">
-              <?php foreach ($errors as $e): ?><li><?= esc($e) ?></li><?php endforeach; ?>
-            </ul>
-          </div>
-        <?php endif; ?>
-
-        <!-- BANDA / TÍTULO DE SECCIÓN -->
-        <div class="section-header">
-          <i class="bi bi-clipboard2-pulse"></i>
-          <h6>Datos del acta de cargos y descargos</h6>
+        <div class="card-header main-header">
+          <span>📜 Acta de Cargos y Descargos</span>
         </div>
 
+        <form id="cydForm" class="card-body" method="post" action="<?= base_url('descargos'); ?>" novalidate>
+          <?= csrf_field(); ?>
 
+          <?php if (!empty($errors)): ?>
+            <div class="alert alert-danger">
+              <div class="fw-semibold mb-1">Corrige los siguientes campos:</div>
+              <ul class="mb-0">
+                <?php foreach ($errors as $e): ?>
+                  <li><?= esc($e) ?></li>
+                <?php endforeach; ?>
+              </ul>
+            </div>
+          <?php endif; ?>
 
-        <div class="row g-3 align-items-end">
-          <div class="col-12 col-md-6">
-            <label class="form-label d-flex align-items-center gap-1">
-              Consecutivo del proceso
-              <i class="bi bi-info-circle text-muted small"
-                data-bs-toggle="tooltip"
-                data-bs-placement="right"
-                title="Ingresa el consecutivo del FURD. Ejemplo: PD-000123">
-              </i>
-            </label>
+          <!-- BANDA / TÍTULO DE SECCIÓN -->
+          <div class="section-header">
+            <i class="bi bi-clipboard2-pulse"></i>
+            <h6>Datos del acta de cargos y descargos</h6>
+          </div>
 
-            <div class="input-group">
-              <input
-                id="consecutivo"
-                name="consecutivo"
-                type="text"
-                class="form-control <?= !empty($errors['consecutivo'] ?? null) ? 'is-invalid' : '' ?>"
-                placeholder="Ej: PD-000123"
-                value="<?= old('consecutivo') ?>"
-                required
-                pattern="[Pp][Dd]-[0-9]{6}"
-                title="Formato esperado: PD-000001">
+          <div class="row g-3 align-items-end">
+            <!-- Consecutivo -->
+            <div class="col-12 col-md-6">
+              <label class="form-label d-flex align-items-center gap-1" for="consecutivo">
+                Consecutivo del proceso
+                <i class="bi bi-info-circle text-muted small"
+                  data-bs-toggle="tooltip"
+                  data-bs-placement="right"
+                  title="Ingresa el consecutivo del FURD. Ejemplo: PD-000123">
+                </i>
+              </label>
 
-              <button
-                type="button"
-                id="btnBuscarConsecutivo"
-                class="btn btn-outline-success"
-                title="Buscar registro">
-                <i class="bi bi-search"></i>
-              </button>
+              <div class="input-group">
+                <input
+                  id="consecutivo"
+                  name="consecutivo"
+                  type="text"
+                  class="form-control <?= !empty($errors['consecutivo'] ?? null) ? 'is-invalid' : '' ?>"
+                  placeholder="Ej: PD-000123"
+                  value="<?= old('consecutivo') ?>"
+                  required
+                  pattern="[Pp][Dd]-[0-9]{6}"
+                  title="Formato esperado: PD-000001">
+
+                <button
+                  type="button"
+                  id="btnBuscarConsecutivo"
+                  class="btn btn-outline-success"
+                  title="Buscar registro">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
             </div>
 
-            <?php if (!empty($errors['consecutivo'] ?? null)): ?>
-              <div class="invalid-feedback d-block">
-                <?= esc($errors['consecutivo']) ?>
-              </div>
-            <?php endif; ?>
+            <!-- Fecha -->
+            <div class="col-6 col-lg-3">
+              <label class="form-label" for="fecha">Fecha</label>
+              <input
+                id="fecha"
+                type="text"
+                class="form-control <?= !empty($errors['fecha_evento'] ?? null) ? 'is-invalid' : '' ?>"
+                name="fecha_evento"
+                placeholder="Selecciona una fecha..."
+                value="<?= old('fecha_evento') ?>"
+                required>
+              <?php if (!empty($errors['fecha_evento'] ?? null)): ?>
+                <div class="invalid-feedback d-block">
+                  <?= esc($errors['fecha_evento']) ?>
+                </div>
+              <?php endif; ?>
+            </div>
+
+            <!-- Hora -->
+            <div class="col-6 col-lg-3">
+              <label class="form-label" for="hora">Hora</label>
+              <input
+                id="hora"
+                type="time"
+                class="form-control"
+                name="hora"
+                placeholder="Selecciona hora..."
+                value="<?= old('hora') ?>"
+                required>
+            </div>
+
+            <i>
+              Ingresa el consecutivo completo del proceso, por ejemplo: <strong>PD-000123</strong>.
+            </i>
+            <br>
+
+            <!-- Medio -->
+            <div class="col-12 col-lg-2">
+
+              <label class="form-label" for="medio">Medio del Descargo</label>
+              <select id="medio" name="medio" class="form-select" required>
+                <option value="" <?= old('medio') ? '' : 'selected' ?>>Elige una opción...</option>
+                <option value="presencial" <?= old('medio') === 'presencial' ? 'selected' : '' ?>>Presencial</option>
+                <option value="virtual" <?= old('medio') === 'virtual'    ? 'selected' : '' ?>>Virtual</option>
+              </select>
+              <?php if (!empty($errors['medio'] ?? null)): ?>
+                <div class="invalid-feedback d-block">
+                  <?= esc($errors['medio']) ?>
+                </div>
+              <?php endif; ?>
+            </div>
           </div>
 
+          <!-- (Adjuntos eliminados para este módulo, ya no se muestran) -->
 
-
-          <div class="col-6 col-lg-3">
-            <label class="form-label">Fecha</label>
-            <input
-              id="fecha"
-              type="text"
-              class="form-control <?= !empty($errors['fecha_evento'] ?? null) ? 'is-invalid' : '' ?>"
-              name="fecha_evento"
-              placeholder="Selecciona una fecha..."
-              value="<?= old('fecha_evento') ?>"
-              required
-            >
-            <?php if (!empty($errors['fecha_evento'] ?? null)): ?>
-              <div class="invalid-feedback d-block">
-                <?= esc($errors['fecha_evento']) ?>
-              </div>
-            <?php endif; ?>
+          <!-- BOTONES -->
+          <div class="sticky-actions bg-body border-top mt-4 pt-3 pb-3">
+            <div class="d-flex gap-2 justify-content-end">
+              <a href="<?= base_url('/') ?>" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-1"></i>Cancelar
+              </a>
+              <button id="btnGenerar" type="submit" class="btn btn-success">
+                <span class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true"></span>
+                <span class="btn-text">Generar acta</span>
+              </button>
+            </div>
           </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
-
-          <div class="col-6 col-lg-3">
-            <label class="form-label">Hora</label>
-            <input id="hora" type="time" class="form-control" name="hora" placeholder="Selecciona hora..." required>
-          </div>
-
-          <div class="col-12 col-lg-2">
-            <label class="form-label">Medio del Descargo</label>
-            <select name="medio" class="form-select" required>
-              <option value="" selected>Elige una opción...</option>
-              <option value="presencial">Presencial</option>
-              <option value="virtual">Virtual</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- PREVIEW DE ADJUNTOS (opcional) -->
-        <div class="mt-4">
-
-
-          <div class="section-header mt-4">
-            <i class="bi bi-paperclip"></i>
-            <h6>Adjuntos del proceso (solo lectura)</h6>
-            <small class="text-muted">(se cargan al ingresar el consecutivo)</small>
-          </div>
-
-          <div id="adjuntosBox" class="adjuntos-box">
-            <div class="adjuntos-empty text-muted">Sin adjuntos para mostrar.</div>
-          </div>
-        </div>
-
-        <!-- BOTONES -->
-        <div class="sticky-actions bg-body border-top mt-4 pt-3 pb-3">
-          <div class="d-flex gap-2 justify-content-end">
-            <a href="<?= base_url('/') ?>" class="btn btn-outline-secondary">
-              <i class="bi bi-x-circle me-1"></i>Cancelar
-            </a>
-            <button class="btn btn-success">
-              <i class="bi bi-check2-circle me-1"></i>Generar
-            </button>
-          </div>
-        </div>
-      </form>
+  <!-- Loader global -->
+  <div id="globalLoader" class="loader-overlay d-none">
+    <div class="loader-content">
+      <lottie-player
+        class="loader-lottie"
+        src="<?= base_url('assets/lottie/ufo0-lottie.json') ?>"
+        background="transparent"
+        speed="1"
+        style="width: 220px; height: 220px;"
+        loop
+        autoplay>
+      </lottie-player>
+      <p class="loader-text mb-0 text-muted">
+        Generando acta de cargos y descargos, por favor espera…
+      </p>
     </div>
   </div>
 </div>
@@ -146,108 +165,199 @@
 <?= $this->endSection(); ?>
 
 <?= $this->section('scripts'); ?>
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <script>
   (() => {
-    const input = document.getElementById('consecutivo');
-    const box = document.getElementById('adjuntosBox');
+    const PREFIX = 'PD-';
+    const baseFind = '<?= base_url('descargos/find'); ?>';
 
-    function renderAdjuntos(items) {
-      box.innerHTML = '';
-      if (!items || !items.length) {
-        box.innerHTML = '<div class="adjuntos-empty text-muted">Sin adjuntos para mostrar.</div>';
-        return;
-      }
-      items.forEach(f => {
-        const row = document.createElement('div');
-        row.className = 'adjuntos-item';
-        row.innerHTML = `
-        <div class="file-icon">
-          <i class="bi bi-file-earmark-text text-success"></i>
-        </div>
-        <div class="flex-fill">
-          <div class="fw-semibold small">${f.nombre ?? 'archivo'}</div>
-          <div class="text-muted xsmall">${f.mime ?? ''} ${f.tamano ?? ''}</div>
-        </div>
-        ${f.url ? `<a class="btn btn-sm btn-outline-secondary" href="${f.url}" target="_blank">Ver</a>` : ''}
-      `;
-        box.appendChild(row);
-      });
-    }
+    const form = document.getElementById('cydForm');
+    const consecutivo = document.getElementById('consecutivo');
+    const btnBuscar = document.getElementById('btnBuscarConsecutivo');
+    const btnGenerar = document.getElementById('btnGenerar');
+    const globalLoader = document.getElementById('globalLoader');
 
-    // Carga adjuntos al salir del campo de consecutivo
-    input?.addEventListener('blur', async () => {
-      const id = input.value.trim();
-      if (!id) {
-        renderAdjuntos([]);
-        return;
-      }
+    const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
+    const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
 
-      try {
-        const res = await fetch(
-          '<?= base_url('furd/adjuntos'); ?>?consecutivo=' + encodeURIComponent(id)
-        );
-        if (!res.ok) {
-          renderAdjuntos([]);
-          return;
-        }
-        const data = await res.json();
-        renderAdjuntos(Array.isArray(data) ? data : []);
-      } catch {
-        renderAdjuntos([]);
-      }
-    });
-  })();
-
-  (() => {
-    const $btn   = document.getElementById('btnBuscarConsecutivo');
-    const $input = document.getElementById('consecutivo');
-
-    // Wrapper para usar el toast global (y tener un fallback feo si no existe)
     function notify(msg, type = 'info', ms = 3800) {
       if (typeof showToast === 'function') {
-        showToast(msg, type, ms); // usa el SweetAlert2 global
+        showToast(msg, type, ms);
       } else {
-        // fallback muy básico por si acaso
         console[type === 'error' ? 'error' : 'log'](msg);
         alert(msg);
       }
     }
 
+    // ---------- Helpers para consecutivo PD-000000 ----------
+    const onlyDigits = (str) => (str || '').replace(/\D/g, '');
+
+    function normalizeConsecutivoSixDigits(value) {
+      const digits = onlyDigits(String(value));
+      if (!digits) return '';
+      return PREFIX + digits.padStart(6, '0');
+    }
+
+    // Al hacer foco, autocompletar PD-
+    consecutivo?.addEventListener('focus', () => {
+      if (!consecutivo.value.trim()) {
+        consecutivo.value = PREFIX;
+        setTimeout(() => {
+          const len = consecutivo.value.length;
+          consecutivo.setSelectionRange(len, len);
+        }, 0);
+      }
+    });
+
+    // Mientras escribe, mantenemos el prefijo y solo números
+    consecutivo?.addEventListener('input', () => {
+      const digits = onlyDigits(consecutivo.value);
+      consecutivo.value = PREFIX + digits;
+    });
+
+    // ---------- Buscar consecutivo (click o Enter) ----------
     async function buscar() {
-      const id = ($input.value || '').trim();
-      if (!id) {
-        $input.focus();
+      if (!consecutivo) return;
+
+      const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+      if (!normalized) {
+        notify('Debes escribir un consecutivo válido (ej: PD-000123).', 'warning');
+        consecutivo.focus();
         return;
       }
 
-      $input.classList.add('loading');
+      consecutivo.value = normalized;
+      consecutivo.classList.add('loading');
 
       try {
-        if (!/^PD-\d{6}$/i.test(id)) {
-          notify('Formato inválido. Usa algo como PD-000123.', 'error');
+        const res = await fetch(`${baseFind}?consecutivo=${encodeURIComponent(normalized)}`);
+        const data = res.ok ? await res.json() : null;
+
+        if (!data || !data.ok) {
+          notify('El consecutivo no existe.', 'error');
           return;
         }
 
-        const url = '<?= base_url('descargos/find'); ?>?consecutivo=' + encodeURIComponent(id);
-        const res = await fetch(url);
-
-        if (!res.ok) throw new Error('Error consultando el registro.');
-        const data = await res.json();
-
-        if (!data.ok) throw new Error('No se encontró el registro.');
-
-        // Aquí podrías, si quisieras, sincronizar otros campos con data.furd
-
-        notify('Registro encontrado y cargado.', 'success');
-      } catch (e) {
-        notify(e.message || 'No se encontró el registro.', 'error');
+        notify('Consecutivo válido. Ya puedes generar el acta.', 'success');
+      } catch (err) {
+        console.error(err);
+        notify('Ocurrió un error al validar el consecutivo.', 'error');
       } finally {
-        $input.classList.remove('loading');
+        consecutivo.classList.remove('loading');
       }
     }
 
-    $btn?.addEventListener('click', buscar);
-    $input?.addEventListener('keydown', (e) => (e.key === 'Enter') && buscar());
+    btnBuscar?.addEventListener('click', buscar);
+
+    // Importante: prevenir el submit cuando se presiona Enter en el campo
+    consecutivo?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        buscar();
+      }
+    });
+
+    // ---------- Envío con loader global ----------
+    if (form && btnGenerar) {
+      let sending = false;
+      const spin = btnGenerar.querySelector('.spinner-border');
+      const txt = btnGenerar.querySelector('.btn-text');
+
+      const resetButton = () => {
+        sending = false;
+        btnGenerar.disabled = false;
+        if (spin) spin.classList.add('d-none');
+        if (txt) txt.textContent = 'Generar acta';
+      };
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Normalizar consecutivo antes de enviar
+        if (consecutivo) {
+          const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+          if (!normalized) {
+            notify('El consecutivo es obligatorio y debe tener formato PD-000123.', 'error');
+            consecutivo.focus();
+            return;
+          }
+          consecutivo.value = normalized;
+        }
+
+        if (sending) return;
+        sending = true;
+
+        btnGenerar.disabled = true;
+        if (spin) spin.classList.remove('d-none');
+        if (txt) txt.textContent = 'Generando…';
+
+        showGlobalLoader();
+
+        const formData = new FormData(form);
+        const xhr = new XMLHttpRequest();
+        xhr.open(form.method || 'POST', form.action);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.onload = () => {
+          hideGlobalLoader();
+
+          const contentType = xhr.getResponseHeader('Content-Type') || '';
+          let data = null;
+
+          if (contentType.includes('application/json')) {
+            try {
+              data = JSON.parse(xhr.responseText || '{}');
+            } catch (_) {
+              data = null;
+            }
+          }
+
+          // Caso JSON (éxito vía AJAX)
+          if (data) {
+            if (data.ok && data.redirectTo) {
+              window.location.href = data.redirectTo;
+              return;
+            }
+
+            if (data.ok === false && data.errors) {
+              const allErrors = Array.isArray(data.errors) ?
+                data.errors :
+                Object.values(data.errors);
+              const firstError = allErrors.length ?
+                allErrors[0] :
+                'Revisa los campos obligatorios.';
+
+              notify(firstError, 'warning');
+              resetButton();
+              return;
+            }
+
+            notify('Error inesperado al registrar el acta de descargos.', 'error');
+            resetButton();
+            return;
+          }
+
+          // Fallback: respuesta HTML (redirect normal)
+          if (xhr.status >= 200 && xhr.status < 400) {
+            const finalURL = xhr.responseURL || form.action;
+            window.location.href = finalURL;
+          } else {
+            notify('Ocurrió un error al registrar el acta de descargos.', 'error');
+            resetButton();
+          }
+        };
+
+        xhr.onerror = () => {
+          hideGlobalLoader();
+          notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
+          resetButton();
+        };
+
+        xhr.send(formData);
+      });
+    }
   })();
 </script>
+
 <?= $this->endSection(); ?>

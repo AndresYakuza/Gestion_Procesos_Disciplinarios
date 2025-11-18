@@ -92,55 +92,91 @@ public function store()
     $fechaTexto = preg_replace('/\s+/', ' ', trim($fechaTexto));
 
     $map = [
-        'enero' => 'january',
-        'febrero' => 'february',
-        'marzo' => 'march',
-        'abril' => 'april',
-        'mayo' => 'may',
-        'junio' => 'june',
-        'julio' => 'july',
-        'agosto' => 'august',
+        'enero'      => 'january',
+        'febrero'    => 'february',
+        'marzo'      => 'march',
+        'abril'      => 'april',
+        'mayo'       => 'may',
+        'junio'      => 'june',
+        'julio'      => 'july',
+        'agosto'     => 'august',
         'septiembre' => 'september',
-        'setiembre' => 'september',
-        'octubre' => 'october',
-        'noviembre' => 'november',
-        'diciembre' => 'december',
+        'setiembre'  => 'september',
+        'octubre'    => 'october',
+        'noviembre'  => 'november',
+        'diciembre'  => 'december',
     ];
 
     $fechaIngles = str_ireplace(array_keys($map), array_values($map), $fechaTexto);
     $timestamp   = strtotime($fechaIngles);
 
     if ($timestamp === false) {
+        $msg = 'La fecha de citación no es válida.';
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'ok'     => false,
+                'errors' => ['fecha_evento' => $msg],
+            ]);
+        }
+
         return redirect()->back()
-            ->with('errors', ['fecha' => 'La fecha de citación no es válida.'])
+            ->with('errors', ['fecha_evento' => $msg])
             ->withInput();
     }
 
-    $fechaConvertida          = date('Y-m-d', $timestamp);
-    $_POST['fecha_evento']    = $fechaConvertida;
+    $fechaConvertida       = date('Y-m-d', $timestamp);
+    $_POST['fecha_evento'] = $fechaConvertida;
 
     // --- 2) Obtener FURD por consecutivo normalizado ---
     $consecRaw = (string) $this->request->getPost('consecutivo');
     $consec    = $this->normalizeConsecutivo($consecRaw);
 
     if ($consec === null) {
+        $msg = 'El consecutivo es obligatorio y debe tener formato PD-000123.';
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'ok'     => false,
+                'errors' => ['consecutivo' => $msg],
+            ]);
+        }
+
         return redirect()->back()
-            ->with('errors', ['consecutivo' => 'El consecutivo es obligatorio y debe tener formato PD-000123.'])
+            ->with('errors', ['consecutivo' => $msg])
             ->withInput();
     }
 
     $furd = (new FurdModel())->findByConsecutivo($consec);
     if (!$furd) {
+        $msg = 'FURD no encontrado';
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'ok'     => false,
+                'errors' => ['consecutivo' => $msg],
+            ]);
+        }
+
         return redirect()->back()
-            ->with('errors', ['FURD no encontrado'])
+            ->with('errors', ['consecutivo' => $msg])
             ->withInput();
     }
 
     // --- 3) Validar workflow ---
     $wf = new FurdWorkflow();
     if (!$wf->canStartCitacion($furd)) {
+        $msg = 'La fase previa (registro) no está completa o ya existe citación.';
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'ok'     => false,
+                'errors' => [$msg],
+            ]);
+        }
+
         return redirect()->back()
-            ->with('errors', ['La fase previa (registro) no está completa o ya existe citación.'])
+            ->with('errors', [$msg])
             ->withInput();
     }
 
@@ -160,7 +196,6 @@ public function store()
         ];
         $cit->insert($payload);
 
-        // Adjuntos fase citación (si llegas a usarlos)
         $files = $this->request->getFiles()['adjuntos'] ?? [];
         if (!empty($files)) {
             $this->saveAdjuntos((int) $furd['id'], 'citacion', is_array($files) ? $files : [$files]);
@@ -170,7 +205,6 @@ public function store()
 
         $mensajeOk = 'Citación registrada. Continúa con Descargos desde Seguimiento.';
 
-        // Si viene por AJAX (caso del loader)
         if ($this->request->isAJAX()) {
             session()->setFlashdata('ok', $mensajeOk);
             session()->setFlashdata('consecutivo', $consec);
@@ -181,16 +215,26 @@ public function store()
             ]);
         }
 
-        // Fallback sin JS
         return redirect()
             ->to(site_url('seguimiento'))
             ->with('ok', $mensajeOk)
             ->with('consecutivo', $consec);
     } catch (\Throwable $e) {
         $db->transRollback();
-        return redirect()->back()->with('errors', [$e->getMessage()])->withInput();
+
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON([
+                'ok'     => false,
+                'errors' => [$e->getMessage()],
+            ]);
+        }
+
+        return redirect()->back()
+            ->with('errors', [$e->getMessage()])
+            ->withInput();
     }
 }
+
 
 
 
