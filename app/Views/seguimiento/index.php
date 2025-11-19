@@ -162,6 +162,13 @@ $registros = $registros ?? [];
       </table>
     </div>
 
+    <!-- Paginador -->
+    <?php if (isset($pager)): ?>
+      <div class="d-flex justify-content-end mt-3">
+        <?= $pager->links('seguimiento', 'bootstrap_full') ?>
+      </div>
+    <?php endif; ?>
+
   </div>
 </div>
 

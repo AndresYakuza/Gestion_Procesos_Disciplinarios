@@ -28,7 +28,7 @@
 
     <?php if ($errors = session('errors')): ?>
       <div class="alert alert-danger">
-        <?php foreach($errors as $e): ?><div><?= esc($e) ?></div><?php endforeach; ?>
+        <?php foreach ($errors as $e): ?><div><?= esc($e) ?></div><?php endforeach; ?>
       </div>
     <?php endif; ?>
 
@@ -44,33 +44,36 @@
         </thead>
         <tbody>
           <?php if (empty($faltas)): ?>
-            <tr><td colspan="4" class="text-center text-muted py-4">No hay registros.</td></tr>
-          <?php else: foreach ($faltas as $f): ?>
-            <?php
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">No hay registros.</td>
+            </tr>
+            <?php else: foreach ($faltas as $f): ?>
+              <?php
               $sev = ucfirst(strtolower($f['gravedad']));
-              $badge = match($sev) {
+              $badge = match ($sev) {
                 'Gravísima' => 'badge-soft-danger',
                 'Grave'     => 'badge-soft-warning',
                 default     => 'badge-soft-success',
               };
-            ?>
-            <tr>
-              <td><span class="text-mono"><?= esc($f['codigo']) ?></span></td>
-              <td><?= esc($f['descripcion']) ?></td>
-              <td><span class="badge <?= $badge ?>"><?= esc($sev) ?></span></td>
-              <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary" href="<?= base_url('ajustes/faltas/'.$f['id'].'/edit') ?>">
-                  <i class="bi bi-pencil"></i>
-                </a>
-                <button type="button" 
-                        class="btn btn-sm btn-outline-danger btn-delete" 
-                        data-id="<?= $f['id'] ?>" 
-                        data-descripcion="<?= esc($f['descripcion']) ?>">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </td>
-            </tr>
-          <?php endforeach; endif; ?>
+              ?>
+              <tr>
+                <td><span class="text-mono"><?= esc($f['codigo']) ?></span></td>
+                <td><?= esc($f['descripcion']) ?></td>
+                <td><span class="badge <?= $badge ?>"><?= esc($sev) ?></span></td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="<?= base_url('ajustes/faltas/' . $f['id'] . '/edit') ?>">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <button type="button"
+                    class="btn btn-sm btn-outline-danger btn-delete"
+                    data-id="<?= $f['id'] ?>"
+                    data-descripcion="<?= esc($f['descripcion']) ?>">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+          <?php endforeach;
+          endif; ?>
         </tbody>
       </table>
     </div>
@@ -78,7 +81,7 @@
     <!-- Paginador -->
     <?php if (!empty($pager)): ?>
       <nav aria-label="Page navigation" class="mt-3">
-        <?= $pager->links('default', 'bootstrap_full') ?>
+        <?= $pager->links('faltas', 'bootstrap_full') ?>
       </nav>
     <?php endif; ?>
   </div>
@@ -146,25 +149,129 @@
   </div>
 </div>
 
+<!-- Loader global para crear / eliminar faltas -->
+<div id="globalLoader" class="loader-overlay d-none">
+  <div class="loader-content">
+    <lottie-player
+      class="loader-lottie"
+      src="<?= base_url('assets/lottie/confetti-animation.json') ?>"
+      background="transparent"
+      speed="1"
+      style="width: 220px; height: 220px;"
+      loop
+      autoplay>
+    </lottie-player>
+    <p class="loader-text mb-0 text-muted">
+      Procesando cambios en las faltas del RIT…
+    </p>
+  </div>
+</div>
+
+
 <?= $this->endSection(); ?>
 
 <?= $this->section('scripts'); ?>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const deleteButtons = document.querySelectorAll('.btn-delete');
-  const modal = new bootstrap.Modal(document.getElementById('modalEliminar'));
-  const form = document.getElementById('formEliminar');
-  const desc = document.getElementById('faltaDescripcion');
 
-  deleteButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const descripcion = btn.dataset.descripcion;
-      form.action = `<?= base_url('ajustes/faltas') ?>/${id}/delete`;
-      desc.textContent = descripcion;
-      modal.show();
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+
+    // === Buscador automático ===
+    const searchInput = document.querySelector('input[name="q"]');
+    if (searchInput) {
+      const searchForm = searchInput.closest('form');
+      let debounceTimer = null;
+
+      searchInput.setAttribute('autocomplete', 'off');
+
+      // Al escribir, esperamos un poco y enviamos el form
+      searchInput.addEventListener('input', () => {
+        if (!searchForm) return;
+        clearTimeout(debounceTimer);
+
+        debounceTimer = setTimeout(() => {
+          searchForm.submit(); // GET a /ajustes/faltas?q=...
+        }, 450); // 450 ms de “pausa” antes de buscar
+      });
+
+      // Enter = buscar de una vez (sin esperar el debounce)
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (!searchForm) return;
+          clearTimeout(debounceTimer);
+          searchForm.submit();
+        }
+      });
+
+
+      // Enter = buscar inmediato, pero sin que se envíe doble
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (debounceTimer) clearTimeout(debounceTimer);
+          const url = new URL(searchForm.action, window.location.origin);
+          const params = new URLSearchParams(window.location.search);
+          params.set('q', searchInput.value.trim());
+          params.delete('page');
+          window.location.href = url.pathname + '?' + params.toString();
+        }
+      });
+    }
+    const deleteButtons = document.querySelectorAll('.btn-delete');
+    const modalEliminarEl = document.getElementById('modalEliminar');
+    const modalEliminar = new bootstrap.Modal(modalEliminarEl);
+    const formEliminar = document.getElementById('formEliminar');
+    const desc = document.getElementById('faltaDescripcion');
+
+    const modalNuevaForm = document.querySelector('#modalNueva form');
+    const globalLoader = document.getElementById('globalLoader');
+
+    const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
+    const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+    // --- Abrir modal de eliminar y setear acción ---
+    deleteButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const descripcion = btn.dataset.descripcion;
+        formEliminar.action = `<?= base_url('ajustes/faltas') ?>/${id}/delete`;
+        desc.textContent = descripcion;
+        modalEliminar.show();
+      });
     });
+
+    // --- Loader al eliminar ---
+    if (formEliminar) {
+      formEliminar.addEventListener('submit', () => {
+        const btn = formEliminar.querySelector('button.btn-danger');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = `
+          <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+          Eliminando...
+        `;
+        }
+        showGlobalLoader();
+      });
+    }
+
+    // --- Loader al crear (modal Nueva falta) ---
+    if (modalNuevaForm) {
+      modalNuevaForm.addEventListener('submit', () => {
+        const btn = modalNuevaForm.querySelector('.btn-success');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = `
+          <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+          Guardando...
+        `;
+        }
+        showGlobalLoader();
+      });
+    }
   });
-});
 </script>
+
 <?= $this->endSection(); ?>

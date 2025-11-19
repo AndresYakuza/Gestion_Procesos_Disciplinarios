@@ -56,4 +56,50 @@
   </div>
 </div>
 
+  <!-- Loader global para editar falta -->
+  <div id="globalLoader" class="loader-overlay d-none">
+    <div class="loader-content">
+      <lottie-player
+        class="loader-lottie"
+        src="<?= base_url('assets/lottie/confetti-animation.json') ?>"
+        background="transparent"
+        speed="1"
+        style="width: 220px; height: 220px;"
+        loop
+        autoplay>
+      </lottie-player>
+      <p class="loader-text mb-0 text-muted">
+        Guardando cambios de la falta…
+      </p>
+    </div>
+  </div>
+
+<?= $this->endSection(); ?>
+
+
+<?= $this->section('scripts'); ?>
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form         = document.querySelector('form[action*="ajustes/faltas/"]');
+  const globalLoader = document.getElementById('globalLoader');
+
+  const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
+
+  if (!form) return;
+
+  form.addEventListener('submit', () => {
+    const btn = form.querySelector('.btn-success');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        Guardando...
+      `;
+    }
+    showGlobalLoader();
+  });
+});
+</script>
 <?= $this->endSection(); ?>

@@ -365,3 +365,30 @@ td[data-key="hecho"]:hover {
 .seguimiento-card #fEstado {
   border-radius: 0 !important;
 }
+
+/* =========================================================
+   📖 Paginador
+   ========================================================= */
+.pagination {
+  justify-content: flex-end;
+  margin-top: 1.2rem;
+  gap: 4px;
+}
+
+.pagination .page-link {
+  border-radius: 10px;
+  border: 1px solid rgba(16,185,129,0.35);
+  color: #047857;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+.pagination .page-link:hover {
+  background-color: rgba(16,185,129,0.08);
+  border-color: rgba(16,185,129,0.45);
+}
+.pagination .page-item.active .page-link {
+  background-color: #10b981;
+  border-color: #10b981;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.25);
+}

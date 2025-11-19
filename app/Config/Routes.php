@@ -66,8 +66,9 @@ $routes->get('linea-tiempo/(:segment)', 'LineaTiempoController::show/$1');
 // Ajustes 
 
 // Faltas 
-$routes->get('ajustes/faltas', 'RitFaltaController::index');
-$routes->post('ajustes/faltas', 'RitFaltaController::create');
+$routes->get('ajustes/faltas',        'RitFaltaController::index');
+$routes->post('ajustes/faltas',       'RitFaltaController::store');
 $routes->get('ajustes/faltas/(:num)/edit', 'RitFaltaController::edit/$1');
-$routes->post('ajustes/faltas/(:num)', 'RitFaltaController::update/$1');
+$routes->post('ajustes/faltas/(:num)',      'RitFaltaController::update/$1');
 $routes->post('ajustes/faltas/(:num)/delete', 'RitFaltaController::delete/$1');
+
