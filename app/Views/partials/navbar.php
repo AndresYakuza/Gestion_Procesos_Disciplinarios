@@ -77,7 +77,12 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
      NAVBAR CON GRADIENTE GLACIAL INVERTIDO + MARCA OSCURA
      ========================================================= */
   .navbar-glass {
-    position: relative;
+    /* position: relative; */
+        position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030; /* por encima del contenido */
     background: linear-gradient(135deg,
         #ffffff 0%,
         #dbeafe 25%,
@@ -90,6 +95,10 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
     background-size: 300% 300%;
     animation: glassShift 14s ease-in-out infinite alternate;
   }
+
+  body {
+  padding-top: 4.5rem; /* ajusta según la altura real del navbar */
+}
 
   @keyframes glassShift {
     0% { background-position: 0% 0%; }

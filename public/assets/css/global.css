@@ -738,3 +738,106 @@ textarea.form-control {
     background: #fff !important;
   }
 }
+
+/* ====== Layout general: body como columna, footer pegado abajo ====== */
+html,
+body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body.theme-rich.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* main ocupa todo el espacio disponible entre navbar y footer */
+body.theme-rich.app-shell main {
+  flex: 1 0 auto;
+}
+
+/* ====== Footer: contraste, legibilidad y pegado abajo ====== */
+.app-footer {
+  flex-shrink: 0;          /* que nunca se comprima */
+  margin-top: auto;        /* truco de sticky footer en flex */
+  width: 100%;
+  position: relative;
+  background: radial-gradient(circle at 0% 0%, #0f172a 0, #020617 40%, #020617 100%);
+  color: #e5e7eb;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.8);
+  overflow: hidden;
+}
+
+/* Overlay para mejorar contraste del texto */
+.app-footer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.85),
+    rgba(15, 23, 42, 0.55),
+    rgba(15, 23, 42, 0.85)
+  );
+  pointer-events: none;
+}
+
+/* Que el contenido esté por encima del overlay */
+.app-footer > .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Texto central más claro y legible */
+.footer-center-text {
+  color: #f9fafb;
+  font-size: 0.8rem;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+}
+
+.footer-signature {
+  color: #38bdf8; /* celeste */
+  font-weight: 600;
+}
+
+/* Estado (Operativo) bien visible */
+.footer-status {
+  font-size: 0.8rem;
+  color: #d1fae5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.footer-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #bbf7d0, #22c55e);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.9);
+}
+
+.footer-status .status-text {
+  font-weight: 500;
+}
+
+/* Botón subir más definido sobre fondo oscuro */
+.app-footer .btn.btn-outline-light {
+  border-color: rgba(248, 250, 252, 0.65);
+  color: #e5e7eb;
+  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.app-footer .btn.btn-outline-light:hover {
+  background: rgba(248, 250, 252, 0.16);
+  border-color: #f9fafb;
+  color: #ffffff;
+}
+
+
+
+html {
+  scroll-behavior: smooth;
+}

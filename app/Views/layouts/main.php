@@ -34,12 +34,17 @@
 
 </head>
 
-<body class="theme-rich">
+<body class="theme-rich app-shell">
+<div id="appTop"></div>
+
   <?= $this->include('partials/navbar'); ?>
 
   <main class="container py-4">
     <?= $this->renderSection('content'); ?>
   </main>
+
+    <?= $this->include('partials/footer'); ?>
+
 
   <!-- ===================== SCRIPTS PRINCIPALES ===================== -->
   <!-- Bootstrap JS -->
@@ -131,6 +136,8 @@
       });
     });
   </script>
+
+
 
   <!-- ===================== SCRIPTS POR VISTA ===================== -->
   <?= $this->renderSection('scripts'); ?>
