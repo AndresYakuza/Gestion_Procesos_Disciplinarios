@@ -9,7 +9,7 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
     <!-- Logo / título -->
     <a class="navbar-brand fw-semibold d-flex align-items-center gap-2" href="<?= base_url('/') ?>">
       <i class="bi bi-shield-exclamation text-gradient"></i>
-      <span>Procesos Disciplinarios</span>
+      <span>Gestión De Procesos Disciplinarios</span>
     </a>
 
     <!-- Toggle -->
@@ -76,25 +76,26 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
   /* =========================================================
      NAVBAR CON GRADIENTE GLACIAL INVERTIDO + MARCA OSCURA
      ========================================================= */
-  .navbar-glass {
-    /* position: relative; */
-        position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1030; /* por encima del contenido */
-    background: linear-gradient(135deg,
-        #ffffff 0%,
-        #dbeafe 25%,
-        #a5d8ff 60%,
-        #4f46e5 100%) !important;
-    backdrop-filter: blur(15px) saturate(160%);
-    -webkit-backdrop-filter: blur(15px) saturate(160%);
-    border-bottom: 1px solid rgba(79, 70, 229, 0.15);
-    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15);
-    background-size: 300% 300%;
-    animation: glassShift 14s ease-in-out infinite alternate;
-  }
+.navbar-glass {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1030;
+  background: linear-gradient(
+    135deg,
+    #ffffff 0%,    /* blanco inicial */
+    #e8f5e9 20%,   /* verde muy clarito */
+    #a5d6a7 55%,   /* verde pastel intermedio */
+    #0c8e43 100%   /* verde sólido tipo app de la captura */
+  ) !important;
+  backdrop-filter: blur(15px) saturate(160%);
+  -webkit-backdrop-filter: blur(15px) saturate(160%);
+  border-bottom: 1px solid rgba(12, 142, 67, 0.25);
+  box-shadow: 0 8px 25px rgba(12, 142, 67, 0.25);
+  background-size: 300% 300%;
+  animation: glassShift 14s ease-in-out infinite alternate;
+}
 
   body {
   padding-top: 4.5rem; /* ajusta según la altura real del navbar */
@@ -222,15 +223,22 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
   /* =========================================================
      RESPONSIVE
      ========================================================= */
-  @media (max-width: 992px) {
-    .navbar-glass {
-      background: linear-gradient(180deg, #f8fafc 0%, #e0f2fe 50%, #c7d2fe 100%) !important;
-    }
-
-    .navbar-nav .nav-link {
-      color: #4f46e5;
-      background: rgba(79,70,229,0.05);
-    }
+@media (max-width: 992px) {
+  .navbar-glass {
+    background: linear-gradient(
+      180deg,
+      #f8fafc 0%,
+      #e8f5e9 40%,
+      #a5d6a7 75%,
+      #44e989ff 100%
+    ) !important;
   }
+
+  .navbar-nav .nav-link {
+    color: #0c8e43;
+    background: rgba(12, 142, 67, 0.05);
+  }
+}
+
 </style>
 

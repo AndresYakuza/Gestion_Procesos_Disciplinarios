@@ -232,7 +232,7 @@
       loop
       autoplay>
     </lottie-player>
-    <p class="loader-text mb-0 text-muted">Guardando FURD, por favor espera...</p>
+    <p class="loader-text mb-0 text-muted">Guardando Proceso Disciplinario, por favor espera...</p>
   </div>
 </div>
 

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
@@ -66,14 +67,14 @@ class LineaTiempoController extends BaseController
                     ? Time::parse($furd['fecha_evento'])->format('d/m/Y')
                     : '—',
                 'Hora del evento'  => (string)($furd['hora_evento']    ?? '—'),
-                'Empresa usuaria'  => (string)($furd['empresa_usuaria']?? '—'),
+                'Empresa usuaria'  => (string)($furd['empresa_usuaria'] ?? '—'),
                 'Faltas registradas' => (string)count($faltas),
                 // opcional:
                 // 'Proyecto'      => (string)($furd['proyecto'] ?? '—'),
                 // 'Cédula'        => (string)($furd['cedula']   ?? '—'),
             ],
             'faltas'  => $faltas,              // 🔸 clave que la vista espera
-            'adjuntos'=> $this->getAdjuntos($furd['id'], 'registro'),
+            'adjuntos' => $this->getAdjuntos($furd['id'], 'registro'),
         ];
 
         // 2️⃣ Citación
@@ -86,13 +87,13 @@ class LineaTiempoController extends BaseController
                 : '',
             'resumen' => $citacion ? $citacion['motivo'] : '',
             'meta'    => [
-            'Fecha del evento' => isset($citacion['fecha_evento'])
-                ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
-                : '—',
+                'Fecha del evento' => isset($citacion['fecha_evento'])
+                    ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
+                    : '—',
                 'Hora'  => $citacion['hora'] ?? '—',
                 'Medio' => $citacion['medio'] ?? '—',
             ],
-            'adjuntos'=> $this->getAdjuntos($furd['id'], 'citacion'),
+            'adjuntos' => $this->getAdjuntos($furd['id'], 'citacion'),
         ];
 
         // 3️⃣ Descargos
@@ -103,15 +104,15 @@ class LineaTiempoController extends BaseController
             'fecha' => isset($descargos['created_at'])
                 ? Time::parse($descargos['created_at'])->format('d/m/Y')
                 : '',
-            'resumen' => $descargos ? 'Descargo realizado de manera '.$descargos['medio'] : '',
+            'resumen' => $descargos ? 'Descargo realizado de manera ' . $descargos['medio'] : '',
             'meta'    => [
-            'Fecha del evento' => isset($descargos['fecha_evento'])
-                ? Time::parse($descargos['fecha_evento'])->format('d/m/Y')
-                : '—',
+                'Fecha del evento' => isset($descargos['fecha_evento'])
+                    ? Time::parse($descargos['fecha_evento'])->format('d/m/Y')
+                    : '—',
                 'Hora'  => $descargos['hora'] ?? '—',
                 'Medio' => $descargos['medio'] ?? '—',
             ],
-            'adjuntos'=> $this->getAdjuntos($furd['id'], 'descargos'),
+            'adjuntos' => $this->getAdjuntos($furd['id'], 'descargos'),
         ];
 
         // 4️⃣ Soporte
@@ -131,58 +132,66 @@ class LineaTiempoController extends BaseController
                 'Responsable'         => $soporte['responsable'] ?? '—',
                 'Decisión propuesta'  => $soporte['decision_propuesta'] ?? '—',
             ],
-            'adjuntos'=> $this->getAdjuntos($furd['id'], 'soporte'),
+            'adjuntos' => $this->getAdjuntos($furd['id'], 'soporte'),
         ];
 
 
-// 5️⃣ Decisión
-$decision = db_connect()
-    ->table('tbl_furd_decision')
-    ->where('furd_id', $furd['id'])
-    ->get()
-    ->getRowArray();
+        // 5️⃣ Decisión
+        $decision = db_connect()
+            ->table('tbl_furd_decision')
+            ->where('furd_id', $furd['id'])
+            ->get()
+            ->getRowArray();
 
-if ($decision) {
+        // if ($decision) {
 
-    // Texto principal
-    $detalle   = trim((string)($decision['decision_text'] ?? ''));
-    // si tu nueva columna se llama distinto (p.e. detalle_text, fundamentacion, etc.)
-    // cambia aquí el índice:
-    $fundament = trim((string)($decision['fundamentacion'] ?? ($decision['detalle_text'] ?? '')));
+        //     // Texto principal
+        //     $detalle   = trim((string)($decision['decision_text'] ?? ''));
+        //     // si tu nueva columna se llama distinto (p.e. detalle_text, fundamentacion, etc.)
+        //     // cambia aquí el índice:
+        //     $fundament = trim((string)($decision['fundamentacion'] ?? ($decision['detalle_text'] ?? '')));
 
-    $partes = [];
-    if ($detalle !== '') {
-        $partes[] =  $detalle;
-    }
-    if ($fundament !== '') {
-        $partes[] = 'Fundamentación: ' . $fundament;
-    }
+        //     $partes = [];
+        //     if ($detalle !== '') {
+        //         $partes[] =  $detalle;
+        //     }
+        //     if ($fundament !== '') {
+        //         $partes[] = 'Fundamentación: ' . $fundament;
+        //     }
 
-    $resumen = implode(' · ', $partes);
+        // $resumen = implode(' · ', $partes);
+        $detalle   = trim((string)($decision['decision_text'] ?? ''));
+        $fundament = trim((string)($decision['fundamentacion'] ?? ($decision['detalle_text'] ?? '')));
 
-    $etapas[] = [
-        'clave'   => 'decision',
-        'titulo'  => 'Decisión',
+        $partes = [];
+        if ($detalle !== '') {
+            $partes[] =  $detalle;
+        }
+        if ($fundament !== '') {
+            $partes[] = 'Fundamentación: ' . $fundament;
+        }
 
-        // 👉 fecha que se muestra en el “chiclet” rojo de la línea de tiempo
-        // usamos la fecha de creación del registro de decisión
-        'fecha' => isset($decision['created_at'])
-            ? Time::parse($decision['created_at'])->format('d/m/Y')
-            : '',
+        $resumen = implode(' · ', $partes);
 
-        // 👉 texto que ves dentro de la tarjeta
-        'resumen' => $resumen,
+        $etapas[] = [
+            'clave'   => 'decision',
+            'titulo'  => 'Decisión',
 
-        // 👉 metadatos que se listan debajo del resumen
-        'meta'    => [
-            'Fecha de la decisión' => isset($decision['fecha_evento'])
-                ? Time::parse($decision['fecha_evento'])->format('d/m/Y')
-                : '—',
-        ],
+            'fecha' => isset($decision['created_at'])
+                ? Time::parse($decision['created_at'])->format('d/m/Y')
+                : '',
 
-        'adjuntos'=> $this->getAdjuntos($furd['id'], 'decision'),
-    ];
-}
+            'resumen' => $resumen ?: '— Sin decisión registrada —',
+
+            'meta'    => [
+                'Fecha de la decisión' => isset($decision['fecha_evento'])
+                    ? Time::parse($decision['fecha_evento'])->format('d/m/Y')
+                    : '—',
+            ],
+
+            'adjuntos' => $this->getAdjuntos($furd['id'], 'decision'),
+        ];
+
 
         return view('linea_tiempo/show', compact('proceso', 'etapas'));
     }

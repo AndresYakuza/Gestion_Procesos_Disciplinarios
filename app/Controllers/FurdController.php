@@ -179,7 +179,7 @@ if (!$validation->run($postData)) {
                 'hora_evento'     => (string)($postData['hora'] ?? ''),
                 'superior'        => (string)($postData['superior'] ?? ''),
                 'hecho'           => (string)($postData['hecho'] ?? ''),
-                'estado'          => 'registrado',
+                'estado'          => 'registro',
             ];
 
             $id = (int)$fm->insert($payload, true);

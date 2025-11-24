@@ -3,7 +3,7 @@ namespace App\Domain\Furd;
 
 final class FurdPhases
 {
-    public const REGISTRO = 'registrado';
+    public const REGISTRO = 'registro';
     public const CITACION = 'citacion';
     public const DESCARGOS = 'descargos';
     public const SOPORTE = 'soporte';

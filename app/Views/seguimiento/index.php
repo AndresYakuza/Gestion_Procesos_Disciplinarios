@@ -110,15 +110,17 @@ $registros = $registros ?? [];
           <?php else: ?>
             <?php foreach ($registros as $r): ?>
               <?php
-              $badgeClass = match (strtolower($r['estado'])) {
-                'decisión'           => 'badge bg-primary-subtle text-primary fw-semibold px-3 py-2',
-                'cargos y descargos' => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
-                'registro'           => 'badge bg-info-subtle text-info fw-semibold px-3 py-2',
-                'abierto'            => 'badge bg-success-subtle text-success fw-semibold px-3 py-2',
-                'en proceso'         => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
-                'cerrado'            => 'badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2',
-                'archivado'          => 'badge bg-danger-subtle text-danger fw-semibold px-3 py-2',
-                default              => 'badge bg-light text-dark fw-semibold px-3 py-2'
+              $estadoTexto = $r['estado'] ?? '';
+
+              // toma lo que va antes de la barra: "Abierto / Registro" → "abierto"
+              $estadoBase = strtolower(trim(explode('/', $estadoTexto)[0]));
+
+              $badgeClass = match ($estadoBase) {
+                'abierto'    => 'badge bg-success-subtle text-success fw-semibold px-3 py-2',
+                'en proceso' => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
+                'cerrado'    => 'badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2',
+                'archivado'  => 'badge bg-danger-subtle text-danger fw-semibold px-3 py-2',
+                default      => 'badge bg-light text-dark fw-semibold px-3 py-2',
               };
               ?>
               <tr data-row>
@@ -142,7 +144,7 @@ $registros = $registros ?? [];
                     <i class="bi bi-eye me-1"></i> Ver detalle
                   </button>
                 </td>
-                <td data-key="estado" data-estado="<?= esc(strtolower($r['estado'])) ?>">
+                <td data-key="estado" data-estado="<?= esc($estadoBase) ?>">
                   <span class="<?= $badgeClass ?>"><?= esc(strtoupper($r['estado'])) ?></span>
                 </td>
                 <td data-key="actualizado"><?= esc($r['actualizado_en']) ?></td>
@@ -205,12 +207,12 @@ $registros = $registros ?? [];
 <?= $this->section('scripts'); ?>
 <script>
   (() => {
-    const q        = document.getElementById('q');
-    const fEstado  = document.getElementById('fEstado');
-    const fDesde   = document.getElementById('fDesde');
-    const fHasta   = document.getElementById('fHasta');
+    const q = document.getElementById('q');
+    const fEstado = document.getElementById('fEstado');
+    const fDesde = document.getElementById('fDesde');
+    const fHasta = document.getElementById('fHasta');
     const btnLimpiar = document.getElementById('btnLimpiar');
-    const rows     = [...document.querySelectorAll('tr[data-row]')];
+    const rows = [...document.querySelectorAll('tr[data-row]')];
     const countTotal = document.getElementById('countTotal');
 
     function matchDateRange(valueDate, d1, d2) {
@@ -218,7 +220,7 @@ $registros = $registros ?? [];
       if (!valueDate) return true;
       if (!d1 && !d2) return true;
 
-      const v  = new Date(valueDate);
+      const v = new Date(valueDate);
       const v1 = d1 ? new Date(d1) : null;
       const v2 = d2 ? new Date(d2) : null;
 
@@ -229,9 +231,9 @@ $registros = $registros ?? [];
 
     function apply() {
       const text = (q.value || '').toLowerCase().trim();
-      const est  = (fEstado.value || '').toLowerCase().trim();
-      const d1   = fDesde.value || '';
-      const d2   = fHasta.value || '';
+      const est = (fEstado.value || '').toLowerCase().trim();
+      const d1 = fDesde.value || '';
+      const d2 = fHasta.value || '';
 
       let visible = 0;
 
@@ -240,16 +242,16 @@ $registros = $registros ?? [];
 
         const data = {
           consecutivo: tr.querySelector('[data-key="consecutivo"]')?.textContent.toLowerCase() || '',
-          cedula:      tr.querySelector('[data-key="cedula"]')?.textContent.toLowerCase() || '',
-          nombre:      tr.querySelector('[data-key="nombre"]')?.textContent.toLowerCase() || '',
-          proyecto:    tr.querySelector('[data-key="proyecto"]')?.textContent.toLowerCase() || '',
-          fecha:       fechaCell?.dataset.fechaCreado || '',
-          hecho:       tr.querySelector('[data-key="hecho"]')?.textContent.toLowerCase() || '',         
-          estado:      tr.querySelector('[data-key="estado"]')?.dataset.estado || '',
+          cedula: tr.querySelector('[data-key="cedula"]')?.textContent.toLowerCase() || '',
+          nombre: tr.querySelector('[data-key="nombre"]')?.textContent.toLowerCase() || '',
+          proyecto: tr.querySelector('[data-key="proyecto"]')?.textContent.toLowerCase() || '',
+          fecha: fechaCell?.dataset.fechaCreado || '',
+          hecho: tr.querySelector('[data-key="hecho"]')?.textContent.toLowerCase() || '',
+          estado: tr.querySelector('[data-key="estado"]')?.dataset.estado || '',
         };
 
         const textok = !text || Object.values(data).join(' ').includes(text);
-        const estok  = !est || data.estado === est;
+        const estok = !est || data.estado === est;
         const dateok = matchDateRange(data.fecha, d1, d2);
 
         const show = textok && estok && dateok;
@@ -290,8 +292,8 @@ $registros = $registros ?? [];
 
   document.querySelectorAll('.btn-hecho-detalle').forEach(btn => {
     btn.addEventListener('click', () => {
-      const hecho       = btn.getAttribute('data-hecho') || '(Sin descripción)';
-      const nombre      = btn.getAttribute('data-nombre') || '';
+      const hecho = btn.getAttribute('data-hecho') || '(Sin descripción)';
+      const nombre = btn.getAttribute('data-nombre') || '';
       const consecutivo = btn.getAttribute('data-consecutivo') || '';
 
       hechoActual = hecho;
@@ -324,9 +326,9 @@ $registros = $registros ?? [];
   document.addEventListener("DOMContentLoaded", function() {
     const baseConfig = {
       locale: "es",
-      dateFormat: "Y-m-d",     // valor real del input → fácil de parsear
+      dateFormat: "Y-m-d", // valor real del input → fácil de parsear
       altInput: true,
-      altFormat: "d/m/Y",      // lo que ve el usuario
+      altFormat: "d/m/Y", // lo que ve el usuario
       allowInput: false,
       disableMobile: true,
       monthSelectorType: "static",

@@ -36,7 +36,7 @@ class FurdWorkflow
         }
 
         // Debe venir de "registrado"
-        if ($furd['estado'] !== 'registrado') {
+        if ($furd['estado'] !== 'registro') {
             $this->error = 'El FURD no está en estado "registrado".';
             return false;
         }

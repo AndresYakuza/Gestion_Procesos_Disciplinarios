@@ -56,11 +56,11 @@ class SeguimientoController extends BaseController
         $pager = $f->pager; // lo enviamos a la vista
 
         $mapEstado = [
-            'registrado' => 'Abierto',
-            'citacion'   => 'En proceso',
-            'descargos'  => 'En proceso',
-            'soporte'    => 'En proceso',
-            'decision'   => 'Cerrado',
+            'registro' => 'Abierto / Registro',
+            'citacion'   => 'En proceso / Citación',
+            'descargos'  => 'En proceso / Descargos',
+            'soporte'    => 'En proceso / Soporte',
+            'decision'   => 'Cerrado / Decisión',
             'archivado'  => 'Archivado',    
         ];
 
