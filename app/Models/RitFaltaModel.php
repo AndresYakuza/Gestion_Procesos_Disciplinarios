@@ -25,7 +25,7 @@ class RitFaltaModel extends Model
         // id solo por si algún día lo usas en formularios; no afecta al insert
         'id'          => 'permit_empty|is_natural_no_zero',
         'codigo'      => 'required|min_length[3]|max_length[50]',
-        'descripcion' => 'required|min_length[5]',
+        'descripcion' => 'required|min_length[5]|max_length[500]|max_word_length[120]',
         'gravedad'    => 'required|in_list[Leve,Grave,Gravísima,Gravisima,GRAVE,LEVE,GRAVISIMA]',
         // activo no es obligatorio porque en BD tiene default 1
         'activo'      => 'permit_empty|in_list[0,1]',
@@ -38,8 +38,10 @@ class RitFaltaModel extends Model
             'max_length' => 'El código no puede superar los 50 caracteres.',
         ],
         'descripcion' => [
-            'required'   => 'La descripción es obligatoria.',
-            'min_length' => 'La descripción debe ser más detallada.',
+            'required'        => 'La descripción de la falta es obligatoria.',
+            'min_length'      => 'La descripción es muy corta.',
+            'max_length'      => 'La descripción es demasiado larga (máximo 500 caracteres).',
+            'max_word_length' => 'La descripción contiene una palabra demasiado larga sin espacios. Divide el texto en frases o agrega espacios.',
         ],
         'gravedad' => [
             'required' => 'La gravedad es obligatoria.',

@@ -1,4 +1,6 @@
-<?php namespace App\Requests;
+<?php
+
+namespace App\Requests;
 
 class FurdDecisionRequest
 {
@@ -8,7 +10,7 @@ class FurdDecisionRequest
             'consecutivo'   => 'required|is_not_unique[tbl_furd.consecutivo]',
             'fecha_evento'  => 'required|valid_date[Y-m-d]',
             'decision'      => 'required|min_length[3]',      // tipo: llamado, suspensión, etc.
-            'decision_text' => 'permit_empty|min_length[3]',  // detalle/fundamentación
+            'decision_text' => 'permit_empty|min_length[3]|max_length[5000]|max_word_length[120]',  // detalle/fundamentación
             'adjuntos'         => 'uploaded[adjuntos]',
         ];
     }
@@ -30,6 +32,8 @@ class FurdDecisionRequest
             ],
             'decision_text' => [
                 'min_length' => 'Agrega un poco más de detalle a la decisión (opcional pero recomendado).',
+                'max_length' => 'La fundamentación es demasiado larga (máximo 5000 caracteres).',
+                'max_word_length' => 'El hecho contiene una palabra demasiado larga sin espacios. Divide el texto en frases o agrega espacios.'
             ],
             'adjuntos' => [
                 'uploaded'   => 'Ups! El sorporte firmado es obligatorio, por favor adjuntar el documento.',

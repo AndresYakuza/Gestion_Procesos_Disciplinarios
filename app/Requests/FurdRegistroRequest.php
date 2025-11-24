@@ -8,8 +8,8 @@ class FurdRegistroRequest
             'cedula'          => 'required|min_length[5]|max_length[30]',
             'fecha_evento'    => 'required|valid_date[Y-m-d]',
             'hora'            => 'required',
-            'superior'        => 'required|max_length[150]',
-            'hecho'           => 'required|min_length[5]',
+            'superior'        => 'required|max_length[60]',
+            'hecho'           => 'required|min_length[5]|max_length[5000]|max_word_length[120]',
 
             'correo'          => 'permit_empty|valid_email|max_length[150]',
             'empresa_usuaria' => 'required|max_length[180]',
@@ -46,6 +46,8 @@ class FurdRegistroRequest
             'hecho' => [
                 'required'   => 'Describe el hecho o motivo.',
                 'min_length' => 'Agrega más detalle al hecho.',
+                'max_length' => 'El hecho es demasiado largo (máximo 5000 caracteres).',
+                'max_word_length' => 'El hecho contiene una palabra demasiado larga sin espacios. Divide el texto en frases o agrega espacios.',
             ],
             'correo' => [
                 'valid_email' => 'El correo no es válido.',

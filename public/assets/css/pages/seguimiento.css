@@ -397,3 +397,11 @@ td[data-key="hecho"]:hover {
 body.modal-open {
   padding-right: 0 !important;
 }
+
+/* Texto del modal "Detalle del Hecho": permitir cortes en palabras largas */
+#hechoTexto {
+  white-space: pre-line;         /* ya lo tienes inline, esto lo refuerza */
+  word-break: break-word;        /* rompe palabras muy largas */
+  overflow-wrap: break-word;     /* alias moderno */
+}
+

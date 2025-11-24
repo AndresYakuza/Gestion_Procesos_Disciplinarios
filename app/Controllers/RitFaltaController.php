@@ -1,42 +1,37 @@
-<?php namespace App\Controllers;
+<?php
+
+namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\RitFaltaModel;
 
 class RitFaltaController extends BaseController
 {
-public function index()
-{
-    $m = new RitFaltaModel();
-    $q = (string) $this->request->getGet('q');
-    $perPage = 10; // filas por página
+    public function index()
+    {
+        $m = new RitFaltaModel();
+        $q = (string) $this->request->getGet('q'); // lo puedes dejar si quieres, ya no se usará
+        $perPage = 10; // si quieres ver todas en una sola página
 
-    if ($q !== '') {
-        $m->groupStart()
-          ->like('codigo', $q)
-          ->orLike('descripcion', $q)
-          ->groupEnd();
+        // 🔸 ya no filtramos aquí por q, solo paginamos
+        $faltas = $m->orderBy('codigo', 'DESC')
+            ->paginate($perPage, 'faltas');
+
+        $pager = $m->pager;
+
+        // Modelo limpio para calcular el siguiente código
+        $m2   = new RitFaltaModel();
+        $last = $m2->orderBy('id', 'DESC')->first();
+        $n    = $last ? ((int) $last['id'] + 1) : 1;
+        $next = 'RIT-' . str_pad((string) $n, 3, '0', STR_PAD_LEFT);
+
+        return view('ajustes/faltas/index', [
+            'faltas' => $faltas,
+            'q'      => $q,
+            'next'   => $next,
+            'pager'  => $pager,
+        ]);
     }
-
-    // Usamos el grupo "faltas" para el pager
-    $faltas = $m->orderBy('codigo', 'DESC')
-                ->paginate($perPage, 'faltas');
-
-    $pager = $m->pager;
-
-    // Modelo limpio para calcular el siguiente código
-    $m2   = new RitFaltaModel();
-    $last = $m2->orderBy('id', 'DESC')->first();
-    $n    = $last ? ((int) $last['id'] + 1) : 1;
-    $next = 'RIT-' . str_pad((string) $n, 3, '0', STR_PAD_LEFT);
-
-    return view('ajustes/faltas/index', [
-        'faltas' => $faltas,
-        'q'      => $q,
-        'next'   => $next,
-        'pager'  => $pager,
-    ]);
-}
 
 
     public function create()
@@ -112,8 +107,8 @@ public function index()
 
         // 1) Chequeo manual de unicidad de código (excluyendo este id)
         $otro = $m->where('codigo', $data['codigo'])
-                  ->where('id !=', $id)
-                  ->first();
+            ->where('id !=', $id)
+            ->first();
 
         if ($otro) {
             return redirect()->back()

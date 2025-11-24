@@ -26,6 +26,31 @@
     "xls",
   ];
 
+    // 🧮 Contador de caracteres para inputs/textarea
+  const setupCharCounter = (fieldId, counterId, max) => {
+    const field = document.getElementById(fieldId);
+    const counter = document.getElementById(counterId);
+    if (!field || !counter) return;
+
+    const update = () => {
+      const len = field.value.length;
+      // formato "123/2000"
+      counter.textContent = `${len}/${max}`;
+
+      // Colores según cercanía al límite
+      counter.classList.remove("text-danger", "text-warning");
+      if (len > max * 0.9) {
+        counter.classList.add("text-danger");
+      } else if (len > max * 0.7) {
+        counter.classList.add("text-warning");
+      }
+    };
+
+    field.addEventListener("input", update);
+    update(); // inicial (por si viene con old())
+  };
+
+
   // 🧩 Mostrar notificaciones tipo toast (Bootstrap)
   function showToast(message, type = "info") {
     const colors = {
@@ -149,8 +174,8 @@
   // ⌨️ Al presionar Enter en el campo cédula, NO hacer submit: solo buscar
   cedula?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-      e.preventDefault();          // evita el submit del formulario
-      buscarEmpleado();            // o: btnBuscar?.click();
+      e.preventDefault(); // evita el submit del formulario
+      buscarEmpleado(); // o: btnBuscar?.click();
     }
   });
 
@@ -486,6 +511,41 @@
 
       xhr.send(formData);
     });
+  });
+
+  const hechoField = document.getElementById('hecho');
+if (hechoField) {
+  const MAX_WORD = 120;
+  let lastValid = hechoField.value;
+
+  const checkHechoWords = () => {
+    const words = (hechoField.value || '').split(/\s+/);
+    const tooLong = words.some(w => w.length > MAX_WORD);
+
+    if (tooLong) {
+      // volvemos al valor anterior
+      hechoField.value = lastValid;
+      hechoField.selectionStart = hechoField.selectionEnd = hechoField.value.length;
+
+      if (typeof showToast === 'function') {
+        showToast(
+          `No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`,
+          'warning'
+        );
+      } else {
+        alert(`No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`);
+      }
+    } else {
+      lastValid = hechoField.value;
+    }
+  };
+
+  hechoField.addEventListener('input', checkHechoWords);
+}
+
+    document.addEventListener("DOMContentLoaded", () => {
+    setupCharCounter("superior", "superiorCount", 60);
+    setupCharCounter("hecho", "hechoCount", 5000);
   });
 
   refresh();

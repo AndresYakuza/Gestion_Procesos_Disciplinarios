@@ -26,10 +26,10 @@ $msg    = session('msg') ?? null;
       </div>
 
       <form id="decForm" class="card-body"
-            method="post"
-            action="<?= base_url('decision'); ?>"
-            enctype="multipart/form-data"
-            novalidate>
+        method="post"
+        action="<?= base_url('decision'); ?>"
+        enctype="multipart/form-data"
+        novalidate>
         <?= csrf_field(); ?>
 
         <?php if ($msg): ?>
@@ -57,9 +57,9 @@ $msg    = session('msg') ?? null;
             <label class="form-label d-flex align-items-center gap-1">
               Consecutivo
               <i class="bi bi-info-circle text-muted small"
-                 data-bs-toggle="tooltip"
-                 data-bs-placement="right"
-                 title="Ingresa el consecutivo del FURD. Ejemplo: PD-000123">
+                data-bs-toggle="tooltip"
+                data-bs-placement="right"
+                title="Ingresa el consecutivo del FURD. Ejemplo: PD-000123">
               </i>
             </label>
             <div class="input-group">
@@ -72,8 +72,7 @@ $msg    = session('msg') ?? null;
                 value="<?= old('consecutivo') ?>"
                 required
                 pattern="[Pp][Dd]-[0-9]{6}"
-                title="Formato esperado: PD-000123"
-              >
+                title="Formato esperado: PD-000123">
               <button class="btn btn-outline-success" type="button" id="btnDecBuscar" title="Buscar">
                 <i class="bi bi-search"></i>
               </button>
@@ -98,8 +97,7 @@ $msg    = session('msg') ?? null;
               class="form-control <?= !empty($errors['fecha_evento'] ?? null) ? 'is-invalid' : '' ?>"
               placeholder="Selecciona una fecha..."
               value="<?= old('fecha_evento') ?>"
-              required
-            >
+              required>
             <?php if (!empty($errors['fecha_evento'] ?? null)): ?>
               <div class="invalid-feedback d-block">
                 <?= esc($errors['fecha_evento']) ?>
@@ -128,12 +126,20 @@ $msg    = session('msg') ?? null;
 
         <div class="row g-3 mt-1">
           <div class="col-12">
-            <label class="form-label">Detalle / fundamentación</label>
+            <label class="form-label" for="decision_text">Detalle / fundamentación</label>
             <textarea
+              id="decision_text"
               name="decision_text"
               rows="4"
               class="form-control <?= !empty($errors['decision_text'] ?? null) ? 'is-invalid' : '' ?>"
-              placeholder="Describe en detalle la decisión tomada..."><?= old('decision_text') ?></textarea>
+              placeholder="Describe en detalle la decisión tomada..."
+              maxlength="5000"><?= old('decision_text') ?></textarea>
+
+            <div class="d-flex justify-content-between small text-muted mt-1">
+              <span>Máximo 5000 caracteres.</span>
+              <span id="decisionCount">0/5000</span>
+            </div>
+
             <?php if (!empty($errors['decision_text'] ?? null)): ?>
               <div class="invalid-feedback d-block">
                 <?= esc($errors['decision_text']) ?>
@@ -141,6 +147,7 @@ $msg    = session('msg') ?? null;
             <?php endif; ?>
           </div>
         </div>
+
 
         <!-- Uploader de soportes -->
         <div class="section-header mt-3">
@@ -231,46 +238,73 @@ $msg    = session('msg') ?? null;
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 
 <script>
-(() => {
-  const PREFIX = 'PD-';
-  const baseFind = '<?= base_url('decision/find'); ?>';
+  (() => {
+    const PREFIX = 'PD-';
+    const baseFind = '<?= base_url('decision/find'); ?>';
 
-  const form         = document.getElementById('decForm');
-  const consecutivo  = document.getElementById('dec_consecutivo');
-  const btnBuscar    = document.getElementById('btnDecBuscar');
-  const prevWrap     = document.getElementById('dec_prev_wrap');
-  const prevGrid     = document.getElementById('dec_prev_adjuntos');
-  const dz           = document.getElementById('dzDecision');
-  const adjuntos     = document.getElementById('dec_adjuntos');
-  const fileList     = document.getElementById('dec_fileList');
-  const btnGuardar   = document.getElementById('btnDecGuardar');
-  const globalLoader = document.getElementById('globalLoader');
+    const form = document.getElementById('decForm');
+    const consecutivo = document.getElementById('dec_consecutivo');
+    const btnBuscar = document.getElementById('btnDecBuscar');
+    const prevWrap = document.getElementById('dec_prev_wrap');
+    const prevGrid = document.getElementById('dec_prev_adjuntos');
+    const dz = document.getElementById('dzDecision');
+    const adjuntos = document.getElementById('dec_adjuntos');
+    const fileList = document.getElementById('dec_fileList');
+    const btnGuardar = document.getElementById('btnDecGuardar');
+    const globalLoader = document.getElementById('globalLoader');
 
-  const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
-  const ALLOWED_EXT = ['pdf','jpg','jpeg','png','heic','doc','docx','xls','xlsx'];
+    const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
+    const ALLOWED_EXT = ['pdf', 'jpg', 'jpeg', 'png', 'heic', 'doc', 'docx', 'xls', 'xlsx'];
 
-  const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
-  const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+    const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
+    const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
 
-  // Toast simple (si no existe showToast global)
-  function showToast(message, type = 'info') {
-    const colors = {
-      success: 'bg-success text-white',
-      error:   'bg-danger text-white',
-      warning: 'bg-warning text-dark',
-      info:    'bg-info text-dark',
+
+    // 🧮 Contador de caracteres para Detalle / fundamentación
+    const decisionField = document.getElementById('decision_text');
+    const decisionCount = document.getElementById('decisionCount');
+    const MAX_DECISION = 5000;
+
+    const updateDecisionCount = () => {
+      if (!decisionField || !decisionCount) return;
+      const len = (decisionField.value || '').length;
+      decisionCount.textContent = `${len}/${MAX_DECISION}`;
+
+      // Cambiar color según cercanía al límite
+      decisionCount.classList.remove('text-warning', 'text-danger');
+      if (len > MAX_DECISION * 0.9) {
+        decisionCount.classList.add('text-danger');
+      } else if (len > MAX_DECISION * 0.7) {
+        decisionCount.classList.add('text-warning');
+      }
     };
-    const icon = {
-      success: 'bi-check-circle-fill',
-      error:   'bi-x-circle-fill',
-      warning: 'bi-exclamation-triangle-fill',
-      info:    'bi-info-circle-fill',
-    };
 
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center border-0 show ${colors[type]} mt-2 shadow`;
-    toast.role = 'alert';
-    toast.innerHTML = `
+    if (decisionField && decisionCount) {
+      decisionField.addEventListener('input', updateDecisionCount);
+      // inicial, por si viene con old('decision_text')
+      updateDecisionCount();
+    }
+
+
+    // Toast simple (si no existe showToast global)
+    function showToast(message, type = 'info') {
+      const colors = {
+        success: 'bg-success text-white',
+        error: 'bg-danger text-white',
+        warning: 'bg-warning text-dark',
+        info: 'bg-info text-dark',
+      };
+      const icon = {
+        success: 'bi-check-circle-fill',
+        error: 'bi-x-circle-fill',
+        warning: 'bi-exclamation-triangle-fill',
+        info: 'bi-info-circle-fill',
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `toast align-items-center border-0 show ${colors[type]} mt-2 shadow`;
+      toast.role = 'alert';
+      toast.innerHTML = `
       <div class="d-flex">
         <div class="toast-body">
           <i class="bi ${icon[type]} me-2"></i>${message}
@@ -278,91 +312,105 @@ $msg    = session('msg') ?? null;
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
       </div>`;
 
-    const container =
-      document.getElementById('toastContainer') ||
-      (() => {
-        const c = document.createElement('div');
-        c.id = 'toastContainer';
-        c.className = 'toast-container position-fixed top-0 end-0 p-3';
-        c.style.zIndex = 2000;
-        document.body.appendChild(c);
-        return c;
-      })();
+      const container =
+        document.getElementById('toastContainer') ||
+        (() => {
+          const c = document.createElement('div');
+          c.id = 'toastContainer';
+          c.className = 'toast-container position-fixed top-0 end-0 p-3';
+          c.style.zIndex = 2000;
+          document.body.appendChild(c);
+          return c;
+        })();
 
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
-  }
-
-  const notify = (msg, type = 'info') => showToast(msg, type);
-
-  // ----- Normalización PD- -----
-  const onlyDigits = (str) => (str || '').replace(/\D/g, '');
-
-  function normalizeConsecutivoSixDigits(value) {
-    const digits = onlyDigits(String(value));
-    if (!digits) return '';
-    return PREFIX + digits.padStart(6, '0');
-  }
-
-  consecutivo?.addEventListener('focus', () => {
-    if (!consecutivo.value.trim()) {
-      consecutivo.value = PREFIX;
-      setTimeout(() => {
-        const len = consecutivo.value.length;
-        consecutivo.setSelectionRange(len, len);
-      }, 0);
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
     }
-  });
 
-  consecutivo?.addEventListener('input', () => {
-    const digits = onlyDigits(consecutivo.value);
-    consecutivo.value = PREFIX + digits;
-  });
+    const notify = (msg, type = 'info') => showToast(msg, type);
 
-  // ----- Adjuntos previos (registro/citación/descargos/soporte/decisión) -----
-  const iconByMime = (mime = '') => {
-    mime = mime.toLowerCase();
-    if (mime.includes('pdf'))   return 'bi-filetype-pdf text-danger';
-    if (mime.includes('image')) return 'bi-image text-success';
-    if (mime.includes('excel') || mime.includes('spreadsheet')) return 'bi-filetype-xls text-success';
-    if (mime.includes('word') || mime.includes('msword'))       return 'bi-filetype-doc text-primary';
-    return 'bi-file-earmark text-muted';
-  };
+    // ----- Normalización PD- -----
+    const onlyDigits = (str) => (str || '').replace(/\D/g, '');
 
-  function renderAdjuntosExistentes(prevAdj) {
-    if (!prevGrid) return;
-    prevGrid.innerHTML = '';
+    function normalizeConsecutivoSixDigits(value) {
+      const digits = onlyDigits(String(value));
+      if (!digits) return '';
+      return PREFIX + digits.padStart(6, '0');
+    }
 
-    const fases = [
-      { key: 'registro', label: 'Fase 1 · Registro' },
-      { key: 'citacion', label: 'Fase 2 · Citación' },
-      { key: 'descargos',label: 'Fase 3 · Descargos' },
-      { key: 'soporte',  label: 'Fase 4 · Soporte' },
-      { key: 'decision', label: 'Fase 5 · Decisión' },
-    ];
+    consecutivo?.addEventListener('focus', () => {
+      if (!consecutivo.value.trim()) {
+        consecutivo.value = PREFIX;
+        setTimeout(() => {
+          const len = consecutivo.value.length;
+          consecutivo.setSelectionRange(len, len);
+        }, 0);
+      }
+    });
 
-    let tieneAlgo = false;
+    consecutivo?.addEventListener('input', () => {
+      const digits = onlyDigits(consecutivo.value);
+      consecutivo.value = PREFIX + digits;
+    });
 
-    fases.forEach(f => {
-      const arr = (prevAdj && prevAdj[f.key]) ? prevAdj[f.key] : [];
-      if (!arr.length) return;
+    // ----- Adjuntos previos (registro/citación/descargos/soporte/decisión) -----
+    const iconByMime = (mime = '') => {
+      mime = mime.toLowerCase();
+      if (mime.includes('pdf')) return 'bi-filetype-pdf text-danger';
+      if (mime.includes('image')) return 'bi-image text-success';
+      if (mime.includes('excel') || mime.includes('spreadsheet')) return 'bi-filetype-xls text-success';
+      if (mime.includes('word') || mime.includes('msword')) return 'bi-filetype-doc text-primary';
+      return 'bi-file-earmark text-muted';
+    };
 
-      tieneAlgo = true;
+    function renderAdjuntosExistentes(prevAdj) {
+      if (!prevGrid) return;
+      prevGrid.innerHTML = '';
 
-      const header = document.createElement('div');
-      header.className = 'col-12';
-      header.innerHTML = `<h6 class="text-muted mb-2">${f.label}</h6>`;
-      prevGrid.appendChild(header);
+      const fases = [{
+          key: 'registro',
+          label: 'Fase 1 · Registro'
+        },
+        {
+          key: 'citacion',
+          label: 'Fase 2 · Citación'
+        },
+        {
+          key: 'descargos',
+          label: 'Fase 3 · Descargos'
+        },
+        {
+          key: 'soporte',
+          label: 'Fase 4 · Soporte'
+        },
+        {
+          key: 'decision',
+          label: 'Fase 5 · Decisión'
+        },
+      ];
 
-      arr.forEach(it => {
-        const col = document.createElement('div');
-        col.className = 'col-12 col-md-6 col-xl-4';
+      let tieneAlgo = false;
 
-        const nombre = it.nombre_original || it.nombre || it.filename || `Adjunto #${it.id}`;
-        const mime   = it.mime || '';
-        const url    = it.url || it.display_url || '<?= base_url('adjuntos'); ?>/' + it.id + '/open';
+      fases.forEach(f => {
+        const arr = (prevAdj && prevAdj[f.key]) ? prevAdj[f.key] : [];
+        if (!arr.length) return;
 
-        col.innerHTML = `
+        tieneAlgo = true;
+
+        const header = document.createElement('div');
+        header.className = 'col-12';
+        header.innerHTML = `<h6 class="text-muted mb-2">${f.label}</h6>`;
+        prevGrid.appendChild(header);
+
+        arr.forEach(it => {
+          const col = document.createElement('div');
+          col.className = 'col-12 col-md-6 col-xl-4';
+
+          const nombre = it.nombre_original || it.nombre || it.filename || `Adjunto #${it.id}`;
+          const mime = it.mime || '';
+          const url = it.url || it.display_url || '<?= base_url('adjuntos'); ?>/' + it.id + '/open';
+
+          col.innerHTML = `
           <div class="adj-card border rounded p-3 h-100 d-flex flex-column gap-2">
             <div class="d-flex align-items-center gap-2">
               <i class="bi ${iconByMime(mime)} fs-4"></i>
@@ -375,93 +423,93 @@ $msg    = session('msg') ?? null;
               </a>
             </div>
           </div>`;
-        prevGrid.appendChild(col);
+          prevGrid.appendChild(col);
+        });
       });
-    });
 
-    if (tieneAlgo) {
-      prevWrap?.classList.remove('d-none');
-    } else {
-      prevWrap?.classList.add('d-none');
-    }
-  }
-
-  async function buscar() {
-    if (!consecutivo) return;
-
-    const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
-    if (!normalized) {
-      notify('Debes escribir un consecutivo válido (ej: PD-000123).', 'warning');
-      consecutivo.focus();
-      return;
+      if (tieneAlgo) {
+        prevWrap?.classList.remove('d-none');
+      } else {
+        prevWrap?.classList.add('d-none');
+      }
     }
 
-    consecutivo.value = normalized;
-    consecutivo.classList.add('loading');
+    async function buscar() {
+      if (!consecutivo) return;
 
-    try {
-      const url = `${baseFind}?consecutivo=${encodeURIComponent(normalized)}`;
-      const res = await fetch(url);
-      const data = res.ok ? await res.json() : null;
-
-      if (!data || !data.ok) {
-        renderAdjuntosExistentes(null);
-        notify('No se encontró un FURD con ese consecutivo.', 'error');
+      const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+      if (!normalized) {
+        notify('Debes escribir un consecutivo válido (ej: PD-000123).', 'warning');
+        consecutivo.focus();
         return;
       }
 
-      renderAdjuntosExistentes(data.prevAdj || {});
-      notify('Registro cargado correctamente.', 'success');
-    } catch (e) {
-      console.error(e);
-      renderAdjuntosExistentes(null);
-      notify('Ocurrió un error al consultar el FURD.', 'error');
-    } finally {
-      consecutivo.classList.remove('loading');
-    }
-  }
+      consecutivo.value = normalized;
+      consecutivo.classList.add('loading');
 
-  btnBuscar?.addEventListener('click', buscar);
-  consecutivo?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      buscar();
-    }
-  });
+      try {
+        const url = `${baseFind}?consecutivo=${encodeURIComponent(normalized)}`;
+        const res = await fetch(url);
+        const data = res.ok ? await res.json() : null;
 
-  // ----- Adjuntos nuevos: validación + listado + recorte de nombres + quitar -----
-  const shortenName = (name, max = 28) => {
-    if (!name) return '';
-    if (name.length <= max) return name;
+        if (!data || !data.ok) {
+          renderAdjuntosExistentes(null);
+          notify('No se encontró un FURD con ese consecutivo.', 'error');
+          return;
+        }
 
-    const dotIndex = name.lastIndexOf('.');
-    const hasExt   = dotIndex > 0;
-    const ext      = hasExt ? name.slice(dotIndex) : '';
-    const base     = hasExt ? name.slice(0, dotIndex) : name;
-
-    const maxBase = Math.max(8, max - ext.length - 1);
-    const start   = base.slice(0, maxBase);
-    return `${start}…${ext}`;
-  };
-
-  function refreshFileList() {
-    if (!fileList || !adjuntos) return;
-    fileList.innerHTML = '';
-
-    const files = Array.from(adjuntos.files || []);
-    if (!files.length) {
-      fileList.innerHTML = '<li class="text-muted small">No hay archivos seleccionados.</li>';
-      return;
+        renderAdjuntosExistentes(data.prevAdj || {});
+        notify('Registro cargado correctamente.', 'success');
+      } catch (e) {
+        console.error(e);
+        renderAdjuntosExistentes(null);
+        notify('Ocurrió un error al consultar el FURD.', 'error');
+      } finally {
+        consecutivo.classList.remove('loading');
+      }
     }
 
-    files.forEach((f, idx) => {
-      const sizeMb      = (f.size / (1024 * 1024)).toFixed(2);
-      const displayName = shortenName(f.name);
+    btnBuscar?.addEventListener('click', buscar);
+    consecutivo?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        buscar();
+      }
+    });
 
-      const li = document.createElement('li');
-      li.className = 'd-flex flex-column gap-1 py-1 border-bottom';
+    // ----- Adjuntos nuevos: validación + listado + recorte de nombres + quitar -----
+    const shortenName = (name, max = 28) => {
+      if (!name) return '';
+      if (name.length <= max) return name;
 
-      li.innerHTML = `
+      const dotIndex = name.lastIndexOf('.');
+      const hasExt = dotIndex > 0;
+      const ext = hasExt ? name.slice(dotIndex) : '';
+      const base = hasExt ? name.slice(0, dotIndex) : name;
+
+      const maxBase = Math.max(8, max - ext.length - 1);
+      const start = base.slice(0, maxBase);
+      return `${start}…${ext}`;
+    };
+
+    function refreshFileList() {
+      if (!fileList || !adjuntos) return;
+      fileList.innerHTML = '';
+
+      const files = Array.from(adjuntos.files || []);
+      if (!files.length) {
+        fileList.innerHTML = '<li class="text-muted small">No hay archivos seleccionados.</li>';
+        return;
+      }
+
+      files.forEach((f, idx) => {
+        const sizeMb = (f.size / (1024 * 1024)).toFixed(2);
+        const displayName = shortenName(f.name);
+
+        const li = document.createElement('li');
+        li.className = 'd-flex flex-column gap-1 py-1 border-bottom';
+
+        li.innerHTML = `
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-paperclip"></i>
           <span class="flex-grow-1 text-truncate file-name" title="${f.name}">${displayName}</span>
@@ -474,235 +522,270 @@ $msg    = session('msg') ?? null;
         <div class="progress mt-1" style="height:4px;">
           <div class="progress-bar" role="progressbar" data-file-idx="${idx}" style="width:0%;"></div>
         </div>`;
-      fileList.appendChild(li);
-    });
-  }
-
-  function handleAdjuntosChange() {
-    if (!adjuntos) return;
-    const dt = new DataTransfer();
-
-    Array.from(adjuntos.files || []).forEach((file) => {
-      const ext = file.name.split('.').pop().toLowerCase();
-      const isAllowedExt  = ALLOWED_EXT.includes(ext);
-      const isAllowedSize = file.size <= MAX_FILE_SIZE;
-
-      if (!isAllowedExt) {
-        notify(
-          `El archivo "${file.name}" no está permitido. Solo se permiten imágenes (JPG, JPEG, PNG, HEIC), PDF y Office (DOC, DOCX, XLS, XLSX).`,
-          'warning'
-        );
-        return;
-      }
-
-      if (!isAllowedSize) {
-        notify(
-          `El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`,
-          'warning'
-        );
-        return;
-      }
-
-      dt.items.add(file);
-    });
-
-    adjuntos.files = dt.files;
-    refreshFileList();
-  }
-
-  adjuntos?.addEventListener('change', handleAdjuntosChange);
-
-  fileList?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.js-remove-file');
-    if (!btn || !adjuntos) return;
-
-    const idx = parseInt(btn.dataset.fileIdx, 10);
-    if (Number.isNaN(idx)) return;
-
-    const dt = new DataTransfer();
-    Array.from(adjuntos.files || []).forEach((file, i) => {
-      if (i !== idx) dt.items.add(file);
-    });
-
-    adjuntos.files = dt.files;
-    refreshFileList();
-
-    if (!dt.files.length) {
-      notify('Se han quitado todos los archivos seleccionados.', 'info');
+        fileList.appendChild(li);
+      });
     }
-  });
 
-  // Dropzone click + drag&drop
-  if (dz && adjuntos) {
-    dz.addEventListener('click', () => adjuntos.click());
-
-    dz.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dz.classList.add('dragging');
-    });
-    dz.addEventListener('dragleave', () => dz.classList.remove('dragging'));
-    dz.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dz.classList.remove('dragging');
-      if (!e.dataTransfer?.files?.length) return;
-
+    function handleAdjuntosChange() {
+      if (!adjuntos) return;
       const dt = new DataTransfer();
-      [...(adjuntos.files || []), ...e.dataTransfer.files].forEach(f => dt.items.add(f));
-      adjuntos.files = dt.files;
-      handleAdjuntosChange();
-    });
-  }
 
-  // ----- Progreso por archivo -----
-  let uploadFilesMeta = [];
+      Array.from(adjuntos.files || []).forEach((file) => {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const isAllowedExt = ALLOWED_EXT.includes(ext);
+        const isAllowedSize = file.size <= MAX_FILE_SIZE;
 
-  const buildUploadMeta = () => {
-    if (!adjuntos) {
-      uploadFilesMeta = [];
-      return 0;
-    }
-
-    const files = Array.from(adjuntos.files || []);
-    let offset = 0;
-    uploadFilesMeta = files.map((file, idx) => {
-      const start = offset;
-      const end   = start + file.size;
-      offset = end;
-      return { index: idx, start, end, size: file.size };
-    });
-
-    return offset;
-  };
-
-  const updateUploadProgressBars = (loaded) => {
-    if (!uploadFilesMeta.length || !fileList) return;
-
-    uploadFilesMeta.forEach((meta) => {
-      const bar = fileList.querySelector(`.progress-bar[data-file-idx="${meta.index}"]`);
-      if (!bar) return;
-
-      let percent = 0;
-      if (loaded <= meta.start) {
-        percent = 0;
-      } else if (loaded >= meta.end) {
-        percent = 100;
-      } else {
-        percent = ((loaded - meta.start) / meta.size) * 100;
-      }
-
-      bar.style.width = `${percent}%`;
-    });
-  };
-
-  // ----- Envío AJAX con loader y manejo de errores sin perder adjuntos -----
-  if (form && btnGuardar) {
-    const spin = btnGuardar.querySelector('.spinner-border');
-    const txt  = btnGuardar.querySelector('.btn-text');
-    let sending = false;
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      // Normalizar consecutivo antes de enviar
-      if (consecutivo) {
-        const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
-        if (!normalized) {
-          notify('El consecutivo es obligatorio y debe tener formato PD-000123.', 'error');
-          consecutivo.focus();
+        if (!isAllowedExt) {
+          notify(
+            `El archivo "${file.name}" no está permitido. Solo se permiten imágenes (JPG, JPEG, PNG, HEIC), PDF y Office (DOC, DOCX, XLS, XLSX).`,
+            'warning'
+          );
           return;
         }
-        consecutivo.value = normalized;
-      }
 
-      if (sending) return;
-      sending = true;
-
-      btnGuardar.disabled = true;
-      if (spin) spin.classList.remove('d-none');
-      if (txt)  txt.textContent = 'Guardando...';
-
-      showGlobalLoader();
-
-      const formData  = new FormData(form);
-      const totalByte = buildUploadMeta(); // por si quieres usar totalByte a futuro
-
-      const xhr = new XMLHttpRequest();
-      xhr.open(form.method || 'POST', form.action);
-      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-
-      xhr.upload.onprogress = (evt) => {
-        if (!evt.lengthComputable) return;
-        updateUploadProgressBars(evt.loaded);
-      };
-
-      const resetBtn = () => {
-        sending = false;
-        btnGuardar.disabled = false;
-        if (spin) spin.classList.add('d-none');
-        if (txt)  txt.textContent = 'Guardar';
-      };
-
-      xhr.onload = () => {
-        hideGlobalLoader();
-
-        const contentType = xhr.getResponseHeader('Content-Type') || '';
-        let data = null;
-
-        if (contentType.includes('application/json')) {
-          try {
-            data = JSON.parse(xhr.responseText || '{}');
-          } catch (_) {
-            data = null;
-          }
+        if (!isAllowedSize) {
+          notify(
+            `El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`,
+            'warning'
+          );
+          return;
         }
 
-        if (data) {
-          if (data.ok && data.redirectTo) {
-            window.location.href = data.redirectTo;
+        dt.items.add(file);
+      });
+
+      adjuntos.files = dt.files;
+      refreshFileList();
+    }
+
+    adjuntos?.addEventListener('change', handleAdjuntosChange);
+
+    fileList?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.js-remove-file');
+      if (!btn || !adjuntos) return;
+
+      const idx = parseInt(btn.dataset.fileIdx, 10);
+      if (Number.isNaN(idx)) return;
+
+      const dt = new DataTransfer();
+      Array.from(adjuntos.files || []).forEach((file, i) => {
+        if (i !== idx) dt.items.add(file);
+      });
+
+      adjuntos.files = dt.files;
+      refreshFileList();
+
+      if (!dt.files.length) {
+        notify('Se han quitado todos los archivos seleccionados.', 'info');
+      }
+    });
+
+    // Dropzone click + drag&drop
+    if (dz && adjuntos) {
+      dz.addEventListener('click', () => adjuntos.click());
+
+      dz.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dz.classList.add('dragging');
+      });
+      dz.addEventListener('dragleave', () => dz.classList.remove('dragging'));
+      dz.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dz.classList.remove('dragging');
+        if (!e.dataTransfer?.files?.length) return;
+
+        const dt = new DataTransfer();
+        [...(adjuntos.files || []), ...e.dataTransfer.files].forEach(f => dt.items.add(f));
+        adjuntos.files = dt.files;
+        handleAdjuntosChange();
+      });
+    }
+
+    // ----- Progreso por archivo -----
+    let uploadFilesMeta = [];
+
+    const buildUploadMeta = () => {
+      if (!adjuntos) {
+        uploadFilesMeta = [];
+        return 0;
+      }
+
+      const files = Array.from(adjuntos.files || []);
+      let offset = 0;
+      uploadFilesMeta = files.map((file, idx) => {
+        const start = offset;
+        const end = start + file.size;
+        offset = end;
+        return {
+          index: idx,
+          start,
+          end,
+          size: file.size
+        };
+      });
+
+      return offset;
+    };
+
+    const updateUploadProgressBars = (loaded) => {
+      if (!uploadFilesMeta.length || !fileList) return;
+
+      uploadFilesMeta.forEach((meta) => {
+        const bar = fileList.querySelector(`.progress-bar[data-file-idx="${meta.index}"]`);
+        if (!bar) return;
+
+        let percent = 0;
+        if (loaded <= meta.start) {
+          percent = 0;
+        } else if (loaded >= meta.end) {
+          percent = 100;
+        } else {
+          percent = ((loaded - meta.start) / meta.size) * 100;
+        }
+
+        bar.style.width = `${percent}%`;
+      });
+    };
+
+    // ----- Envío AJAX con loader y manejo de errores sin perder adjuntos -----
+    if (form && btnGuardar) {
+      const spin = btnGuardar.querySelector('.spinner-border');
+      const txt = btnGuardar.querySelector('.btn-text');
+      let sending = false;
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Normalizar consecutivo antes de enviar
+        if (consecutivo) {
+          const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
+          if (!normalized) {
+            notify('El consecutivo es obligatorio y debe tener formato PD-000123.', 'error');
+            consecutivo.focus();
             return;
           }
+          consecutivo.value = normalized;
+        }
 
-          if (data.ok === false && data.errors) {
-            const allErrors = Array.isArray(data.errors)
-              ? data.errors
-              : Object.values(data.errors);
+        if (sending) return;
+        sending = true;
 
-            const firstError = allErrors.length
-              ? allErrors[0]
-              : 'Revisa los campos obligatorios.';
+        btnGuardar.disabled = true;
+        if (spin) spin.classList.remove('d-none');
+        if (txt) txt.textContent = 'Guardando...';
 
-            notify(firstError, 'warning');
+        showGlobalLoader();
+
+        const formData = new FormData(form);
+        const totalByte = buildUploadMeta(); // por si quieres usar totalByte a futuro
+
+        const xhr = new XMLHttpRequest();
+        xhr.open(form.method || 'POST', form.action);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.upload.onprogress = (evt) => {
+          if (!evt.lengthComputable) return;
+          updateUploadProgressBars(evt.loaded);
+        };
+
+        const resetBtn = () => {
+          sending = false;
+          btnGuardar.disabled = false;
+          if (spin) spin.classList.add('d-none');
+          if (txt) txt.textContent = 'Guardar';
+        };
+
+        xhr.onload = () => {
+          hideGlobalLoader();
+
+          const contentType = xhr.getResponseHeader('Content-Type') || '';
+          let data = null;
+
+          if (contentType.includes('application/json')) {
+            try {
+              data = JSON.parse(xhr.responseText || '{}');
+            } catch (_) {
+              data = null;
+            }
+          }
+
+          if (data) {
+            if (data.ok && data.redirectTo) {
+              window.location.href = data.redirectTo;
+              return;
+            }
+
+            if (data.ok === false && data.errors) {
+              const allErrors = Array.isArray(data.errors) ?
+                data.errors :
+                Object.values(data.errors);
+
+              const firstError = allErrors.length ?
+                allErrors[0] :
+                'Revisa los campos obligatorios.';
+
+              notify(firstError, 'warning');
+              resetBtn();
+              return;
+            }
+
+            notify('Error inesperado al registrar la decisión.', 'error');
             resetBtn();
             return;
           }
 
-          notify('Error inesperado al registrar la decisión.', 'error');
-          resetBtn();
-          return;
-        }
+          if (xhr.status >= 200 && xhr.status < 400) {
+            const finalURL = xhr.responseURL || form.action;
+            window.location.href = finalURL;
+          } else {
+            notify('Ocurrió un error al registrar la decisión.', 'error');
+            resetBtn();
+          }
+        };
 
-        if (xhr.status >= 200 && xhr.status < 400) {
-          const finalURL = xhr.responseURL || form.action;
-          window.location.href = finalURL;
+        xhr.onerror = () => {
+          hideGlobalLoader();
+          notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
+          resetBtn();
+        };
+
+        xhr.send(formData);
+      });
+    }
+
+    const hechoField = document.getElementById('decision_text');
+    if (hechoField) {
+      const MAX_WORD = 120;
+      let lastValid = hechoField.value;
+
+      const checkHechoWords = () => {
+        const words = (hechoField.value || '').split(/\s+/);
+        const tooLong = words.some(w => w.length > MAX_WORD);
+
+        if (tooLong) {
+          // volvemos al valor anterior
+          hechoField.value = lastValid;
+          hechoField.selectionStart = hechoField.selectionEnd = hechoField.value.length;
+
+          if (typeof showToast === 'function') {
+            showToast(
+              `No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`,
+              'warning'
+            );
+          } else {
+            alert(`No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`);
+          }
         } else {
-          notify('Ocurrió un error al registrar la decisión.', 'error');
-          resetBtn();
+          lastValid = hechoField.value;
         }
       };
 
-      xhr.onerror = () => {
-        hideGlobalLoader();
-        notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
-        resetBtn();
-      };
+      hechoField.addEventListener('input', checkHechoWords);
+    }
 
-      xhr.send(formData);
-    });
-  }
-
-  // Inicializar lista vacía
-  refreshFileList();
-})();
+    // Inicializar lista vacía
+    refreshFileList();
+  })();
 </script>
 
 <?= $this->endSection(); ?>

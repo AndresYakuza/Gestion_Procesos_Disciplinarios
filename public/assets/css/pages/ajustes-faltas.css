@@ -262,3 +262,14 @@ body.modal-open {
 .loader-text {
   margin-top: 0.75rem;
 }
+
+/* Spinner pequeñito dentro del buscador */
+.search-spinner .spinner-border {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* Contadores de caracteres en faltas */
+.form-text.small span:last-child {
+  font-family: "JetBrains Mono", monospace;
+}

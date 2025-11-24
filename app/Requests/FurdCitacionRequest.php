@@ -9,7 +9,7 @@ class FurdCitacionRequest
             'fecha_evento'           => 'required|valid_date[Y-m-d]',
             'hora'            => 'required',
             'medio'           => 'required|in_list[presencial,virtual]',
-            'motivo'         => 'required|min_length[3]',
+            'motivo'          => 'required|min_length[3]|max_length[7000]|max_word_length[120]',
 
             // evidencias opcionales (si decides permitir aquí)
             'adjuntos'        => 'permit_empty',
@@ -35,7 +35,10 @@ class FurdCitacionRequest
                 'in_list'  => 'Medio de citación inválido.',
             ],
             'motivo' => [
-                'required' => 'Debes indicar el hecho o motivo de la intervención.',
+                'required'   => 'Debes indicar el hecho o motivo de la intervención.',
+                'min_length' => 'Agrega un poco más de detalle al motivo.',
+                'max_length' => 'El motivo es demasiado largo (máximo 7000 caracteres).',
+                'max_word_length' => 'El hecho contiene una palabra demasiado larga sin espacios. Divide el texto en frases o agrega espacios.'
             ],
         ];
     }

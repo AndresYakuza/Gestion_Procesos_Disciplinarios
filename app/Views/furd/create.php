@@ -104,13 +104,25 @@
             <div class="col-12 col-md-6">
               <label for="superior" class="form-label">Superior que interviene</label>
               <input id="superior" type="text" class="form-control" name="superior"
-                     placeholder="Nombre del superior" value="<?= old('superior') ?>">
+                    placeholder="Nombre del superior"
+                    value="<?= old('superior') ?>"
+                    maxlength="60">
+              <div class="form-text text-end small">
+                <span id="superiorCount">0</span> caracteres
+              </div>
             </div>
+
 
             <div class="col-12">
               <label for="hecho" class="form-label">Hecho o motivo de la intervención</label>
               <textarea id="hecho" name="hecho" class="form-control" rows="3"
-                        placeholder="Describe el evento..." required><?= old('hecho') ?></textarea>
+                        placeholder="Describe el evento..."
+                        maxlength="5000"
+                        required><?= old('hecho') ?></textarea>
+              <div class="d-flex justify-content-between small text-muted mt-1">
+                <span>Máximo 5000 caracteres.</span>
+                <span id="hechoCount">0/5000</span>
+              </div>
             </div>
 
             <div class="col-12">

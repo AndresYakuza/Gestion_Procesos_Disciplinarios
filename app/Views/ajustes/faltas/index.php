@@ -10,7 +10,22 @@
     <h5 class="mb-0 text-success"><i class="bi bi-sliders me-2"></i>Ajustes · Faltas del RIT</h5>
     <div class="d-flex gap-2 align-items-center">
       <form class="d-flex" method="get" action="<?= base_url('ajustes/faltas') ?>">
-        <input type="search" class="form-control form-control-sm" name="q" value="<?= esc($q ?? '') ?>" placeholder="Buscar código o descripción...">
+        <div class="position-relative w-100">
+          <input
+            id="searchFaltas"
+            type="search"
+            class="form-control form-control-sm pe-5"
+            name="q"
+            value="<?= esc($q ?? '') ?>"
+            placeholder="Buscar código o descripción...">
+
+          <!-- Spinner dentro del input -->
+          <div
+            id="searchSpinner"
+            class="search-spinner position-absolute top-50 end-0 translate-middle-y me-2 d-none">
+            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          </div>
+        </div>
       </form>
       <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNueva">
         <i class="bi bi-plus-lg me-1"></i> Nueva falta
@@ -42,7 +57,7 @@
             <th style="width:120px" class="text-end">Acciones</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="tbodyFaltas">
           <?php if (empty($faltas)): ?>
             <tr>
               <td colspan="4" class="text-center text-muted py-4">No hay registros.</td>
@@ -115,8 +130,21 @@
         </div>
         <div class="col-12">
           <label class="form-label fw-semibold">Descripción</label>
-          <textarea name="descripcion" class="form-control" rows="4" required placeholder="Describe la falta…"></textarea>
+          <textarea
+            id="nuevaDescripcion"
+            name="descripcion"
+            class="form-control"
+            rows="4"
+            required
+            placeholder="Describe la falta…"
+            maxlength="1500"></textarea>
+
+          <div class="form-text d-flex justify-content-between small">
+            <span>Máximo 1500 caracteres.</span>
+            <span id="nuevaDescCounter">0 / 1500</span>
+          </div>
         </div>
+
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
@@ -176,48 +204,116 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    // === Buscador en la tabla (sin ir al servidor) ===
+    const searchInput = document.getElementById('searchFaltas');
+    const searchSpinner = document.getElementById('searchSpinner');
 
-    // === Buscador automático ===
-    const searchInput = document.querySelector('input[name="q"]');
     if (searchInput) {
       const searchForm = searchInput.closest('form');
-      let debounceTimer = null;
+      const tbody = document.getElementById('tbodyFaltas');
+      const allRows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+      let spinnerTimer = null;
 
-      searchInput.setAttribute('autocomplete', 'off');
+      // evito que el form se envíe y recargue la página
+      if (searchForm) {
+        searchForm.addEventListener('submit', (e) => e.preventDefault());
+      }
 
-      // Al escribir, esperamos un poco y enviamos el form
-      searchInput.addEventListener('input', () => {
-        if (!searchForm) return;
-        clearTimeout(debounceTimer);
+      const filtrarFaltas = () => {
+        if (!tbody) return;
 
-        debounceTimer = setTimeout(() => {
-          searchForm.submit(); // GET a /ajustes/faltas?q=...
-        }, 450); // 450 ms de “pausa” antes de buscar
-      });
+        const term = searchInput.value.trim().toLowerCase();
 
-      // Enter = buscar de una vez (sin esperar el debounce)
+        // mostrar spinner mientras “filtra”
+        if (searchSpinner) {
+          searchSpinner.classList.remove('d-none');
+          if (spinnerTimer) clearTimeout(spinnerTimer);
+        }
+
+        let visibles = 0;
+
+        allRows.forEach(tr => {
+          // fila de “no hay registros” la manejamos aparte si quieres
+          const text = tr.textContent.toLowerCase();
+          const show = !term || text.includes(term);
+
+          tr.style.display = show ? '' : 'none';
+          if (show) visibles++;
+        });
+
+        // si quieres, aquí podrías mostrar un mensaje de "sin resultados" si visibles === 0
+
+        // ocultar spinner un poquito después (para que se vea el feedback)
+        if (searchSpinner) {
+          spinnerTimer = setTimeout(() => {
+            searchSpinner.classList.add('d-none');
+          }, 150);
+        }
+      };
+
+      // cada vez que se escribe, filtramos en el DOM
+      searchInput.addEventListener('input', filtrarFaltas);
+
+      // Enter solo vuelve a filtrar, sin recargar
       searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
-          if (!searchForm) return;
-          clearTimeout(debounceTimer);
-          searchForm.submit();
+          filtrarFaltas();
         }
       });
 
+              // === Contador + bloqueo de palabra gigante en "Nueva falta" ===
+    const nuevaDesc      = document.getElementById('nuevaDescripcion');
+    const nuevaDescCount = document.getElementById('nuevaDescCounter');
+    const MAX_DESC_CHARS = 1500;
+    const MAX_WORD_CHARS = 120;
 
-      // Enter = buscar inmediato, pero sin que se envíe doble
-      searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          if (debounceTimer) clearTimeout(debounceTimer);
-          const url = new URL(searchForm.action, window.location.origin);
-          const params = new URLSearchParams(window.location.search);
-          params.set('q', searchInput.value.trim());
-          params.delete('page');
-          window.location.href = url.pathname + '?' + params.toString();
+    // pequeño helper de notificación
+    const notify = (msg) => {
+      if (typeof showToast === 'function') {
+        showToast(msg, 'warning');
+      } else {
+        alert(msg);
+      }
+    };
+
+    const actualizarNuevaDesc = (() => {
+      let lastValid = nuevaDesc ? nuevaDesc.value : '';
+
+      return () => {
+        if (!nuevaDesc || !nuevaDescCount) return;
+
+        let value = nuevaDesc.value || '';
+
+        // límite duro de longitud (por si algún navegador ignora maxlength)
+        if (value.length > MAX_DESC_CHARS) {
+          value = value.slice(0, MAX_DESC_CHARS);
+          nuevaDesc.value = value;
         }
-      });
+
+        // validar palabras muy largas (sin espacios)
+        const words   = value.split(/\s+/);
+        const tooLong = words.some(w => w.length > MAX_WORD_CHARS);
+
+        if (tooLong) {
+          // revertir al último valor válido
+          nuevaDesc.value = lastValid;
+          nuevaDesc.selectionStart = nuevaDesc.selectionEnd = nuevaDesc.value.length;
+          notify(`No se permiten palabras de más de ${MAX_WORD_CHARS} caracteres sin espacios.`);
+          value = nuevaDesc.value;
+        } else {
+          lastValid = value;
+        }
+
+        nuevaDescCount.textContent = `${value.length} / ${MAX_DESC_CHARS}`;
+      };
+    })();
+
+    if (nuevaDesc) {
+      nuevaDesc.addEventListener('input', actualizarNuevaDesc);
+      // inicializar al cargar
+      actualizarNuevaDesc();
+    }
     }
     const deleteButtons = document.querySelectorAll('.btn-delete');
     const modalEliminarEl = document.getElementById('modalEliminar');

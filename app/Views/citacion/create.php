@@ -97,10 +97,22 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
         </div>
 
         <div class="col-12">
-          <label class="form-label">Hecho o motivo de la intervención</label>
-          <textarea name="motivo" rows="3" class="form-control"
-            placeholder="Describe el evento en forma detallada…" required><?= old('motivo') ?></textarea>
+          <label class="form-label" for="motivo">Hecho o motivo de la intervención</label>
+          <textarea
+            id="motivo"
+            name="motivo"
+            rows="3"
+            class="form-control"
+            placeholder="Describe el evento en forma detallada…"
+            maxlength="7000"
+            required><?= old('motivo') ?></textarea>
+
+          <div class="d-flex justify-content-between small text-muted mt-1">
+            <span>Máximo 7000 caracteres.</span>
+            <span id="motivoCount">0/7000</span>
+          </div>
         </div>
+
       </div>
 
       <!-- Adjuntos del FURD -->
@@ -166,6 +178,30 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
 
       const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
       const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+      // 🧮 Contador de caracteres para el motivo de citación
+      const motivoCount = document.getElementById('motivoCount');
+      const MAX_MOTIVO = 7000;
+
+      const updateMotivoCount = () => {
+        if (!motivoField || !motivoCount) return;
+        const len = (motivoField.value || '').length;
+        motivoCount.textContent = `${len}/${MAX_MOTIVO}`;
+
+        // Colorear cuando se acerca al límite
+        motivoCount.classList.remove('text-warning', 'text-danger');
+        if (len > MAX_MOTIVO * 0.9) {
+          motivoCount.classList.add('text-danger');
+        } else if (len > MAX_MOTIVO * 0.7) {
+          motivoCount.classList.add('text-warning');
+        }
+      };
+
+      if (motivoField && motivoCount) {
+        motivoField.addEventListener('input', updateMotivoCount);
+        // inicial (por si viene con old('motivo'))
+        updateMotivoCount();
+      }
 
       function notify(msg, type = 'info', ms = 3800) {
         if (typeof showToast === 'function') {
@@ -313,6 +349,7 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
           // rellenar el motivo con el "hecho" del FURD (solo si está vacío)
           if (data.furd && data.furd.hecho && motivoField && !motivoField.value.trim()) {
             motivoField.value = data.furd.hecho;
+            updateMotivoCount?.();
           }
         } catch (e) {
           console.error(e);
@@ -432,6 +469,36 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
         });
       }
     })();
+
+    const hechoField = document.getElementById('motivo');
+    if (hechoField) {
+      const MAX_WORD = 120;
+      let lastValid = hechoField.value;
+
+      const checkHechoWords = () => {
+        const words = (hechoField.value || '').split(/\s+/);
+        const tooLong = words.some(w => w.length > MAX_WORD);
+
+        if (tooLong) {
+          // volvemos al valor anterior
+          hechoField.value = lastValid;
+          hechoField.selectionStart = hechoField.selectionEnd = hechoField.value.length;
+
+          if (typeof showToast === 'function') {
+            showToast(
+              `No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`,
+              'warning'
+            );
+          } else {
+            alert(`No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`);
+          }
+        } else {
+          lastValid = hechoField.value;
+        }
+      };
+
+      hechoField.addEventListener('input', checkHechoWords);
+    }
   </script>
 
   <?= $this->endSection(); ?>
