@@ -41,10 +41,16 @@ if (!isset($etapas) || !is_array($etapas) || empty($etapas)) {
 }
 
 // Normaliza: si viene 'resumen' desde el controlador, úsalo como 'detalle' para que se muestre.
+// Normaliza: si viene 'resumen' desde el controlador, úsalo como 'detalle'
 $etapas = array_map(function ($e) {
   if (empty($e['detalle'] ?? null) && !empty($e['resumen'] ?? null)) {
     $e['detalle'] = $e['resumen'];
   }
+
+  if (empty($e['detalle_full'] ?? null) && !empty($e['detalle'] ?? null)) {
+    $e['detalle_full'] = $e['detalle'];
+  }
+
   return $e;
 }, $etapas);
 ?>
@@ -82,99 +88,126 @@ $etapas = array_map(function ($e) {
               <span class="tl-date text-mono"><?= esc($e['fecha'] ?? '—') ?></span>
             </div>
 
-<div class="tl-card">
-  <div class="d-flex align-items-center justify-content-between mb-2">
-    <h6 class="mb-0 text-success fw-semibold"><?= esc($e['titulo'] ?? 'Etapa') ?></h6>
-    <span class="badge <?= !empty($e['fecha']) ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning' ?>">
-      <?= !empty($e['fecha']) ? 'Completado' : 'Pendiente' ?>
-    </span>
-  </div>
+            <div class="tl-card">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="mb-0 text-success fw-semibold"><?= esc($e['titulo'] ?? 'Etapa') ?></h6>
+                <span class="badge <?= !empty($e['fecha']) ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning' ?>">
+                  <?= !empty($e['fecha']) ? 'Completado' : 'Pendiente' ?>
+                </span>
+              </div>
 
-  <?php
-    $hasDetalle  = !empty($e['detalle']);
-    $hasFaltas   = !empty($e['faltas']);
-    $hasMeta     = !empty($e['meta']);
-    $hasAdjuntos = !empty($e['adjuntos']);
-  ?>
+              <?php
+              $hasDetalle  = !empty($e['detalle']);
+              $hasFaltas   = !empty($e['faltas']);
+              $hasMeta     = !empty($e['meta']);
+              $hasAdjuntos = !empty($e['adjuntos']);
+              ?>
 
-  <?php if ($hasDetalle): ?>
-    <p class="mb-3"><strong>Detalle:</strong> <?= esc($e['detalle']) ?></p>
-  <?php endif; ?>
+              <?php if ($hasDetalle): ?>
+                <p class="mb-3 tl-detalle-text">
+                  <strong>Detalle:</strong>
+                  <span class="tl-detalle-resumen"><?= esc($e['detalle']) ?></span>
 
-  <?php if ($hasDetalle && ($hasFaltas || $hasMeta || $hasAdjuntos)): ?>
-    <div class="tl-section-separator"></div>
-  <?php endif; ?>
+                  <?php
+                  $full  = $e['detalle_full'] ?? '';
+                  $short = $e['detalle']      ?? '';
+                  $showButton = !empty($full) && ($full !== $short);
+                  ?>
 
-  <?php if ($hasFaltas): ?>
-    <div class="mb-3">
-      <strong>Faltas asociadas:</strong>
-      <ul class="list-group list-group-flush small mt-1">
-        <?php foreach ($e['faltas'] as $f): ?>
-          <li class="list-group-item px-0 py-1">
-            <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
-            <strong><?= esc($f['codigo'] ?? '') ?></strong> –
-            <span class="text-muted"><?= esc($f['gravedad'] ?? '') ?></span>:
-            <?= esc($f['desc'] ?? '') ?>
-          </li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
-  <?php endif; ?>
+                  <?php if ($showButton): ?>
+                    <button
+                      type="button"
+                      class="btn btn-sm tl-detalle-ver-mas ms-2"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalDetalleEtapa"
+                      data-detalle-full="<?= esc($full, 'attr') ?>"
+                      data-etapa="<?= esc($e['titulo'] ?? 'Detalle', 'attr') ?>">
+                      <span class="tl-detalle-pill-icon">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                      </span>
+                      <span class="tl-detalle-pill-text">Ver completo</span>
+                    </button>
+                  <?php endif; ?>
 
-  <?php if ($hasFaltas && ($hasMeta || $hasAdjuntos)): ?>
-    <div class="tl-section-separator"></div>
-  <?php endif; ?>
-
-  <?php if ($hasMeta): ?>
-    <dl class="row small mb-3">
-      <?php foreach ($e['meta'] as $k => $v): ?>
-        <dt class="col-sm-3 text-muted"><?= esc($k) ?></dt>
-        <dd class="col-sm-9"><?= esc($v) ?></dd>
-      <?php endforeach; ?>
-    </dl>
-  <?php endif; ?>
-
-  <?php if ($hasMeta && $hasAdjuntos): ?>
-    <div class="tl-section-separator"></div>
-  <?php endif; ?>
-
-  <?php if ($hasAdjuntos): ?>
-    <div class="small">
-      <i class="bi bi-paperclip me-1"></i><strong>Adjuntos:</strong>
-      <ul class="list-unstyled ms-3 mt-2 tl-attach-list">
-        <?php foreach ($e['adjuntos'] as $a): ?>
-          <li class="tl-attach-item">
-            <div class="tl-attach-name text-truncate">
-              <i class="bi bi-file-earmark-text me-1"></i>
-              <span class="tl-attach-filename text-truncate">
-                <?= esc($a['nombre']) ?>
-              </span>
-              <?php if (($a['provider'] ?? 'local') === 'gdrive'): ?>
-                <span class="badge bg-info-subtle text-info ms-1">Drive</span>
+                </p>
               <?php endif; ?>
+
+
+
+              <?php if ($hasDetalle && ($hasFaltas || $hasMeta || $hasAdjuntos)): ?>
+                <div class="tl-section-separator"></div>
+              <?php endif; ?>
+
+              <?php if ($hasFaltas): ?>
+                <div class="mb-3">
+                  <strong>Faltas asociadas:</strong>
+                  <ul class="list-group list-group-flush small mt-1">
+                    <?php foreach ($e['faltas'] as $f): ?>
+                      <li class="list-group-item px-0 py-1">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+                        <strong><?= esc($f['codigo'] ?? '') ?></strong> –
+                        <span class="text-muted"><?= esc($f['gravedad'] ?? '') ?></span>:
+                        <?= esc($f['desc'] ?? '') ?>
+                      </li>
+                    <?php endforeach; ?>
+                  </ul>
+                </div>
+              <?php endif; ?>
+
+              <?php if ($hasFaltas && ($hasMeta || $hasAdjuntos)): ?>
+                <div class="tl-section-separator"></div>
+              <?php endif; ?>
+
+              <?php if ($hasMeta): ?>
+                <dl class="row small mb-3">
+                  <?php foreach ($e['meta'] as $k => $v): ?>
+                    <dt class="col-sm-3 text-muted"><?= esc($k) ?></dt>
+                    <dd class="col-sm-9"><?= esc($v) ?></dd>
+                  <?php endforeach; ?>
+                </dl>
+              <?php endif; ?>
+
+              <?php if ($hasMeta && $hasAdjuntos): ?>
+                <div class="tl-section-separator"></div>
+              <?php endif; ?>
+
+              <?php if ($hasAdjuntos): ?>
+                <div class="small">
+                  <i class="bi bi-paperclip me-1"></i><strong>Adjuntos:</strong>
+                  <ul class="list-unstyled ms-3 mt-2 tl-attach-list">
+                    <?php foreach ($e['adjuntos'] as $a): ?>
+                      <li class="tl-attach-item">
+                        <div class="tl-attach-name text-truncate">
+                          <i class="bi bi-file-earmark-text me-1"></i>
+                          <span class="tl-attach-filename text-truncate">
+                            <?= esc($a['nombre']) ?>
+                          </span>
+                          <?php if (($a['provider'] ?? 'local') === 'gdrive'): ?>
+                            <span class="badge bg-info-subtle text-info ms-1">Drive</span>
+                          <?php endif; ?>
+                        </div>
+
+                        <div class="tl-attach-actions">
+                          <a href="<?= site_url('adjuntos/' . $a['id'] . '/open') ?>"
+                            target="_blank" rel="noopener"
+                            class="btn btn-xs btn-outline-secondary"
+                            title="Abrir">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                          </a>
+
+                          <a href="<?= site_url('adjuntos/' . $a['id'] . '/download') ?>"
+                            class="btn btn-xs btn-outline-primary btn-download"
+                            data-loading="Preparando descarga…">
+                            <i class="bi bi-download"></i>
+                          </a>
+                        </div>
+                      </li>
+                    <?php endforeach; ?>
+                  </ul>
+                </div>
+              <?php endif; ?>
+
             </div>
-
-            <div class="tl-attach-actions">
-              <a href="<?= site_url('adjuntos/'.$a['id'].'/open') ?>"
-                 target="_blank" rel="noopener"
-                 class="btn btn-xs btn-outline-secondary"
-                 title="Abrir">
-                <i class="bi bi-box-arrow-up-right"></i>
-              </a>
-
-              <a href="<?= site_url('adjuntos/'.$a['id'].'/download') ?>"
-                 class="btn btn-xs btn-outline-primary btn-download"
-                 data-loading="Preparando descarga…">
-                <i class="bi bi-download"></i>
-              </a>
-            </div>
-          </li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
-  <?php endif; ?>
-
-</div>
 
             <?php if (!$isLast): ?>
               <div class="tl-spine"></div>
@@ -188,6 +221,46 @@ $etapas = array_map(function ($e) {
 
 </div>
 </div>
+
+<!-- Modal Detalle completo de etapa -->
+<div class="modal fade" id="modalDetalleEtapa" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-detalle-etapa-dialog">
+    <div class="modal-content modal-detalle-etapa">
+      <div class="modal-header modal-detalle-etapa-header">
+        <div class="d-flex align-items-center gap-2">
+          <span class="modal-detalle-icon">
+            <i class="bi bi-journal-text"></i>
+          </span>
+          <div>
+            <h5 class="modal-title fw-semibold mb-0 text-success">
+              <span id="modalDetalleEtapaTitulo">Detalle</span>
+            </h5>
+            <small class="text-muted d-none d-sm-block">
+              Texto completo de la etapa seleccionada
+            </small>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body modal-detalle-etapa-body">
+        <div class="modal-detalle-scroll">
+          <p id="modalDetalleEtapaTexto"
+             class="fs-6 mb-0"
+             style="white-space: pre-line;"></p>
+        </div>
+      </div>
+
+      <div class="modal-footer modal-detalle-etapa-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          <i class="bi bi-x-lg me-1"></i> Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 
 <!-- Loader global para descargas -->
 <div id="globalLoader" class="loader-overlay d-none">
@@ -254,24 +327,20 @@ $etapas = array_map(function ($e) {
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 
 <script>
+  // Loader global para descargas de adjuntos (lo de antes, sin tocar)
   (function() {
     const globalLoader = document.getElementById('globalLoader');
     const showGlobalLoader = () => globalLoader && globalLoader.classList.remove('d-none');
     const hideGlobalLoader = () => globalLoader && globalLoader.classList.add('d-none');
 
-    // Click en botones de descarga de adjuntos
     document.addEventListener('click', function(e) {
       const btn = e.target.closest('.btn-download');
       if (!btn) return;
 
-      // Evita doble click
       btn.classList.add('disabled');
       btn.setAttribute('aria-disabled', 'true');
-
-      // Mostrar loader Lottie
       showGlobalLoader();
 
-      // Fallback: si seguimos en la página después de X segundos, ocultamos loader y reactivamos botón
       setTimeout(() => {
         hideGlobalLoader();
         btn.classList.remove('disabled');
@@ -279,10 +348,29 @@ $etapas = array_map(function ($e) {
       }, 12000);
     });
 
-    // Cuando el navegador vuelve a mostrar la página (ej. después de back/forward)
     window.addEventListener('pageshow', hideGlobalLoader);
   })();
-</script>
 
+  // === Modal "Ver completo" para detalle de cada etapa ===
+  (function() {
+    const modalEl = document.getElementById('modalDetalleEtapa');
+    if (!modalEl) return;
+
+    const modalBody = document.getElementById('modalDetalleEtapaTexto');
+    const modalTitle = document.getElementById('modalDetalleEtapaTitulo');
+
+    // Este evento lo dispara Bootstrap cuando se va a abrir el modal
+    modalEl.addEventListener('show.bs.modal', function(event) {
+      const button = event.relatedTarget; // botón que abrió el modal
+      if (!button) return;
+
+      const full = button.getAttribute('data-detalle-full') || '(Sin texto)';
+      const titulo = button.getAttribute('data-etapa') || 'Detalle';
+
+      modalTitle.textContent = titulo;
+      modalBody.textContent = full; // respeta saltos de línea por el white-space: pre-line
+    });
+  })();
+</script>
 
 <?= $this->endSection(); ?>

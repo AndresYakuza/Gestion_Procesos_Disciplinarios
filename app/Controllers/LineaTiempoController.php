@@ -19,19 +19,19 @@ class LineaTiempoController extends BaseController
         // 🧠 Carga principal del FURD con empleado y proyecto
         $furd = (new FurdModel())
             ->select("
-                f.id,
-                f.consecutivo,
-                f.fecha_evento,
-                f.hora_evento,
-                f.estado,
-                f.empresa_usuaria,         
-                f.hecho,
-                f.created_at,
-                f.updated_at,
-                e.numero_documento AS cedula,
-                e.nombre_completo AS nombre,
-                p.nombre AS proyecto
-            ")
+            f.id,
+            f.consecutivo,
+            f.fecha_evento,
+            f.hora_evento,
+            f.estado,
+            f.empresa_usuaria,         
+            f.hecho,
+            f.created_at,
+            f.updated_at,
+            e.numero_documento AS cedula,
+            e.nombre_completo AS nombre,
+            p.nombre AS proyecto
+        ")
             ->from('tbl_furd f')
             ->join('tbl_empleados e', 'e.id = f.empleado_id', 'left')
             ->join('tbl_proyectos p', 'p.id = f.proyecto_id', 'left')
@@ -42,7 +42,6 @@ class LineaTiempoController extends BaseController
             throw PageNotFoundException::forPageNotFound("No existe el proceso {$consecutivo}");
         }
 
-        $anio = Time::parse($furd['created_at'])->getYear();
         $proceso = [
             'consecutivo' => $furd['consecutivo'] ?? sprintf('PD-%06d', $furd['id']),
             'cedula'      => $furd['cedula'] ?? '',
@@ -54,147 +53,149 @@ class LineaTiempoController extends BaseController
         // 🧱 Inicializamos las etapas
         $etapas = [];
 
-
         $faltas = $this->getFaltas((int)$furd['id']);
-        // 1️⃣ Registro
-        $etapas[] = [
-            'clave'   => 'registro',
-            'titulo'  => 'Registro',
-            'fecha'   => Time::parse($furd['created_at'])->format('d/m/Y'),
-            'resumen' => mb_strimwidth((string)($furd['hecho'] ?? ''), 0, 220, '…', 'UTF-8'),
-            'meta'    => [
-                'Fecha del evento' => $furd['fecha_evento']
-                    ? Time::parse($furd['fecha_evento'])->format('d/m/Y')
-                    : '—',
-                'Hora del evento'  => (string)($furd['hora_evento']    ?? '—'),
-                'Empresa usuaria'  => (string)($furd['empresa_usuaria'] ?? '—'),
-                'Faltas registradas' => (string)count($faltas),
-                // opcional:
-                // 'Proyecto'      => (string)($furd['proyecto'] ?? '—'),
-                // 'Cédula'        => (string)($furd['cedula']   ?? '—'),
-            ],
-            'faltas'  => $faltas,              // 🔸 clave que la vista espera
-            'adjuntos' => $this->getAdjuntos($furd['id'], 'registro'),
-        ];
 
-        // 2️⃣ Citación
-        $citacion = db_connect()->table('tbl_furd_citacion')->where('furd_id', $furd['id'])->get()->getRowArray();
-        $etapas[] = [
-            'clave'   => 'citacion',
-            'titulo'  => 'Citación',
-            'fecha' => isset($citacion['created_at'])
-                ? Time::parse($citacion['created_at'])->format('d/m/Y')
-                : '',
-            'resumen' => $citacion ? $citacion['motivo'] : '',
-            'meta'    => [
-                'Fecha del evento' => isset($citacion['fecha_evento'])
-                    ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
-                    : '—',
-                'Hora'  => $citacion['hora'] ?? '—',
-                'Medio' => $citacion['medio'] ?? '—',
-            ],
-            'adjuntos' => $this->getAdjuntos($furd['id'], 'citacion'),
-        ];
+ // 1️⃣ Registro
+$faltas = $this->getFaltas((int)$furd['id']);
 
-        // 3️⃣ Descargos
-        $descargos = db_connect()->table('tbl_furd_descargos')->where('furd_id', $furd['id'])->get()->getRowArray();
-        $etapas[] = [
-            'clave'   => 'descargos',
-            'titulo'  => 'Descargos',
-            'fecha' => isset($descargos['created_at'])
-                ? Time::parse($descargos['created_at'])->format('d/m/Y')
-                : '',
-            'resumen' => $descargos ? 'Descargo realizado de manera ' . $descargos['medio'] : '',
-            'meta'    => [
-                'Fecha del evento' => isset($descargos['fecha_evento'])
-                    ? Time::parse($descargos['fecha_evento'])->format('d/m/Y')
-                    : '—',
-                'Hora'  => $descargos['hora'] ?? '—',
-                'Medio' => $descargos['medio'] ?? '—',
-            ],
-            'adjuntos' => $this->getAdjuntos($furd['id'], 'descargos'),
-        ];
+$hechoFull  = (string)($furd['hecho'] ?? '');
+$hechoShort = mb_strimwidth($hechoFull, 0, 220, '…', 'UTF-8');
 
-        // 4️⃣ Soporte
-        $soporte = db_connect()->table('tbl_furd_soporte')
-            ->where('furd_id', $furd['id'])
-            ->get()
-            ->getRowArray();
-
-        $etapas[] = [
-            'clave'   => 'soporte',
-            'titulo'  => 'Soporte de Citación / Acta',
-            'fecha'   => isset($soporte['created_at'])
-                ? Time::parse($soporte['created_at'])->format('d/m/Y')
-                : '',
-            'resumen' => '', // Soporte no usa resumen
-            'meta'    => [
-                'Responsable'         => $soporte['responsable'] ?? '—',
-                'Decisión propuesta'  => $soporte['decision_propuesta'] ?? '—',
-            ],
-            'adjuntos' => $this->getAdjuntos($furd['id'], 'soporte'),
-        ];
+$etapas[] = [
+    'clave'        => 'registro',
+    'titulo'       => 'Registro',
+    'fecha'        => Time::parse($furd['created_at'])->format('d/m/Y'),
+    'detalle'      => $hechoShort,
+    'detalle_full' => $hechoFull,
+    'meta'    => [
+        'Fecha del evento' => $furd['fecha_evento']
+            ? Time::parse($furd['fecha_evento'])->format('d/m/Y')
+            : '—',
+        'Hora del evento'  => (string)($furd['hora_evento']    ?? '—'),
+        'Empresa usuaria'  => (string)($furd['empresa_usuaria'] ?? '—'),
+        'Faltas registradas' => (string)count($faltas),
+    ],
+    'faltas'   => $faltas,
+    'adjuntos' => $this->getAdjuntos($furd['id'], 'registro'),
+];
 
 
-        // 5️⃣ Decisión
-        $decision = db_connect()
-            ->table('tbl_furd_decision')
-            ->where('furd_id', $furd['id'])
-            ->get()
-            ->getRowArray();
+// 2️⃣ Citación
+$citacion = db_connect()->table('tbl_furd_citacion')
+    ->where('furd_id', $furd['id'])
+    ->get()
+    ->getRowArray();
 
-        // if ($decision) {
+$motivoFull  = $citacion ? (string)$citacion['motivo'] : '';
+$motivoShort = mb_strimwidth($motivoFull, 0, 220, '…', 'UTF-8');
 
-        //     // Texto principal
-        //     $detalle   = trim((string)($decision['decision_text'] ?? ''));
-        //     // si tu nueva columna se llama distinto (p.e. detalle_text, fundamentacion, etc.)
-        //     // cambia aquí el índice:
-        //     $fundament = trim((string)($decision['fundamentacion'] ?? ($decision['detalle_text'] ?? '')));
+$etapas[] = [
+    'clave'        => 'citacion',
+    'titulo'       => 'Citación',
+    'fecha'        => isset($citacion['created_at'])
+        ? Time::parse($citacion['created_at'])->format('d/m/Y')
+        : '',
+    'detalle'      => $motivoShort,
+    'detalle_full' => $motivoFull,
+    'meta'    => [
+        'Fecha del evento' => isset($citacion['fecha_evento'])
+            ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
+            : '—',
+        'Hora'  => $citacion['hora'] ?? '—',
+        'Medio' => $citacion['medio'] ?? '—',
+    ],
+    'adjuntos' => $this->getAdjuntos($furd['id'], 'citacion'),
+];
 
-        //     $partes = [];
-        //     if ($detalle !== '') {
-        //         $partes[] =  $detalle;
-        //     }
-        //     if ($fundament !== '') {
-        //         $partes[] = 'Fundamentación: ' . $fundament;
-        //     }
 
-        // $resumen = implode(' · ', $partes);
-        $detalle   = trim((string)($decision['decision_text'] ?? ''));
-        $fundament = trim((string)($decision['fundamentacion'] ?? ($decision['detalle_text'] ?? '')));
+// 3️⃣ Descargos (no hay texto largo, lo dejamos simple)
+$descargos = db_connect()->table('tbl_furd_descargos')
+    ->where('furd_id', $furd['id'])
+    ->get()
+    ->getRowArray();
 
-        $partes = [];
-        if ($detalle !== '') {
-            $partes[] =  $detalle;
-        }
-        if ($fundament !== '') {
-            $partes[] = 'Fundamentación: ' . $fundament;
-        }
+$descDetalle = $descargos
+    ? 'Descargo realizado de manera ' . $descargos['medio']
+    : '';
 
-        $resumen = implode(' · ', $partes);
+$etapas[] = [
+    'clave'   => 'descargos',
+    'titulo'  => 'Descargos',
+    'fecha'   => isset($descargos['created_at'])
+        ? Time::parse($descargos['created_at'])->format('d/m/Y')
+        : '',
+    'detalle' => $descDetalle,
+    'detalle_full' => $descDetalle,
+    'meta'    => [
+        'Fecha del evento' => isset($descargos['fecha_evento'])
+            ? Time::parse($descargos['fecha_evento'])->format('d/m/Y')
+            : '—',
+        'Hora'  => $descargos['hora'] ?? '—',
+        'Medio' => $descargos['medio'] ?? '—',
+    ],
+    'adjuntos' => $this->getAdjuntos($furd['id'], 'descargos'),
+];
 
-        $etapas[] = [
-            'clave'   => 'decision',
-            'titulo'  => 'Decisión',
 
-            'fecha' => isset($decision['created_at'])
-                ? Time::parse($decision['created_at'])->format('d/m/Y')
-                : '',
+// 4️⃣ Soporte (sin texto largo)
+$soporte = db_connect()->table('tbl_furd_soporte')
+    ->where('furd_id', $furd['id'])
+    ->get()
+    ->getRowArray();
 
-            'resumen' => $resumen ?: '— Sin decisión registrada —',
+$etapas[] = [
+    'clave'        => 'soporte',
+    'titulo'       => 'Soporte de Citación / Acta',
+    'fecha'        => isset($soporte['created_at'])
+        ? Time::parse($soporte['created_at'])->format('d/m/Y')
+        : '',
+    'detalle'      => '',
+    'detalle_full' => '',
+    'meta'    => [
+        'Responsable'         => $soporte['responsable'] ?? '—',
+        'Decisión propuesta'  => $soporte['decision_propuesta'] ?? '—',
+    ],
+    'adjuntos' => $this->getAdjuntos($furd['id'], 'soporte'),
+];
 
-            'meta'    => [
-                'Fecha de la decisión' => isset($decision['fecha_evento'])
-                    ? Time::parse($decision['fecha_evento'])->format('d/m/Y')
-                    : '—',
-            ],
 
-            'adjuntos' => $this->getAdjuntos($furd['id'], 'decision'),
-        ];
+// 5️⃣ Decisión
+$decision = db_connect()
+    ->table('tbl_furd_decision')
+    ->where('furd_id', $furd['id'])
+    ->get()
+    ->getRowArray();
+
+$detalle   = trim((string)($decision['decision_text'] ?? ''));
+$fundament = trim((string)($decision['fundamentacion'] ?? ($decision['detalle_text'] ?? '')));
+
+$partes = [];
+if ($detalle !== '')   $partes[] = $detalle;
+if ($fundament !== '') $partes[] = 'Fundamentación: ' . $fundament;
+
+$textoFull   = implode(' · ', $partes);
+$textoShort  = mb_strimwidth($textoFull, 0, 220, '…', 'UTF-8');
+
+$etapas[] = [
+    'clave'        => 'decision',
+    'titulo'       => 'Decisión',
+    'fecha'        => isset($decision['created_at'])
+        ? Time::parse($decision['created_at'])->format('d/m/Y')
+        : '',
+    'detalle'      => $textoShort ?: '— Sin decisión registrada —',
+    'detalle_full' => $textoFull  ?: '— Sin decisión registrada —',
+    'meta'    => [
+        'Fecha de la decisión' => isset($decision['fecha_evento'])
+            ? Time::parse($decision['fecha_evento'])->format('d/m/Y')
+            : '—',
+    ],
+    'adjuntos' => $this->getAdjuntos($furd['id'], 'decision'),
+];
 
 
         return view('linea_tiempo/show', compact('proceso', 'etapas'));
     }
+
 
     /**
      * Decodifica PD-#### o solo el número

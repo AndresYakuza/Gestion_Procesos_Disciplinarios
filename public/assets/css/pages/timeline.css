@@ -396,3 +396,114 @@
   box-shadow: 0 0 0 1px #16a34a66;    /* aro verde translúcido */
 }
 
+/* Botón chip "Ver completo" */
+.tl-detalle-ver-mas {
+  border-radius: 999px;
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  background: rgba(22, 163, 74, 0.04);
+  color: #15803d;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.6rem 0.18rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.tl-detalle-ver-mas .tl-detalle-pill-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(22, 163, 74, 0.12);
+}
+
+.tl-detalle-ver-mas .tl-detalle-pill-icon i {
+  font-size: 0.78rem;
+}
+
+.tl-detalle-ver-mas .tl-detalle-pill-text {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tl-detalle-ver-mas:hover {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.4);
+  text-decoration: none;
+  color: #15803d;
+}
+
+.tl-detalle-ver-mas:active {
+  transform: translateY(1px);
+}
+
+/* Modal detalle – layout moderno */
+.modal-detalle-etapa-dialog {
+  max-width: 780px;
+}
+
+.modal-detalle-etapa {
+  border-radius: 1.25rem;
+  border: 0;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
+  overflow: hidden;
+}
+
+.modal-detalle-etapa-header {
+  border-bottom: 0;
+  padding: 1rem 1.5rem 0.75rem;
+  background: linear-gradient(120deg, #ecfdf3, #f5fef9);
+}
+
+.modal-detalle-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #22c55e1a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #16a34a;
+}
+
+.modal-detalle-icon i {
+  font-size: 1.1rem;
+}
+
+.modal-detalle-etapa-body {
+  padding: 1rem 1.5rem 1.25rem;
+}
+
+.modal-detalle-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+/* Scrollbar sutil (solo navegadores que lo soporten) */
+.modal-detalle-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-detalle-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-detalle-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.65);
+  border-radius: 999px;
+}
+
+.modal-detalle-etapa-footer {
+  border-top: 0;
+  padding: 0.75rem 1.5rem 1.1rem;
+  background: #f9fafb;
+}
+
+
+
+
