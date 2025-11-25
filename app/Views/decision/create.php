@@ -219,7 +219,7 @@ $msg    = session('msg') ?? null;
   <div class="loader-content">
     <lottie-player
       class="loader-lottie"
-      src="<?= base_url('assets/lottie/dancing_dog.json') ?>"
+      src="<?= base_url('assets/lottie/confetti-animation.json') ?>"
       background="transparent"
       speed="1"
       style="width: 220px; height: 220px;"

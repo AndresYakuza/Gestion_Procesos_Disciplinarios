@@ -144,7 +144,7 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
     <div class="loader-content">
       <lottie-player
         class="loader-lottie"
-        src="<?= base_url('assets/lottie/typing-animation.json') ?>"
+        src="<?= base_url('assets/lottie/ChasquidoQik.json') ?>"
         background="transparent"
         speed="1"
         style="width: 220px; height: 220px;"

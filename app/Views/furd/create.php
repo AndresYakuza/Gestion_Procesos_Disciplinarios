@@ -196,6 +196,13 @@
               <a href="<?= base_url('/') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-x-circle me-1"></i>Cancelar
               </a>
+
+                  <!-- NUEVO BOTÓN PARA PROBAR EL LOADER -->
+              <!-- <button type="button" id="btnTestLoader" class="btn btn-primary">
+                <i class="bi bi-hourglass-split me-1"></i>Probar loader
+              </button> -->
+
+
               <button id="btnGuardar" type="submit" class="btn btn-success">
                 <span class="spinner-border spinner-border-sm me-2 d-none" role="status" aria-hidden="true"></span>
                 <span class="btn-text">Guardar registro</span>
@@ -237,7 +244,7 @@
   <div class="loader-content">
     <lottie-player
       class="loader-lottie"
-      src="<?= base_url('assets/lottie/furd-loader.json') ?>"
+      src="<?= base_url('assets/lottie/catloader.json') ?>"
       background="transparent"
       speed="1"
       style="width: 200px; height: 200px;"
@@ -260,4 +267,23 @@
   const BASE_LOOKUP_URL = "<?= base_url('empleados/lookup') ?>";  
 </script>
 <script defer src="<?= base_url('assets/js/pages/furd.js') ?>"></script>
+
+<!-- <script>
+document.addEventListener('DOMContentLoaded', () => {
+  const btnTestLoader = document.getElementById('btnTestLoader');
+  const globalLoader  = document.getElementById('globalLoader');
+
+  if (btnTestLoader && globalLoader) {
+    btnTestLoader.addEventListener('click', () => {
+      // Mostrar loader
+      globalLoader.classList.remove('d-none');
+
+      // Opcional: ocultarlo después de 3 segundos
+      setTimeout(() => {
+        globalLoader.classList.add('d-none');
+      }, 9000);
+    });
+  }
+});
+</script> -->
 <?= $this->endSection(); ?>

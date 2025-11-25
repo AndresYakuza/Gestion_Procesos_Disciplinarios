@@ -196,7 +196,7 @@ $decisiones  = $decisiones ?? [
   <div class="loader-content">
     <lottie-player
       class="loader-lottie"
-      src="<?= base_url('assets/lottie/bear-dancing.json') ?>"
+      src="<?= base_url('assets/lottie/businessman.json') ?>"
       background="transparent"
       speed="1"
       style="width: 220px; height: 220px;"
