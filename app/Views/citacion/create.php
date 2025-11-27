@@ -2,6 +2,7 @@
 
 <?= $this->section('styles'); ?>
 <link rel="stylesheet" href="<?= base_url('assets/css/pages/citacion.css') ?>">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <?= $this->endSection(); ?>
 
 <?= $this->section('content'); ?>
@@ -9,6 +10,8 @@
 <?php
 $errors         = session('errors') ?? [];
 $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
+$fechasHabilitadas = $fechasHabilitadas ?? [];
+
 ?>
 
 <div class="page-citacion">
@@ -28,13 +31,15 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
       <div class="row g-3 align-items-end">
         <div class="col-12 col-md-4">
 
-          <label class="form-label d-flex align-items-center gap-1" for="consecutivo">
+          <label class="form-label d-flex align-items-center gap-2" for="consecutivo">
             Consecutivo del proceso
-            <i class="bi bi-info-circle text-muted small"
-              data-bs-toggle="tooltip"
-              data-bs-placement="right"
-              title="Escribe el consecutivo del FURD (Ej: PD-000123).">
-            </i>
+            <button
+              type="button"
+              class="btn-info-help"
+              data-info-title="Consecutivo del proceso"
+              data-info-text="Escribe el consecutivo completo del FURD. Ejemplo válido: <strong>PD-000123</strong>.">
+              <i class="bi bi-info-lg"></i>
+            </button>
           </label>
 
           <div class="input-group">
@@ -58,24 +63,46 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
 
           </div>
 
-
           <?php if (!empty($errors['consecutivo'] ?? null)): ?>
             <div class="invalid-feedback d-block">
               <?= esc($errors['consecutivo']) ?>
             </div>
           <?php endif; ?>
 
-
-
-
         </div>
         <br><br>
         <div class="col-6 col-md-4">
-          <label class="form-label">Fecha</label>
-          <input id="fecha" type="text" class="form-control" name="fecha_evento"
+          <label class="form-label d-flex align-items-center gap-2">
+            Fecha del descargo
+            <button
+              type="button"
+              class="btn-info-help"
+              data-info-title="Fecha del descargo"
+              data-info-text="La fecha del descargo debe estar entre el <strong>5°</strong> y el <strong>8° día hábil</strong> contado desde hoy, excluyendo sábados, domingos y festivos no laborables. Solo esas fechas aparecerán disponibles en el calendario.">
+              <i class="bi bi-info-lg"></i>
+            </button>
+          </label>
+          <input
+            id="fecha"
+            type="text"
+            class="form-control <?= !empty($errors['fecha_evento']) ? 'is-invalid' : '' ?>"
+            name="fecha_evento"
             value="<?= old('fecha_evento') ?>"
-            placeholder="Selecciona una fecha..." required>
+            placeholder="Selecciona una fecha..."
+            autocomplete="off"
+            required
+            data-no-global-flatpickr="1">
+
+          <?php if (!empty($errors['fecha_evento'] ?? null)): ?>
+            <div class="invalid-feedback d-block">
+              <?= esc($errors['fecha_evento']) ?>
+            </div>
+          <?php endif; ?>
+          <div class="form-text">
+            Solo puedes elegir entre el 5° y el 8° día hábil siguiente a hoy.
+          </div>
         </div>
+
 
         <div class="col-6 col-md-4">
           <label class="form-label">Hora</label>
@@ -88,11 +115,12 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
             Ingresa el consecutivo completo del proceso, por ejemplo: <strong>PD-000123</strong>.
           </i>
           <br>
-          <label class="form-label">Medio de la citación</label>
+          <label class="form-label">Modelo del descargo</label>
           <select name="medio" class="form-select" required>
             <option value="" disabled <?= old('medio') ? '' : 'selected' ?>>Elige una opción…</option>
             <option value="virtual" <?= old('medio') === 'virtual'    ? 'selected' : '' ?>>Virtual</option>
             <option value="presencial" <?= old('medio') === 'presencial' ? 'selected' : '' ?>>Presencial</option>
+            <option value="escrito" <?= old('medio') === 'escrito' ? 'selected' : '' ?>>Escrito</option>
           </select>
         </div>
 
@@ -161,11 +189,15 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
 
 
   <?= $this->section('scripts'); ?>
+  <!-- <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script> -->
   <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 
   <script>
     (() => {
       const baseFind = '<?= base_url('citacion/find'); ?>';
+
+      const enabledDates = <?= json_encode($fechasHabilitadas ?? []) ?>;
+      const fechaInput = document.getElementById('fecha');
 
       const PREFIX = 'PD-';
       const consecutivo = document.getElementById('consecutivo');
@@ -369,6 +401,22 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
         }
       });
 
+      // ---------- Datepicker de fecha_evento limitado a días hábiles (5° a 8°) ----------
+      if (fechaInput && typeof flatpickr !== 'undefined') {
+        flatpickr(fechaInput, {
+          dateFormat: 'Y-m-d',
+          disableMobile: true,
+          enable: enabledDates,
+          minDate: enabledDates.length ? enabledDates[0] : null,
+          maxDate: enabledDates.length ? enabledDates[enabledDates.length - 1] : null,
+
+          // 👇 agregamos esta parte
+          onReady(selectedDates, dateStr, instance) {
+            instance.calendarContainer.classList.add('calendar-descargo');
+          }
+        });
+      }
+
       // ---------- Envío del formulario con loader global ----------
 
       if (form && btnGenerar) {
@@ -499,6 +547,26 @@ $oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
 
       hechoField.addEventListener('input', checkHechoWords);
     }
+
+    // Botones de ayuda (info)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.btn-info-help');
+  if (!btn) return;
+
+  const title = btn.dataset.infoTitle || 'Información';
+  const html  = btn.dataset.infoText || '';
+
+  Swal.fire({
+    icon: 'info',
+    title: title,
+    html: html,
+    confirmButtonText: 'Entendido',
+    confirmButtonColor: '#0d6efd',
+    customClass: {
+      popup: 'swal2-popup-help'
+    }
+  });
+});
   </script>
 
   <?= $this->endSection(); ?>

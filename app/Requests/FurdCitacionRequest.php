@@ -8,7 +8,7 @@ class FurdCitacionRequest
             'consecutivo'     => 'required|is_not_unique[tbl_furd.consecutivo]',
             'fecha_evento'           => 'required|valid_date[Y-m-d]',
             'hora'            => 'required',
-            'medio'           => 'required|in_list[presencial,virtual]',
+            'medio'           => 'required|in_list[presencial,virtual,escrito]',
             'motivo'          => 'required|min_length[3]|max_length[7000]|max_word_length[120]',
 
             // evidencias opcionales (si decides permitir aquí)

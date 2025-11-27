@@ -269,4 +269,68 @@
   margin-top: 0.75rem;
 }
 
+/* Calendario de fecha del descargo */
+.calendar-descargo .flatpickr-day.disabled,
+.calendar-descargo .flatpickr-day.flatpickr-disabled,
+.calendar-descargo .flatpickr-day.notAllowed {
+  color: #adb5bd !important;        /* texto gris */
+  background: transparent !important;
+  border-color: transparent !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
+
+/* (Opcional) reforzar los días habilitados */
+.calendar-descargo .flatpickr-day:not(.disabled):not(.flatpickr-disabled):not(.notAllowed) {
+  font-weight: 600;
+}
+
+/* Botón de ayuda junto a los labels */
+.btn-info-help {
+  border: none;
+  background: rgba(13, 110, 253, 0.08); /* azul clarito */
+  color: #0d6efd;
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
+  animation: infoPulse 1.8s infinite;
+}
+
+.btn-info-help i {
+  font-size: 0.9rem;
+}
+
+/* Efecto al pasar el mouse */
+.btn-info-help:hover {
+  background: rgba(13, 110, 253, 0.16);
+  transform: translateY(-1px);
+}
+
+/* Animación tipo “pulso” para llamar la atención */
+@keyframes infoPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(13, 110, 253, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+  }
+}
+
+.swal2-popup-help {
+  border-radius: 16px !important;
+  padding: 1.5rem 1.75rem !important;
+  font-size: 0.9rem;
+}
+
+
 

@@ -836,6 +836,10 @@ body.theme-rich.app-shell main {
   color: #ffffff;
 }
 
+/* Evitar que SweetAlert2 mueva el layout al abrir el modal */
+body.swal2-shown {
+  padding-right: 0 !important;
+}
 
 
 html {

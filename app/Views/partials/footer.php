@@ -12,7 +12,7 @@
         </div>
 
         <p class="footer-center-text mb-0 text-center">
-            © APP Compras · CONTACTAMOS · Todos los derechos reservados ·
+            © APP Gestión De Procesos Disciplinarios · CONTACTAMOS · Todos los derechos reservados ·
             <span class="footer-signature">AA | System Eng. | V1🎮</span>
         </p>
 

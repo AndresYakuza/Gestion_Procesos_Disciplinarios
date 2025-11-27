@@ -6,7 +6,10 @@ use App\Controllers\BaseController;
 use App\Controllers\Traits\HandlesAdjuntos;
 use App\Models\FurdModel;
 use App\Models\FurdDescargoModel;
-// use App\Models\FurdAdjuntoModel;  // ← ya no se usa aquí
+use App\Domain\Furd\FurdWorkflow;
+use App\Models\FurdCitacionModel;
+use App\Models\FurdSoporteModel;
+use App\Models\FurdDecisionModel;
 use App\Requests\FurdDescargosRequest;
 
 class DescargosController extends BaseController
@@ -177,46 +180,39 @@ public function store()
             ->withInput();
     }
 
-    // 4) Verificar que exista citación previa
-    $citModel = new \App\Models\FurdCitacionModel();
-    $citacion = $citModel->findByFurd((int)$furd['id']);
-    if (!$citacion) {
-        $msg = 'Ups! Fase previa sin completar para este consecutivo. Primero registra la citación.';
-        if ($this->request->isAJAX()) {
-            return $this->response->setJSON([
-                'ok'     => false,
-                'errors' => [$msg],
-            ]);
-        }
+    // 4) Validar flujo con FurdWorkflow (citación, no duplicado, no "escrito")
+$wf = new FurdWorkflow(
+    new FurdModel(),
+    new FurdCitacionModel(),
+    new FurdDescargoModel(),
+    new FurdSoporteModel(),
+    new FurdDecisionModel(),
+);
 
-        return redirect()->back()
-            ->with('errors', [$msg])
-            ->withInput();
+if (!$wf->canStartDescargos($furd)) {
+    $msg = 'No puedes generar el acta de cargos y descargos para este proceso. '
+         . 'Verifica que exista citación previa, que no haya descargos registrados '
+         . 'y que la citación no haya sido marcada con descargo escrito.';
+
+    if ($this->request->isAJAX()) {
+        return $this->response->setJSON([
+            'ok'     => false,
+            'errors' => [$msg],
+        ]);
     }
 
-    // 4.bis) Verificar que NO exista ya un descargo para este FURD
-    $descModel = new FurdDescargoModel();
-    $existing  = $descModel->findByFurd((int)$furd['id']);
-    if ($existing) {
-        $msg = 'Ya existen descargos registrados para este proceso. Si necesitas modificarlos, hazlo desde la opción de edición.';
+    return redirect()->back()
+        ->with('errors', [$msg])
+        ->withInput();
+}
 
-        if ($this->request->isAJAX()) {
-            return $this->response->setJSON([
-                'ok'     => false,
-                'errors' => [$msg],
-            ]);
-        }
-
-        return redirect()->back()
-            ->with('errors', [$msg])
-            ->withInput();
-    }
 
     // 5) Guardar
     $db = db_connect();
     $db->transStart();
 
     try {
+        $descModel = new FurdDescargoModel();
         $payload = [
             'furd_id'      => (int)$furd['id'],
             'fecha_evento' => $fechaConvertida,

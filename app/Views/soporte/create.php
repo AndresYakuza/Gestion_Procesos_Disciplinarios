@@ -12,7 +12,9 @@ $responsable = $responsable ?? '';
 $decisiones  = $decisiones ?? [
   'Llamado de atención',
   'Suspensión disciplinaria',
-  'Terminación de contrato'
+  'Terminación de contrato', 
+  'Archivar',
+  'Absolver ',
 ];
 ?>
 
@@ -97,7 +99,7 @@ $decisiones  = $decisiones ?? [
 
           <!-- Decisión propuesta -->
           <div class="col-12 col-lg-4">
-            <label class="form-label">Decisión propuesta</label>
+            <label class="form-label">Decisión sugerida</label>
             <select
               name="decision_propuesta"
               id="decision_propuesta"

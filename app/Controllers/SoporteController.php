@@ -6,7 +6,10 @@ use App\Models\FurdModel;
 use App\Models\FurdSoporteModel;
 use App\Models\FurdAdjuntoModel;
 use App\Requests\FurdSoporteRequest;
-use App\Services\FurdWorkflow;
+use App\Domain\Furd\FurdWorkflow;
+use App\Models\FurdCitacionModel;
+use App\Models\FurdDescargoModel;
+use App\Models\FurdDecisionModel;
 
 class SoporteController extends BaseController
 {
@@ -128,17 +131,26 @@ class SoporteController extends BaseController
             return redirect()->back()->with('errors', $errors)->withInput();
         }
 
-        // ---------- 4) Validar flujo (que ya existan descargos, etc.) ----------
-        $wf = new FurdWorkflow();
-        if (!$wf->canStartSoporte($furd)) {
-            $errors = ['La fase previa (descargos) no está completa o ya existe un soporte registrado con este numero de consecutivo.'];
+// ---------- 4) Validar flujo (descargos o descargo escrito) ----------
+$wf = new FurdWorkflow(
+    new FurdModel(),
+    new FurdCitacionModel(),
+    new FurdDescargoModel(),
+    new FurdSoporteModel(),
+    new FurdDecisionModel(),
+);
 
-            if ($this->request->isAJAX()) {
-                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
-            }
+if (!$wf->canStartSoporte($furd)) {
+    $errors = ['La fase previa no está completa. '
+        . 'Debes contar con acta de descargos o haber registrado la citación con descargo escrito, '
+        . 'y no debe existir un soporte previo para este proceso.'];
 
-            return redirect()->back()->with('errors', $errors)->withInput();
-        }
+    if ($this->request->isAJAX()) {
+        return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+    }
+
+    return redirect()->back()->with('errors', $errors)->withInput();
+}
 
         // Evitar soporte duplicado para el mismo FURD
         $soporteModel = new FurdSoporteModel();

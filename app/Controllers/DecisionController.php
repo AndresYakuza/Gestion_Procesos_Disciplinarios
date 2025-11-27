@@ -5,9 +5,13 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use App\Controllers\Traits\HandlesAdjuntos;
 use App\Models\FurdModel;
-use App\Models\FurdDecisionModel;
 use App\Requests\FurdDecisionRequest;
-use App\Services\FurdWorkflow;
+use App\Domain\Furd\FurdWorkflow;
+use App\Models\FurdCitacionModel;
+use App\Models\FurdDescargoModel;
+use App\Models\FurdSoporteModel;
+use App\Models\FurdDecisionModel;
+
 
 class DecisionController extends BaseController
 {
@@ -130,10 +134,17 @@ class DecisionController extends BaseController
                 ->withInput();
         }
 
-        // 3) Validar flujo (que ya exista soporte)
-        $wf = new FurdWorkflow();
+        // 3) Validar flujo (que ya exista soporte y no decisión previa)
+        $wf = new FurdWorkflow(
+            new FurdModel(),
+            new FurdCitacionModel(),
+            new FurdDescargoModel(),
+            new FurdSoporteModel(),
+            new FurdDecisionModel(),
+        );
+
         if (!$wf->canStartDecision($furd)) {
-            $errors = ['La fase previa (Soporte) no está completa o ya existe una decisión.'];
+            $errors = ['La fase previa (Soporte) no está completa o ya existe una decisión para este proceso.'];
 
             if ($this->request->isAJAX()) {
                 return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
@@ -143,6 +154,7 @@ class DecisionController extends BaseController
                 ->with('errors', $errors)
                 ->withInput();
         }
+
 
         // 4) Evitar decisión duplicada para el mismo FURD
         $decisionModel = new FurdDecisionModel();

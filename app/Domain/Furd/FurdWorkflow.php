@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Domain\Furd;
 
 use App\Models\FurdModel;
@@ -20,7 +21,7 @@ final class FurdWorkflow
     public function __construct(
         private FurdModel        $furd,
         private FurdCitacionModel   $citacion,
-        private FurdDescargoModel  $descargos,
+        private FurdDescargoModel   $descargos,
         private FurdSoporteModel    $soporte,
         private FurdDecisionModel   $decision,
     ) {}
@@ -39,20 +40,144 @@ final class FurdWorkflow
     public function hasPhase(int $furdId, string $phase): bool
     {
         return match ($phase) {
-            FurdPhases::REGISTRO => (bool) $this->furd->find($furdId), // el propio registro FURD
-            FurdPhases::CITACION => $this->citacion->where('furd_id', $furdId)->countAllResults() > 0,
+            FurdPhases::REGISTRO  => (bool) $this->furd->find($furdId), // el propio registro FURD
+            FurdPhases::CITACION  => $this->citacion->where('furd_id', $furdId)->countAllResults() > 0,
             FurdPhases::DESCARGOS => $this->descargos->where('furd_id', $furdId)->countAllResults() > 0,
-            FurdPhases::SOPORTE => $this->soporte->where('furd_id', $furdId)->countAllResults() > 0,
-            FurdPhases::DECISION => $this->decision->where('furd_id', $furdId)->countAllResults() > 0,
-            default => false,
+            FurdPhases::SOPORTE   => $this->soporte->where('furd_id', $furdId)->countAllResults() > 0,
+            FurdPhases::DECISION  => $this->decision->where('furd_id', $furdId)->countAllResults() > 0,
+            default               => false,
         };
     }
+
+    /* ============================================================
+     *  Helpers "canStart*" usados por los controladores
+     * ============================================================
+     */
+
+    /** ¿Se puede iniciar la citación para este FURD? */
+    public function canStartCitacion(array $furdRow): bool
+    {
+        $id = (int)($furdRow['id'] ?? 0);
+        if ($id <= 0) return false;
+
+        // Debe existir registro
+        if (!$this->hasPhase($id, FurdPhases::REGISTRO)) {
+            return false;
+        }
+
+        // No permitir otra citación si ya hay una (para este flujo)
+        if ($this->hasPhase($id, FurdPhases::CITACION)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** ¿Se puede iniciar el acta de descargos para este FURD? */
+    public function canStartDescargos(array $furdRow): bool
+    {
+        $id = (int)($furdRow['id'] ?? 0);
+        if ($id <= 0) return false;
+
+        // Debe existir citación
+        if (!$this->hasPhase($id, FurdPhases::CITACION)) {
+            return false;
+        }
+
+        // No permitir duplicados
+        if ($this->hasPhase($id, FurdPhases::DESCARGOS)) {
+            return false;
+        }
+
+        // 🚫 Regla especial: si la citación fue con descargo escrito,
+        // no se debe generar acta de cargos y descargos.
+        if ($this->citacionEsDescargoEscrito($id)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** ¿Se puede iniciar soporte para este FURD? */
+    public function canStartSoporte(array $furdRow): bool
+    {
+        $id = (int)($furdRow['id'] ?? 0);
+        if ($id <= 0) return false;
+
+        // Debe existir al menos citación
+        if (!$this->hasPhase($id, FurdPhases::CITACION)) {
+            return false;
+        }
+
+        // No permitir soporte duplicado
+        if ($this->hasPhase($id, FurdPhases::SOPORTE)) {
+            return false;
+        }
+
+        // ✅ Camino normal: ya hay descargos
+        if ($this->hasPhase($id, FurdPhases::DESCARGOS)) {
+            return true;
+        }
+
+        // ✅ Camino especial: citación con descargo escrito
+        if ($this->citacionEsDescargoEscrito($id)) {
+            return true;
+        }
+
+        // ❌ Ni descargos ni descargo escrito
+        return false;
+    }
+
+    /** ¿Se puede iniciar decisión para este FURD? */
+    public function canStartDecision(array $furdRow): bool
+    {
+        $id = (int)($furdRow['id'] ?? 0);
+        if ($id <= 0) return false;
+
+        if (!$this->hasPhase($id, FurdPhases::SOPORTE)) {
+            return false;
+        }
+
+        if ($this->hasPhase($id, FurdPhases::DECISION)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /* ============================================================
+     *  Reglas generales de prerrequisito y secuencia
+     * ============================================================
+     */
 
     /** Verifica la precondición de una fase (que la anterior exista); lanza excepción si no. */
     public function assertPrerequisite(int $furdId, string $targetPhase): void
     {
+        // ✅ CASO ESPECIAL: SOPORTE
+        // Se permite llegar a Soporte si:
+        //   - Hay Descargos (camino normal), o
+        //   - No hay Descargos, pero la citación fue con descargo escrito.
+        if ($targetPhase === FurdPhases::SOPORTE) {
+
+            // Camino normal: ya existe fase Descargos
+            if ($this->hasPhase($furdId, FurdPhases::DESCARGOS)) {
+                return;
+            }
+
+            // Camino alterno: citación con descargo escrito
+            if ($this->citacionEsDescargoEscrito($furdId)) {
+                return;
+            }
+
+            throw new DomainException(
+                'No puedes diligenciar Soporte sin completar Descargos o sin que la citación haya sido con descargo escrito.'
+            );
+        }
+
+        // 🔁 Resto de fases siguen la lógica anterior
         $prev = FurdPhases::previousOf($targetPhase);
         if ($prev === null) return; // registro no tiene anterior
+
         if (!$this->hasPhase($furdId, $prev)) {
             throw new DomainException("No puedes diligenciar {$targetPhase} sin haber completado {$prev}.");
         }
@@ -81,16 +206,48 @@ final class FurdWorkflow
     /** Lanza excepción si intentan avanzar “saltando” fases. */
     public function assertSequentialAdvance(array $furdRow, string $targetPhase): void
     {
-        $currentIdx = FurdPhases::indexOf((string)($furdRow['estado'] ?? FurdPhases::REGISTRO));
-        $targetIdx  = FurdPhases::indexOf($targetPhase);
+        $currentPhase = (string)($furdRow['estado'] ?? FurdPhases::REGISTRO);
+        $currentIdx   = FurdPhases::indexOf($currentPhase);
+        $targetIdx    = FurdPhases::indexOf($targetPhase);
+
         if ($targetIdx === -1) {
             throw new DomainException('Fase destino inválida.');
         }
 
-        // Permitir editar (targetIdx <= currentIdx) y permitir avanzar de a una fase.
+        $furdId = isset($furdRow['id']) ? (int)$furdRow['id'] : 0;
+
+        // ✅ CASO ESPECIAL:
+        // Si estoy en CITACION y quiero ir a SOPORTE, permito el “salto”
+        // SOLO si la citación fue con descargo escrito.
+        if (
+            $targetPhase === FurdPhases::SOPORTE &&
+            $currentPhase === FurdPhases::CITACION &&
+            $furdId > 0 &&
+            $this->citacionEsDescargoEscrito($furdId)
+        ) {
+            // se permite avanzar, no se considera salto inválido
+            return;
+        }
+
+        // Permitir editar (targetIdx <= currentIdx) y permitir avanzar de a una fase
         if ($targetIdx > $currentIdx + 1) {
-            $next = FurdPhases::nextOf((string)$furdRow['estado']);
+            $next = FurdPhases::nextOf($currentPhase);
             throw new DomainException("No puedes avanzar a '{$targetPhase}' sin completar '{$next}'.");
         }
+    }
+
+    /** Retorna true si la citación del FURD se marcó como descargo escrito */
+    private function citacionEsDescargoEscrito(int $furdId): bool
+    {
+        $row = $this->citacion
+            ->where('furd_id', $furdId)
+            ->orderBy('id', 'DESC')
+            ->first();
+
+        if (!$row) {
+            return false;
+        }
+
+        return isset($row['medio']) && $row['medio'] === 'escrito';
     }
 }

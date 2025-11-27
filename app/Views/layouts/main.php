@@ -87,12 +87,13 @@
 
     // Inicializaciones suaves (no fallan si no existen los elementos)
     document.addEventListener('DOMContentLoaded', () => {
-      // Flatpickr fecha
-      if (document.querySelector('#fecha')) {
-        flatpickr('#fecha', {
-          dateFormat: 'd-m-Y',  
+      // Flatpickr fecha (solo si NO tiene data-no-global-flatpickr)
+      const fechaGlobal = document.querySelector('#fecha:not([data-no-global-flatpickr])');
+      if (fechaGlobal) {
+        flatpickr(fechaGlobal, {
+          dateFormat: 'd-m-Y',
           altInput: true,
-          altFormat: 'j F Y',    
+          altFormat: 'j F Y',
           locale: 'es',
           disableMobile: true,
           position: 'below left',

@@ -11,6 +11,8 @@ $decisiones = $decisiones ?? [
   'Llamado de atención',
   'Suspensión disciplinaria',
   'Terminación de contrato',
+  'Archivar',
+  'Absolver ',
 ];
 
 $errors = session('errors') ?? [];

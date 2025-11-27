@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "eb1e79abe371e68e5ee17c522bd71edb",
+    "content-hash": "7aa98172bb6b3e97c4f826ae0e54b34e",
     "packages": [
         {
             "name": "codeigniter4/framework",
@@ -754,6 +754,58 @@
                 }
             ],
             "time": "2025-10-14T18:31:13+00:00"
+        },
+        {
+            "name": "luisplata/festivos-colombia",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/luisplata/DiasFestivosColombia.git",
+                "reference": "781d0bf0a95db6d7996da4efa04a55c66f007c21"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/luisplata/DiasFestivosColombia/zipball/781d0bf0a95db6d7996da4efa04a55c66f007c21",
+                "reference": "781d0bf0a95db6d7996da4efa04a55c66f007c21",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.3.3"
+            },
+            "require-dev": {
+                "fabpot/php-cs-fixer": "~2.0@dev",
+                "phpunit/phpunit": ">=5.4.3"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "luisplata\\FestivosColombia\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "DANNY RIOS TOLOSA",
+                    "role": "creator"
+                },
+                {
+                    "name": "Luis Plata",
+                    "email": "www.luisplata@gmail.com",
+                    "homepage": "https://luisplata.github.io",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Libreria que calcula si una fecha es festivo o no",
+            "homepage": "https://github.com/luisplata/DiasFestivosColombia",
+            "support": {
+                "issues": "https://github.com/luisplata/DiasFestivosColombia/issues",
+                "source": "https://github.com/luisplata/DiasFestivosColombia/tree/master"
+            },
+            "time": "2017-11-30T21:35:18+00:00"
         },
         {
             "name": "monolog/monolog",
@@ -3299,7 +3351,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "luisplata/festivos-colombia": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
