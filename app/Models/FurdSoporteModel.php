@@ -14,7 +14,7 @@ class FurdSoporteModel extends Model
     protected $dateFormat    = 'datetime';
 
     protected $allowedFields = [
-        'furd_id', 'responsable', 'decision_propuesta'
+        'furd_id', 'responsable', 'decision_propuesta', 'justificacion'
     ];
 
     public function findByFurd(int $furdId): ?array

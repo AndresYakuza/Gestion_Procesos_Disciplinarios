@@ -12,7 +12,7 @@ $responsable = $responsable ?? '';
 $decisiones  = $decisiones ?? [
   'Llamado de atención',
   'Suspensión disciplinaria',
-  'Terminación de contrato', 
+  'Terminación de contrato',
   'Archivar',
   'Absolver ',
 ];
@@ -120,6 +120,37 @@ $decisiones  = $decisiones ?? [
             <?php endif; ?>
           </div>
         </div>
+
+        <br>
+
+        <!-- Justificación de la decisión -->
+        <div class="col-12">
+          <label class="form-label" for="justificacion">Justificación de la decisión sugerida</label>
+          <textarea
+            name="justificacion"
+            id="justificacion"
+            rows="3"
+            class="form-control <?= !empty($errors['justificacion'] ?? null) ? 'is-invalid' : '' ?>"
+            placeholder="Describe brevemente por qué propones esta decisión (hechos, antecedentes, criterios usados)..."
+            required
+            maxlength="4000"><?= old('justificacion') ?></textarea>
+
+          <div class="d-flex justify-content-between small text-muted mt-1">
+            <span>Máximo 4000 caracteres.</span>
+            <span id="justificacionCount">0/4000</span>
+          </div>
+
+          <?php if (!empty($errors['justificacion'] ?? null)): ?>
+            <div class="invalid-feedback d-block">
+              <?= esc($errors['justificacion']) ?>
+            </div>
+          <?php endif; ?>
+
+          <div class="form-text">
+            Esta justificación se usará como soporte para la decisión final y quedará registrada en el proceso disciplinario.
+          </div>
+        </div>
+
 
         <!-- Uploader -->
         <div class="section-header mt-4">
@@ -239,6 +270,32 @@ $decisiones  = $decisiones ?? [
 
     const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
     const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+    // 🧮 Contador de caracteres para Justificación
+    const justField = document.getElementById('justificacion');
+    const justCount = document.getElementById('justificacionCount');
+    const MAX_JUSTIFICACION = 4000;
+
+    const updateJustCount = () => {
+      if (!justField || !justCount) return;
+      const len = (justField.value || '').length;
+      justCount.textContent = `${len}/${MAX_JUSTIFICACION}`;
+
+      // Cambiar color según cercanía al límite
+      justCount.classList.remove('text-warning', 'text-danger');
+      if (len > MAX_JUSTIFICACION * 0.9) {
+        justCount.classList.add('text-danger');
+      } else if (len > MAX_JUSTIFICACION * 0.7) {
+        justCount.classList.add('text-warning');
+      }
+    };
+
+    if (justField && justCount) {
+      justField.addEventListener('input', updateJustCount);
+      // inicial, por si viene con old('justificacion')
+      updateJustCount();
+    }
+
 
     // --- Toast helper global ---
     function showToast(message, type = 'info') {
@@ -448,24 +505,24 @@ $decisiones  = $decisiones ?? [
       return `${start}…${ext}`;
     };
 
-  function refreshFileList() {
-    if (!fileList || !adjuntos) return;
-    fileList.innerHTML = '';
+    function refreshFileList() {
+      if (!fileList || !adjuntos) return;
+      fileList.innerHTML = '';
 
-    const files = Array.from(adjuntos.files || []);
-    if (!files.length) {
-      fileList.innerHTML = '<li class="text-muted small">No hay archivos seleccionados.</li>';
-      return;
-    }
+      const files = Array.from(adjuntos.files || []);
+      if (!files.length) {
+        fileList.innerHTML = '<li class="text-muted small">No hay archivos seleccionados.</li>';
+        return;
+      }
 
-    files.forEach((f, idx) => {
-      const sizeMb      = (f.size / (1024 * 1024)).toFixed(2);
-      const displayName = shortenName(f.name);  // 👈 aquí usamos el nombre recortado
+      files.forEach((f, idx) => {
+        const sizeMb = (f.size / (1024 * 1024)).toFixed(2);
+        const displayName = shortenName(f.name); // 👈 aquí usamos el nombre recortado
 
-      const li = document.createElement('li');
-      li.className = 'd-flex flex-column gap-1 py-1 border-bottom';
+        const li = document.createElement('li');
+        li.className = 'd-flex flex-column gap-1 py-1 border-bottom';
 
-      li.innerHTML = `
+        li.innerHTML = `
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-paperclip"></i>
           <span class="flex-grow-1 text-truncate file-name" title="${f.name}">${displayName}</span>
@@ -479,9 +536,9 @@ $decisiones  = $decisiones ?? [
         </div>
       `;
 
-      fileList.appendChild(li);
-    });
-  }
+        fileList.appendChild(li);
+      });
+    }
 
 
     function handleAdjuntosChange() {

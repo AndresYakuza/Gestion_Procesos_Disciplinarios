@@ -137,11 +137,12 @@ class CitacionController extends BaseController
         $fechaConvertida       = date('Y-m-d', $timestamp);
         $_POST['fecha_evento'] = $fechaConvertida;
 
-          // --- 1.2 bis) Validar que la fecha esté entre el 5° y 8° día hábil desde hoy ---
+        // --- 1.2 bis) Validar que la fecha esté entre el 5° y 7° día hábil contado desde mañana ---
         $fechasHabilitadas = $this->calcularFechasHabilitadas();
 
         if (!in_array($fechaConvertida, $fechasHabilitadas, true)) {
-            $msg = 'La fecha del descargo debe estar entre el 5° y el 8° día hábil contado desde hoy (excluyendo sábados, domingos y festivos).';
+            $msg = 'La fecha del descargo debe estar entre el 5° y el 7° día hábil contado desde mañana, contando de lunes a sábado y excluyendo domingos y festivos en Colombia.';
+
 
             if ($this->request->isAJAX()) {
                 return $this->response->setJSON([
@@ -337,9 +338,10 @@ class CitacionController extends BaseController
         return 'PD-' . str_pad($num, 6, '0', STR_PAD_LEFT);
     }
 
-        /**
-     * Calcula las fechas hábiles permitidas (5°, 6°, 7° y 8° día hábil desde hoy),
-     * excluyendo sábados, domingos y festivos no laborables en Colombia.
+    /**
+     * Calcula las fechas hábiles permitidas (5°, 6° y 7° día hábil desde mañana),
+     * contando de lunes a sábado y excluyendo domingos y festivos no laborables
+     * en Colombia.
      * Retorna un array de strings 'Y-m-d'.
      */
     private function calcularFechasHabilitadas(): array
@@ -360,7 +362,9 @@ class CitacionController extends BaseController
         $esDiaHabil = function (\DateTimeImmutable $fecha) use ($festivosActual, $festivosSiguiente, $anioActual): bool {
             // 1 = lunes ... 7 = domingo
             $dow = (int) $fecha->format('N');
-            if ($dow >= 6) { // sábado o domingo
+
+            // Ahora SÍ contamos el sábado como hábil (solo se excluye domingo)
+            if ($dow === 7) { // domingo
                 return false;
             }
 
@@ -379,14 +383,15 @@ class CitacionController extends BaseController
         $contadorHabiles = 0;
         $fecha           = $hoy;
 
-        // queremos el 5°, 6°, 7° y 8° día hábil → 4 fechas
-        while (count($fechas) < 4) {
-            $fecha = $fecha->modify('+1 day'); // empezamos a contar desde mañana
+        // queremos el 5°, 6° y 7° día hábil → 3 fechas
+        while (count($fechas) < 3) {
+            // empezamos a contar desde mañana
+            $fecha = $fecha->modify('+1 day');
 
             if ($esDiaHabil($fecha)) {
                 $contadorHabiles++;
 
-                if ($contadorHabiles >= 5 && $contadorHabiles <= 8) {
+                if ($contadorHabiles >= 5 && $contadorHabiles <= 7) {
                     $fechas[] = $fecha->format('Y-m-d');
                 }
             }
@@ -394,5 +399,4 @@ class CitacionController extends BaseController
 
         return $fechas;
     }
-
 }

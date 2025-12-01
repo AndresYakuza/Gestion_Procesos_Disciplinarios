@@ -78,7 +78,7 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
               type="button"
               class="btn-info-help"
               data-info-title="Fecha del descargo"
-              data-info-text="La fecha del descargo debe estar entre el <strong>5°</strong> y el <strong>8° día hábil</strong> contado desde hoy, excluyendo sábados, domingos y festivos no laborables. Solo esas fechas aparecerán disponibles en el calendario.">
+              data-info-text="La fecha del descargo debe estar entre el <strong>5°</strong> y el <strong>7° día hábil</strong> contado desde mañana, contando solo de lunes a sábado y excluyendo domingos y festivos no laborables en Colombia. Solo esas fechas aparecerán disponibles en el calendario.">
               <i class="bi bi-info-lg"></i>
             </button>
           </label>
@@ -98,9 +98,6 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
               <?= esc($errors['fecha_evento']) ?>
             </div>
           <?php endif; ?>
-          <div class="form-text">
-            Solo puedes elegir entre el 5° y el 8° día hábil siguiente a hoy.
-          </div>
         </div>
 
 

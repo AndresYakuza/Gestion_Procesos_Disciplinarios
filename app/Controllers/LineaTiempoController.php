@@ -164,11 +164,34 @@ class LineaTiempoController extends BaseController
 
 
 
-        // 4️⃣ Soporte (sin texto largo)
+        // 4️⃣ Soporte (con decisión propuesta + justificación)
         $soporte = db_connect()->table('tbl_furd_soporte')
             ->where('furd_id', $furd['id'])
             ->get()
             ->getRowArray();
+
+        $soporteDetalleFull  = '';
+        $soporteDetalleShort = '';
+
+        if ($soporte) {
+
+            $justFull     = trim((string)($soporte['justificacion'] ?? ''));
+
+            $partes = [];
+
+            if ($justFull !== '') {
+                $partes[] = 'Justificación: ' . $justFull;
+            }
+
+            $soporteDetalleFull = $partes
+                ? implode("\n\n", $partes)
+                : '— Sin información de soporte registrada —';
+
+            $soporteDetalleShort = mb_strimwidth($soporteDetalleFull, 0, 220, '…', 'UTF-8');
+        } else {
+            $soporteDetalleFull  = '— Sin soporte registrado —';
+            $soporteDetalleShort = $soporteDetalleFull;
+        }
 
         $etapas[] = [
             'clave'        => 'soporte',
@@ -176,14 +199,15 @@ class LineaTiempoController extends BaseController
             'fecha'        => isset($soporte['created_at'])
                 ? Time::parse($soporte['created_at'])->format('d/m/Y')
                 : '',
-            'detalle'      => '',
-            'detalle_full' => '',
+            'detalle'      => $soporteDetalleShort,
+            'detalle_full' => $soporteDetalleFull,
             'meta'    => [
-                'Responsable'         => $soporte['responsable'] ?? '—',
-                'Decisión propuesta'  => $soporte['decision_propuesta'] ?? '—',
+                'Responsable'        => $soporte['responsable']        ?? '—',
+                'Decisión propuesta' => $soporte['decision_propuesta'] ?? '—',
             ],
             'adjuntos' => $this->getAdjuntos($furd['id'], 'soporte'),
         ];
+
 
 
         // 5️⃣ Decisión

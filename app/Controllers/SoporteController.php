@@ -174,6 +174,8 @@ if (!$wf->canStartSoporte($furd)) {
                 'furd_id'            => (int)$furd['id'],
                 'responsable'        => (string)$postData['responsable'],
                 'decision_propuesta' => (string)$postData['decision_propuesta'],
+                'justificacion'      => (string)$postData['justificacion'], 
+
             ];
             $id = (int)$soporteModel->insert($payload, true);
 
@@ -237,6 +239,7 @@ if (!$wf->canStartSoporte($furd)) {
         $payload = [
             'responsable'        => (string)$this->request->getPost('responsable'),
             'decision_propuesta' => (string)$this->request->getPost('decision_propuesta'),
+            'justificacion'      => (string)$this->request->getPost('justificacion')
         ];
         $s->update($id, $payload);
 
