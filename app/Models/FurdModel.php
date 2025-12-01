@@ -25,6 +25,7 @@ class FurdModel extends Model
         'empresa_usuaria',
         'nombre_completo',
         'correo',
+        'correo_cliente',
         'fecha_evento',
         'hora_evento',
         'superior',

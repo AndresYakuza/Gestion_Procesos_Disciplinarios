@@ -175,6 +175,7 @@ if (!$validation->run($postData)) {
                 'empresa_usuaria' => (string)($postData['empresa_usuaria'] ?? ''),
                 'nombre_completo' => (string)($postData['nombre_completo'] ?? ''),
                 'correo'          => (string)($postData['correo'] ?? ''),
+                'correo_cliente'  => (string)($postData['correo_cliente'] ?? ''), 
                 'fecha_evento'    => $fechaConvertida,
                 'hora_evento'     => (string)($postData['hora'] ?? ''),
                 'superior'        => (string)($postData['superior'] ?? ''),

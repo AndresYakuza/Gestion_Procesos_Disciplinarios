@@ -357,6 +357,31 @@
     });
   };
 
+  // Botones de ayuda (info) para los labels con .btn-info-help
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-info-help');
+    if (!btn) return;
+
+    const title = btn.dataset.infoTitle || 'Información';
+    const html  = btn.dataset.infoText || '';
+
+    if (typeof Swal === 'undefined') {
+      alert(title + '\n\n' + html.replace(/<[^>]+>/g, ''));
+      return;
+    }
+
+    Swal.fire({
+      icon: 'info',
+      title: title,
+      html: html,
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: '#0d6efd',
+      customClass: {
+        popup: 'swal2-popup-help'
+      }
+    });
+  });
+
   // 💊 Actualizar pills
   const pillsBox = document.getElementById("faltasPills");
   const selCount = document.getElementById("selCount");

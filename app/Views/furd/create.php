@@ -79,7 +79,33 @@
               <input id="correo" name="correo" type="email" class="form-control"
                      placeholder="correo@dominio.com" value="<?= old('correo') ?>">
             </div>
-          </div>
+
+            <div class="col-12 col-md-6">
+            <label class="form-label d-flex align-items-center gap-2" for="correo_cliente">
+              Correo electrónico del cliente
+              <button
+                type="button"
+                class="btn-info-help"
+                data-info-title="Correo electrónico del cliente"
+                data-info-text="Este correo se utilizará para enviar notificaciones sobre el avance y las decisiones del proceso disciplinario. 
+                Asegúrate de escribirlo correctamente, ya que será uno de los principales canales de comunicación con el cliente.">
+                <i class="bi bi-info-lg"></i>
+              </button>
+            </label>
+
+            <input
+              id="correo_cliente"
+              name="correo_cliente"
+              type="email"
+              class="form-control"
+              placeholder="cliente@empresa.com"
+              value="<?= old('correo_cliente') ?>">
+
+            <div class="form-text">
+              Se usará para notificar al cliente sobre el estado del proceso disciplinario.
+            </div>
+
+          </div> 
 
           <!-- DATOS DEL EVENTO -->
           <div class="section-header">

@@ -12,6 +12,7 @@ class FurdRegistroRequest
             'hecho'           => 'required|min_length[5]|max_length[5000]|max_word_length[120]',
 
             'correo'          => 'permit_empty|valid_email|max_length[150]',
+            'correo_cliente'  => 'permit_empty|valid_email|max_length[150]',
             'empresa_usuaria' => 'required|max_length[180]',
             'nombre_completo' => 'required|max_length[180]',
             'expedida_en'     => 'required|max_length[120]',
@@ -51,6 +52,10 @@ class FurdRegistroRequest
             ],
             'correo' => [
                 'valid_email' => 'El correo no es válido.',
+            ],
+            'correo_cliente' => [
+                'valid_email' => 'El correo del cliente no es válido.',
+                'max_length'  => 'El correo del cliente es demasiado largo.',
             ],
             'empresa_usuaria' => [
                 'required'   => 'La empresa usuaria es obligatoria.',
