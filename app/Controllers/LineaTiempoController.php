@@ -24,8 +24,10 @@ class LineaTiempoController extends BaseController
             f.fecha_evento,
             f.hora_evento,
             f.estado,
-            f.empresa_usuaria,         
+            f.empresa_usuaria,
+            f.superior,         
             f.hecho,
+            f.correo_cliente,
             f.created_at,
             f.updated_at,
             e.numero_documento AS cedula,
@@ -68,6 +70,8 @@ class LineaTiempoController extends BaseController
             'detalle'      => $hechoShort,
             'detalle_full' => $hechoFull,
             'meta'    => [
+                'Superior que interviene'  => (string)($furd['superior'] ?? '—'),
+                'Email cliente'  => (string)($furd['correo_cliente'] ?? '—'),
                 'Fecha del evento' => $furd['fecha_evento']
                     ? Time::parse($furd['fecha_evento'])->format('d/m/Y')
                     : '—',
@@ -165,6 +169,7 @@ class LineaTiempoController extends BaseController
 
 
         // 4️⃣ Soporte (con decisión propuesta + justificación)
+        // 4️⃣ Soporte (decisión propuesta + respuesta cliente)
         $soporte = db_connect()->table('tbl_furd_soporte')
             ->where('furd_id', $furd['id'])
             ->get()
@@ -173,21 +178,44 @@ class LineaTiempoController extends BaseController
         $soporteDetalleFull  = '';
         $soporteDetalleShort = '';
 
+        $clienteEstado        = $soporte['cliente_estado']        ?? 'pendiente';
+        $clienteRespondidoAt  = $soporte['cliente_respondido_at'] ?? null;
+        $clienteDecision      = $soporte['cliente_decision']      ?? null;
+        $clienteJustificacion = $soporte['cliente_justificacion'] ?? null;
+        $clienteComentario    = $soporte['cliente_comentario']    ?? null;
+
         if ($soporte) {
+            $justOrigFull = trim((string)($soporte['justificacion'] ?? ''));
 
-            $justFull     = trim((string)($soporte['justificacion'] ?? ''));
-
-            $partes = [];
-
-            if ($justFull !== '') {
-                $partes[] = 'Justificación: ' . $justFull;
+            if ($clienteEstado === 'pendiente') {
+                $resumen = 'Decisión propuesta: ' . ($soporte['decision_propuesta'] ?? '—')
+                    . '. A la espera de respuesta del cliente.';
+            } else {
+                $estadoTxt = $clienteEstado === 'aprobado' ? 'APROBADA' : 'RECHAZADA';
+                $resumen = 'Decisión propuesta: ' . ($soporte['decision_propuesta'] ?? '—')
+                    . ". Cliente: {$estadoTxt}"
+                    . ($clienteDecision ? ' · Ajuste sugerido: ' . $clienteDecision : '');
             }
 
-            $soporteDetalleFull = $partes
-                ? implode("\n\n", $partes)
+            $partesFull = [];
+
+            if ($justOrigFull !== '') {
+                $partesFull[] = "Justificación original:\n" . $justOrigFull;
+            }
+
+            if ($clienteJustificacion && $clienteJustificacion !== $justOrigFull) {
+                $partesFull[] = "Justificación ajustada por el cliente:\n" . $clienteJustificacion;
+            }
+
+            if ($clienteComentario) {
+                $partesFull[] = "Comentario del cliente:\n" . $clienteComentario;
+            }
+
+            $soporteDetalleFull = $partesFull
+                ? implode("\n\n", $partesFull)
                 : '— Sin información de soporte registrada —';
 
-            $soporteDetalleShort = mb_strimwidth($soporteDetalleFull, 0, 220, '…', 'UTF-8');
+            $soporteDetalleShort = mb_strimwidth($resumen, 0, 220, '…', 'UTF-8');
         } else {
             $soporteDetalleFull  = '— Sin soporte registrado —';
             $soporteDetalleShort = $soporteDetalleFull;
@@ -201,12 +229,22 @@ class LineaTiempoController extends BaseController
                 : '',
             'detalle'      => $soporteDetalleShort,
             'detalle_full' => $soporteDetalleFull,
-            'meta'    => [
+            // 👇 meta general
+            'meta'         => [
                 'Responsable'        => $soporte['responsable']        ?? '—',
                 'Decisión propuesta' => $soporte['decision_propuesta'] ?? '—',
             ],
-            'adjuntos' => $this->getAdjuntos($furd['id'], 'soporte'),
+            // 👇 datos crudos para que la vista pinte viejo vs nuevo
+            'decision_propuesta'      => $soporte['decision_propuesta']      ?? null,
+            'justificacion_original'  => $soporte['justificacion']           ?? null,
+            'cliente_estado'          => $clienteEstado,
+            'cliente_respondido_at'   => $clienteRespondidoAt,
+            'cliente_decision'        => $clienteDecision,
+            'cliente_justificacion'   => $clienteJustificacion,
+            'cliente_comentario'      => $clienteComentario,
+            'adjuntos'                => $this->getAdjuntos($furd['id'], 'soporte'),
         ];
+
 
 
 

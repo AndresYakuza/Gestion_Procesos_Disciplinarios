@@ -414,7 +414,7 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
         });
       }
 
-      // ---------- Envío del formulario con loader global ----------
+      // ---------- Envío del fo rmulario con loader global ----------
 
       if (form && btnGenerar) {
         let sending = false;
@@ -546,24 +546,24 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
     }
 
     // Botones de ayuda (info)
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.btn-info-help');
-  if (!btn) return;
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-info-help');
+      if (!btn) return;
 
-  const title = btn.dataset.infoTitle || 'Información';
-  const html  = btn.dataset.infoText || '';
+      const title = btn.dataset.infoTitle || 'Información';
+      const html = btn.dataset.infoText || '';
 
-  Swal.fire({
-    icon: 'info',
-    title: title,
-    html: html,
-    confirmButtonText: 'Entendido',
-    confirmButtonColor: '#0d6efd',
-    customClass: {
-      popup: 'swal2-popup-help'
-    }
-  });
-});
+      Swal.fire({
+        icon: 'info',
+        title: title,
+        html: html,
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#0d6efd',
+        customClass: {
+          popup: 'swal2-popup-help'
+        }
+      });
+    });
   </script>
 
   <?= $this->endSection(); ?>

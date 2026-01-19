@@ -405,3 +405,82 @@ body.modal-open {
   overflow-wrap: break-word;     /* alias moderno */
 }
 
+/* ================================
+   Portal del Cliente – Mis procesos
+   Evitar que el select de Estado se corte
+   ================================ */
+#portalClienteRoot,
+#portalClienteRoot .row,
+#portalClienteRoot .col-12,
+#portalClienteRoot .card,
+#portalClienteRoot .card-body,
+#portalClienteRoot .tab-content,
+#portalClienteRoot .tab-pane {
+  overflow: visible !important;
+}
+
+/* ===========================
+   Portal del Cliente – Mis procesos
+   =========================== */
+
+#tablaMisProcesos tbody tr {
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+#tablaMisProcesos tbody tr:hover {
+  background-color: #f8fafc; /* muy suave */
+  transform: translateY(-1px);
+}
+
+#tablaMisProcesos tbody tr:focus-within {
+  outline: 2px solid rgba(25, 135, 84, 0.65); /* verde bootstrap */
+  outline-offset: -2px;
+}
+
+/* Cabecera fija cuando la tabla es alta */
+#tablaMisProcesos thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #ffffff;
+}
+
+/* Versión “tarjeta” en móviles */
+@media (max-width: 768px) {
+  #tablaMisProcesos thead {
+    display: none;
+  }
+
+  #tablaMisProcesos tbody tr {
+    display: block;
+    margin-bottom: 0.75rem;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.25);
+  }
+
+  #tablaMisProcesos tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 0;
+    padding: 0.2rem 0;
+    font-size: 0.875rem;
+  }
+
+  #tablaMisProcesos tbody td::before {
+    content: attr(data-key);
+    text-transform: capitalize;
+    font-weight: 600;
+    margin-right: 0.5rem;
+    color: #64748b; /* slate-500 */
+  }
+
+  #tablaMisProcesos tbody td[data-key="estado"] span.badge {
+    margin-left: auto;
+  }
+}
+
+
+
+

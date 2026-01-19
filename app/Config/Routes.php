@@ -44,6 +44,9 @@ $routes->get('soporte/find', 'SoporteController::find'); // AJAX
 $routes->post('soporte', 'SoporteController::store');
 $routes->post('soporte/(:num)', 'SoporteController::update/$1');
 
+$routes->match(['get','post'], 'soporte/revision-cliente/(:segment)', 'SoporteController::reviewCliente/$1');
+
+
 /** Decisión (fase 5) */
 $routes->get('decision', 'DecisionController::create');
 $routes->get('decision/find', 'DecisionController::find'); // (AJAX)
@@ -71,4 +74,20 @@ $routes->post('ajustes/faltas',       'RitFaltaController::store');
 $routes->get('ajustes/faltas/(:num)/edit', 'RitFaltaController::edit/$1');
 $routes->post('ajustes/faltas/(:num)',      'RitFaltaController::update/$1');
 $routes->post('ajustes/faltas/(:num)/delete', 'RitFaltaController::delete/$1');
+
+
+$routes->group('portal-cliente', ['namespace' => 'App\Controllers'], static function ($routes) {
+    // Onepage embebible
+    $routes->get('/', 'PortalClienteController::index');
+
+    // AJAX: lista de procesos del cliente
+    $routes->get('mis-procesos', 'PortalClienteController::misProcesos');
+
+    // AJAX: línea de tiempo resumida para el cliente
+    $routes->get('furd/(:segment)/timeline', 'PortalClienteController::timeline/$1');
+
+    // AJAX: respuesta del cliente a la decisión (aprobar / solicitar ajuste)
+    $routes->post('furd/(:segment)/respuesta', 'PortalClienteController::responderDecision/$1');
+});
+
 

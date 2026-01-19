@@ -1,0 +1,483 @@
+:root {
+  --review-bg: #f1f5f9;
+  --review-surface: #ffffff;
+  --review-surface-soft: #f9fafb;
+  --review-border: #e2e8f0;
+  --review-text: #0f172a;
+  --review-muted: #64748b;
+  --review-primary: #16a34a;
+  --review-primary-soft: #bbf7d0;
+  --review-primary-strong: #0f766e;
+  --review-danger: #ef4444;
+  --review-danger-soft: #fee2e2;
+  --review-warning: #f97316;
+  --review-warning-soft: #ffedd5;
+  --review-radius-lg: 22px;
+  --review-radius-pill: 999px;
+  --review-shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.16);
+}
+
+/* Fondo general y tipografía */
+.review-body {
+  min-height: 100vh;
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--review-text);
+  background: linear-gradient(to bottom, #dcfce7 0, #f8fafc 140px, var(--review-bg) 100%);
+}
+
+/* Header superior tipo app */
+.review-app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(90deg, #16a34a 0%, #22c55e 40%, #0ea5e9 100%);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+}
+
+.review-app-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 0;
+  color: #ecfdf5;
+}
+
+.review-app-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.review-app-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.9rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--review-radius-pill);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(4px);
+}
+
+.review-app-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.review-app-process {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.review-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 1rem;
+  border-radius: var(--review-radius-pill);
+  background: rgba(248, 250, 252, 0.18);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  font-size: 0.82rem;
+}
+
+.review-pill .pill-label {
+  opacity: 0.8;
+}
+
+.review-pill .pill-value {
+  font-weight: 600;
+}
+
+/* Main area */
+.review-main {
+  padding-top: 2.2rem;
+  padding-bottom: 2.4rem;
+}
+
+/* Card principal */
+.review-card {
+  border-radius: var(--review-radius-lg);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  overflow: hidden;
+  box-shadow: var(--review-shadow-soft);
+  background: var(--review-surface);
+}
+
+/* Header de la card */
+.review-card-header {
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.06), rgba(14, 165, 233, 0.04));
+}
+
+.review-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.review-meta-line {
+  font-size: 0.8rem;
+  color: var(--review-muted);
+  margin-top: 0.1rem;
+}
+
+.review-meta-line .label {
+  opacity: 0.85;
+}
+
+.review-meta-line .value {
+  font-weight: 500;
+}
+
+.review-meta-line .dot-separator {
+  margin-inline: 0.35rem;
+  opacity: 0.6;
+}
+
+.review-status-wrapper {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Badges de estado */
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--review-radius-pill);
+  padding: 0.25rem 0.9rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.review-badge-success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.5);
+}
+
+.review-badge-danger {
+  background: var(--review-danger-soft);
+  color: var(--review-danger);
+  border: 1px solid rgba(248, 113, 113, 0.7);
+}
+
+.review-badge-warning {
+  background: var(--review-warning-soft);
+  color: #9a3412;
+  border: 1px solid rgba(249, 115, 22, 0.7);
+}
+
+/* Body de la card */
+.review-card-body {
+  padding: 1.6rem 1.7rem 1.8rem;
+}
+
+/* Step indicator */
+.review-step-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.75rem;
+}
+
+.review-step-indicator .step-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--review-radius-pill);
+  background: #ecfdf5;
+  color: #166534;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid rgba(22, 163, 74, 0.4);
+}
+
+.review-step-indicator .step-hint {
+  font-size: 0.76rem;
+  color: var(--review-muted);
+}
+
+/* Resumen decisión */
+.review-summary-section {
+  border-radius: 18px;
+  background: var(--review-surface-soft);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 1.1rem 1.25rem 1.2rem;
+}
+
+.review-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.summary-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.summary-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ecfdf5;
+  color: #16a34a;
+  border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+.summary-heading {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0f172a;
+}
+
+.summary-subtitle {
+  font-size: 0.78rem;
+  color: var(--review-muted);
+}
+
+.review-summary-box {
+  border-radius: 14px;
+  padding: 0.8rem 0.9rem;
+  border: 1px dashed rgba(148, 163, 184, 0.8);
+  background: #ffffff;
+}
+
+.summary-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.summary-value {
+  font-size: 0.9rem;
+}
+
+.summary-justificacion {
+  font-size: 0.85rem;
+  color: #111827;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* Alert info cuando ya respondió */
+.review-alert {
+  border-radius: 14px;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: linear-gradient(90deg, #eff6ff, #e0f2fe);
+  padding: 0.9rem 1rem;
+}
+
+.review-alert .alert-icon {
+  font-size: 1.1rem;
+  color: #2563eb;
+}
+
+/* Formulario */
+.review-form-section {
+  margin-top: 1.4rem;
+}
+
+.review-form-section-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.review-form-help {
+  font-size: 0.78rem;
+  color: var(--review-muted);
+}
+
+.review-card-body .form-label {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+/* Inputs */
+.review-card-body .form-control,
+.review-card-body .form-check-input {
+  border-radius: 10px;
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
+.review-card-body .form-control:focus {
+  border-color: var(--review-primary);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.review-card-body textarea {
+  resize: vertical;
+}
+
+/* Radios tipo tarjeta */
+.review-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.review-radio-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  border-radius: 14px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.14s ease-out;
+}
+
+.review-radio-option:hover {
+  border-color: var(--review-primary);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.12);
+}
+
+.review-radio-option .form-check-input {
+  margin-top: 0.3rem;
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.review-radio-option .option-content {
+  flex: 1;
+}
+
+.review-radio-option .option-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.review-radio-option .option-help {
+  font-size: 0.78rem;
+  color: var(--review-muted);
+}
+
+/* Estado seleccionado visualmente */
+.review-radio-option .form-check-input:checked {
+  background-color: var(--review-primary);
+  border-color: var(--review-primary);
+}
+
+.review-radio-option .form-check-input:checked + .option-content,
+.review-radio-option .form-check-input:checked ~ .option-content {
+  /* si se usara otro orden de HTML */
+}
+
+.review-radio-option input[type="radio"]:checked ~ .option-content .option-title {
+  color: var(--review-primary-strong);
+}
+
+/* Botón principal */
+.review-submit-btn {
+  border-radius: 999px;
+  padding-inline: 1.8rem;
+  padding-block: 0.65rem;
+  font-weight: 600;
+  border: none;
+  background: linear-gradient(to right, #16a34a, #22c55e);
+  box-shadow: 0 12px 28px rgba(22, 163, 74, 0.35);
+}
+
+.review-submit-btn:hover {
+  background: linear-gradient(to right, #15803d, #16a34a);
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .review-app-header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .review-card-body {
+    padding-inline: 1.25rem;
+  }
+
+  .review-card-header {
+    padding-inline: 1.25rem;
+  }
+
+  .review-status-wrapper {
+    justify-content: flex-start;
+  }
+
+  .review-pill {
+    margin-top: 0.15rem;
+  }
+}
+
+.page-furd {
+  min-height: 100vh;
+}
+
+/* Overlay global SIEMPRE en toda la ventana */
+.loader-overlay {
+  position: fixed !important;
+  inset: 0 !important;      /* top/right/bottom/left = 0 */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(4px);
+  z-index: 4000 !important;
+}
+
+/* Tarjeta del loader centrada */
+.loader-content {
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: 2rem 2.5rem 1.5rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  text-align: center;
+}
+
+.loader-lottie {
+  display: block;
+  margin: 0 auto 1rem;
+  max-width: 260px;
+  width: 100%;
+  height: auto;
+}
+
+.loader-text {
+  font-size: 0.95rem;
+}
+
+/* Portal del Cliente – el card que envuelve las tabs
+   NO debe recortar el dropdown del select */
+.page-furd > .row > .col-12 > .card {
+  overflow: visible !important;
+}
+
+/* Por si el overflow viniera del body de la card */
+.page-furd > .row > .col-12 > .card > .card-body {
+  overflow: visible !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+

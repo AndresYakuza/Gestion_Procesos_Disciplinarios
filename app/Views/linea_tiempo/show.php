@@ -97,11 +97,111 @@ $etapas = array_map(function ($e) {
               </div>
 
               <?php
+              $isSoporte   = ($e['clave'] ?? '') === 'soporte';
               $hasDetalle  = !empty($e['detalle']);
               $hasFaltas   = !empty($e['faltas']);
               $hasMeta     = !empty($e['meta']);
               $hasAdjuntos = !empty($e['adjuntos']);
               ?>
+
+                            <?php if ($isSoporte): ?>
+                <?php
+                  $estadoCliente   = $e['cliente_estado']        ?? 'pendiente';
+                  $respondidoAt    = $e['cliente_respondido_at'] ?? null;
+                  $decOriginal     = $e['decision_propuesta']    ?? ($e['meta']['Decisión propuesta'] ?? null);
+                  $decCliente      = $e['cliente_decision']      ?? null;
+                  $justOrig        = $e['justificacion_original'] ?? null;
+                  $justCliente     = $e['cliente_justificacion']  ?? null;
+                  $comentario      = $e['cliente_comentario']     ?? null;
+
+                  $hayCambiosDecision = $decCliente && $decOriginal && ($decCliente !== $decOriginal);
+                  $hayCambiosJustif   = $justCliente && $justOrig && ($justCliente !== $justOrig);
+                ?>
+
+                <div class="mb-3">
+                  <p class="mb-1">
+                    <strong>Decisión propuesta:</strong>
+                    <?= esc($decOriginal ?: '—') ?>
+                  </p>
+                  <?php if ($justOrig): ?>
+                    <p class="mb-2 small">
+                      <strong>Justificación original:</strong><br>
+                      <span style="white-space: pre-line;">
+                        <?= nl2br(esc($justOrig)) ?>
+                      </span>
+                    </p>
+                  <?php endif; ?>
+
+                  <?php if ($estadoCliente === 'pendiente'): ?>
+                    <div class="alert alert-warning small mb-0">
+                      <i class="bi bi-hourglass-split me-1"></i>
+                      A la espera de respuesta del cliente sobre la decisión propuesta.
+                    </div>
+                  <?php else: ?>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                      <span class="badge bg-<?= $estadoCliente === 'aprobado' ? 'success' : 'danger' ?>">
+                        Cliente <?= $estadoCliente === 'aprobado' ? 'APROBÓ' : 'RECHAZÓ' ?>
+                      </span>
+                      <?php if ($respondidoAt): ?>
+                        <small class="text-muted">
+                          el <?= esc(date('d/m/Y H:i', strtotime($respondidoAt))) ?>
+                        </small>
+                      <?php endif; ?>
+                    </div>
+
+                    <?php if ($hayCambiosDecision || $hayCambiosJustif): ?>
+                      <div class="alert alert-info small mb-2">
+                        <div class="fw-semibold mb-1">
+                          <i class="bi bi-pencil-square me-1"></i>
+                          Cambios sugeridos por el cliente
+                        </div>
+
+                        <?php if ($hayCambiosDecision): ?>
+                          <div class="mb-2">
+                            <span class="text-muted">Decisión original:</span>
+                            <span class="text-decoration-line-through">
+                              <?= esc($decOriginal) ?>
+                            </span><br>
+                            <span class="text-muted">Decisión ajustada:</span>
+                            <span class="fw-semibold">
+                              <?= esc($decCliente) ?>
+                            </span>
+                          </div>
+                        <?php endif; ?>
+
+                        <?php if ($hayCambiosJustif): ?>
+                          <div>
+                            <span class="text-muted">Justificación ajustada por el cliente:</span>
+                            <div class="fw-semibold small" style="white-space: pre-line;">
+                              <?= nl2br(esc($justCliente)) ?>
+                            </div>
+                          </div>
+                        <?php endif; ?>
+                      </div>
+                    <?php else: ?>
+                      <div class="alert alert-success small mb-2">
+                        <i class="bi bi-hand-thumbs-up me-1"></i>
+                        El cliente aprobó la decisión sin solicitar cambios.
+                      </div>
+                    <?php endif; ?>
+
+                    <?php if ($comentario): ?>
+                      <div class="small text-muted">
+                        <span class="fw-semibold">Comentario del cliente:</span><br>
+                        <span style="white-space: pre-line;">
+                          <?= nl2br(esc($comentario)) ?>
+                        </span>
+                      </div>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                </div>
+
+                <?php
+                  // ya mostramos todo lo importante arriba, evitamos meta duplicada
+                  $hasDetalle = false;
+                  $hasMeta    = false;
+                ?>
+              <?php endif; ?>
 
               <?php if ($hasDetalle): ?>
                 <p class="mb-3 tl-detalle-text">
@@ -246,8 +346,8 @@ $etapas = array_map(function ($e) {
       <div class="modal-body modal-detalle-etapa-body">
         <div class="modal-detalle-scroll">
           <p id="modalDetalleEtapaTexto"
-             class="fs-6 mb-0"
-             style="white-space: pre-line;"></p>
+            class="fs-6 mb-0"
+            style="white-space: pre-line;"></p>
         </div>
       </div>
 

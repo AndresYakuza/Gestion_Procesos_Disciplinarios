@@ -504,6 +504,121 @@
   background: #f9fafb;
 }
 
+/* =======================================================
+   Portal Cliente – ajustes de línea de tiempo para móvil
+   (scope por #portalClienteRoot para no tocar el admin)
+   ======================================================= */
+
+#portalClienteRoot #tab-timeline {
+  /* que la timeline respire un poco */
+  padding-top: 0.5rem;
+}
+
+/* Encabezado con chips */
+#portalClienteRoot .timeline-header-inner h5 {
+  font-weight: 600;
+}
+
+#portalClienteRoot .th-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.25rem;
+}
+
+#portalClienteRoot .th-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  background: rgba(0, 173, 135, 0.06);
+  border: 1px solid rgba(0, 173, 135, 0.22);
+  font-size: 0.78rem;
+  color: #11675a;
+}
+
+#portalClienteRoot .th-label {
+  opacity: 0.75;
+}
+
+#portalClienteRoot .th-value {
+  font-weight: 500;
+}
+
+/* ---------- Timeline en móvil ---------- */
+
+@media (max-width: 576px) {
+  /* Card contenedora un poco más limpia */
+  #portalClienteRoot #tab-timeline .card.animate-in {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    border-radius: 18px;
+    border: 0;
+  }
+
+  #portalClienteRoot #tab-timeline .card-body {
+    padding: 0.85rem 0.75rem 1.1rem;
+  }
+
+  #portalClienteRoot .timeline {
+    margin: 0;
+    padding: 0.25rem 0 0.75rem;
+  }
+
+  #portalClienteRoot .tl-item {
+    padding-left: 2.3rem;
+    margin-bottom: 1.25rem;
+  }
+
+  #portalClienteRoot .tl-node {
+    left: 0.35rem; /* acerca el punto al borde */
+  }
+
+  #portalClienteRoot .tl-date {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.7rem;
+    border-radius: 999px;
+  }
+
+  #portalClienteRoot .tl-card {
+    margin-left: 0.6rem;
+    margin-right: 0.3rem;
+    border-radius: 18px;
+    padding: 0.8rem 0.9rem;
+  }
+
+  #portalClienteRoot .tl-card h6 {
+    font-size: 0.95rem;
+  }
+
+  #portalClienteRoot .tl-card .tl-detalle-text {
+    font-size: 0.85rem;
+  }
+
+  /* Separadores dentro de la card un poco más suaves */
+  #portalClienteRoot .tl-section-separator {
+    margin: 0.5rem 0;
+  }
+
+  /* Adjuntos: layout en columna para que no se aplaste el texto */
+  #portalClienteRoot .tl-attach-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  #portalClienteRoot .tl-attach-actions {
+    margin-left: 0;
+  }
+
+  /* Badge de estado en la card un poco más compacto */
+  #portalClienteRoot .tl-card .badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+  }
+}
+
 
 
 

@@ -1,6 +1,9 @@
-<?php namespace App\Controllers;
+<?php
+
+namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use CodeIgniter\Exceptions\PageNotFoundException;
 use App\Controllers\Traits\HandlesAdjuntos;
 use App\Models\FurdModel;
 use App\Models\FurdSoporteModel;
@@ -10,6 +13,7 @@ use App\Domain\Furd\FurdWorkflow;
 use App\Models\FurdCitacionModel;
 use App\Models\FurdDescargoModel;
 use App\Models\FurdDecisionModel;
+use App\Services\FurdMailService;
 
 class SoporteController extends BaseController
 {
@@ -39,7 +43,7 @@ class SoporteController extends BaseController
         $prev = [
             'registro' => $adjModel->listByFase((int)$furd['id'], 'registro'),
             'citacion' => $adjModel->listByFase((int)$furd['id'], 'citacion'),
-            'descargos'=> $adjModel->listByFase((int)$furd['id'], 'descargos'),
+            'descargos' => $adjModel->listByFase((int)$furd['id'], 'descargos'),
         ];
 
         return $this->response->setJSON([
@@ -88,7 +92,7 @@ class SoporteController extends BaseController
         $files = $this->request->getFiles()['adjuntos'] ?? [];
         $files = is_array($files) ? $files : [$files];
 
-        $allowedExt = ['pdf','jpg','jpeg','png','heic','doc','docx','xls','xlsx'];
+        $allowedExt = ['pdf', 'jpg', 'jpeg', 'png', 'heic', 'doc', 'docx', 'xls', 'xlsx'];
         $maxSize    = 16 * 1024 * 1024; // 16 MB
         $fileError  = null;
 
@@ -131,26 +135,26 @@ class SoporteController extends BaseController
             return redirect()->back()->with('errors', $errors)->withInput();
         }
 
-// ---------- 4) Validar flujo (descargos o descargo escrito) ----------
-$wf = new FurdWorkflow(
-    new FurdModel(),
-    new FurdCitacionModel(),
-    new FurdDescargoModel(),
-    new FurdSoporteModel(),
-    new FurdDecisionModel(),
-);
+        // ---------- 4) Validar flujo (descargos o descargo escrito) ----------
+        $wf = new FurdWorkflow(
+            new FurdModel(),
+            new FurdCitacionModel(),
+            new FurdDescargoModel(),
+            new FurdSoporteModel(),
+            new FurdDecisionModel(),
+        );
 
-if (!$wf->canStartSoporte($furd)) {
-    $errors = ['La fase previa no está completa. '
-        . 'Debes contar con acta de descargos o haber registrado la citación con descargo escrito, '
-        . 'y no debe existir un soporte previo para este proceso.'];
+        if (!$wf->canStartSoporte($furd)) {
+            $errors = ['La fase previa no está completa. '
+                . 'Debes contar con acta de descargos o haber registrado la citación con descargo escrito, '
+                . 'y no debe existir un soporte previo para este proceso.'];
 
-    if ($this->request->isAJAX()) {
-        return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
-    }
+            if ($this->request->isAJAX()) {
+                return $this->response->setJSON(['ok' => false, 'errors' => $errors]);
+            }
 
-    return redirect()->back()->with('errors', $errors)->withInput();
-}
+            return redirect()->back()->with('errors', $errors)->withInput();
+        }
 
         // Evitar soporte duplicado para el mismo FURD
         $soporteModel = new FurdSoporteModel();
@@ -174,10 +178,13 @@ if (!$wf->canStartSoporte($furd)) {
                 'furd_id'            => (int)$furd['id'],
                 'responsable'        => (string)$postData['responsable'],
                 'decision_propuesta' => (string)$postData['decision_propuesta'],
-                'justificacion'      => (string)$postData['justificacion'], 
-
+                'justificacion'      => (string)$postData['justificacion'],
             ];
             $id = (int)$soporteModel->insert($payload, true);
+
+            // datos completos de soporte para el correo
+            $soporteData = $payload;
+            $soporteData['id'] = $id;
 
             // Adjuntos fase soporte
             if (!empty($files)) {
@@ -188,6 +195,24 @@ if (!$wf->canStartSoporte($furd)) {
             (new FurdModel())->update((int)$furd['id'], ['estado' => 'soporte']);
 
             $db->transComplete();
+
+            // ---------- 6) Notificar al cliente por correo ----------
+            try {
+                $mailer = new FurdMailService();
+                $sent   = $mailer->notifySoportePropuesta($furd, $soporteData);
+
+                if (!$sent) {
+                    log_message('warning', 'No se pudo enviar correo de soporte para FURD {id}.', [
+                        'id' => $furd['id'] ?? null,
+                    ]);
+                }
+            } catch (\Throwable $mailEx) {
+                // No tumbamos el proceso si falla el correo, solo registramos
+                log_message('error', 'Excepción enviando correo de soporte FURD {id}: {msg}', [
+                    'id'  => $furd['id'] ?? null,
+                    'msg' => $mailEx->getMessage(),
+                ]);
+            }
 
             $mensajeOk = 'Soporte registrado. Continúa con Decisión.';
 
@@ -251,10 +276,6 @@ if (!$wf->canStartSoporte($furd)) {
         return redirect()->back()->with('ok', 'Soporte actualizado');
     }
 
-    /**
-     * Normaliza un consecutivo a formato PD-000123.
-     * Devuelve null si es inválido.
-     */
     private function normalizeConsecutivo(?string $value): ?string
     {
         $v = strtoupper(trim((string)$value));
@@ -276,5 +297,152 @@ if (!$wf->canStartSoporte($furd)) {
         }
 
         return 'PD-' . str_pad($num, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Vista pública para que el cliente revise y responda la decisión propuesta.
+     * URL esperada: /soporte/reviewCliente/PD-000123
+     */
+    public function reviewCliente(string $consecutivo)
+    {
+        // 1) Normalizar consecutivo (PD-000123)
+        $consecNorm = $this->normalizeConsecutivo($consecutivo);
+        if ($consecNorm === null) {
+            throw PageNotFoundException::forPageNotFound('Consecutivo inválido');
+        }
+
+        $furdModel     = new FurdModel();
+        $soporteModel  = new FurdSoporteModel();
+
+        // 2) Buscar FURD + soporte
+        $furd = $furdModel->findByConsecutivo($consecNorm);
+        if (!$furd) {
+            throw PageNotFoundException::forPageNotFound('Proceso disciplinario no encontrado');
+        }
+
+        $soporte = $soporteModel->findByFurd((int) $furd['id']);
+        if (!$soporte) {
+            throw PageNotFoundException::forPageNotFound('No existe soporte registrado para este proceso');
+        }
+
+        // 3) Si es GET ⇒ solo mostramos formulario
+        if ($this->request->getMethod() === 'get') {
+            $data = [
+                'furd'    => $furd,
+                'soporte' => $soporte,
+                'errors'  => [],
+                'old'     => [],
+            ];
+            return view('soporte/review_cliente', $data);
+        }
+
+        // 4) Si es POST ⇒ procesar respuesta del cliente
+        $post = [
+            'cliente_estado'        => (string) $this->request->getPost('cliente_estado'),
+            'cliente_decision'      => (string) $this->request->getPost('cliente_decision'),
+            'cliente_justificacion' => (string) $this->request->getPost('cliente_justificacion'),
+            'cliente_comentario'    => (string) $this->request->getPost('cliente_comentario'),
+        ];
+
+        $post = array_map('trim', $post);
+
+        $errors = [];
+
+        if (!in_array($post['cliente_estado'], ['aprobado', 'rechazado'], true)) {
+            $errors['cliente_estado'] = 'Debes indicar si apruebas o rechazas la decisión propuesta.';
+        }
+
+        // (Opcional) si rechaza, exigir al menos algún texto
+        if ($post['cliente_estado'] === 'rechazado') {
+            if ($post['cliente_decision'] === '' && $post['cliente_justificacion'] === '') {
+                $errors['cliente_decision'] = 'Si rechazas la decisión, describe qué cambio propones o una justificación.';
+            }
+        }
+
+        if (!empty($errors)) {
+            $data = [
+                'furd'    => $furd,
+                'soporte' => $soporte,
+                'errors'  => $errors,
+                'old'     => $post,
+            ];
+            return view('soporte/review_cliente', $data);
+        }
+
+        // 5) Actualizar soporte con la respuesta del cliente
+        $update = [
+            'cliente_estado'        => $post['cliente_estado'],
+            'cliente_decision'      => $post['cliente_decision']      ?: null,
+            'cliente_justificacion' => $post['cliente_justificacion'] ?: null,
+            'cliente_comentario'    => $post['cliente_comentario']    ?: null,
+            'cliente_respondido_at' => date('Y-m-d H:i:s'),
+        ];
+
+        $soporteModel->update((int) $soporte['id'], $update);
+        $soporte = array_merge($soporte, $update); // para el correo
+
+// 6) Notificar al emisor (por ahora: correo "fromEmail" del sistema)
+$emailConfig = config('Email');
+$to          = $emailConfig->fromEmail; // por ahora enviamos al emisor configurado
+
+if ($to) {
+    $email = service('email');
+
+    // Asunto según estado
+    $estado     = $soporte['cliente_estado'] ?? 'pendiente';
+    $estadoText = $estado === 'aprobado'
+        ? 'APROBÓ la decisión'
+        : ($estado === 'rechazado' ? 'SOLICITÓ AJUSTES' : 'respondió');
+
+    $subject = sprintf(
+        'Respuesta del cliente (%s) – %s',
+        $estadoText,
+        $furd['consecutivo'] ?? $consecNorm
+    );
+
+    // Datos del cliente
+    $clienteNombre = $furd['empresa_usuaria'] ?? null;
+
+    $clienteEmail = $furd['correo_cliente']
+        ?? $furd['email_cliente']
+        ?? $furd['correo_contacto']
+        ?? null;
+
+    // cuerpo HTML
+    $body = view(
+        'emails/furd/soporte_respuesta_cliente',
+        [
+            'furd'          => $furd,
+            'soporte'       => $soporte,
+            'clienteNombre' => $clienteNombre,
+            'clienteEmail'  => $clienteEmail,
+        ],
+        ['debug' => false]
+    );
+
+    $email->setTo($to);
+    $email->setSubject($subject);
+
+    // 👇 ESTA LÍNEA ES LA CLAVE
+    $email->setMailType('html');
+
+    $email->setMessage($body);
+    $email->send();
+}
+
+
+
+
+
+        // 7) Vista de agradecimiento
+        return view(
+            'soporte/review_cliente_ok',
+            [
+                'furd'           => $furd,
+                'soporte'        => $soporte,
+                'cliente_estado' => $post['cliente_estado'],
+            ],
+            ['debug' => false]
+        );
     }
 }

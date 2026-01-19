@@ -347,7 +347,7 @@ class DecisionController extends BaseController
         $prev = [
             'registro' => $am->listByFase($fid, 'registro'),
             'citacion' => $am->listByFase($fid, 'citacion'),
-            'descargos' => $am->listByFase($fid, 'descargos'),
+            'descargos'=> $am->listByFase($fid, 'descargos'),
             'soporte'  => $am->listByFase($fid, 'soporte'),
             'decision' => $am->listByFase($fid, 'decision'),
         ];

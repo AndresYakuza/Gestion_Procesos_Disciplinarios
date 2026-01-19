@@ -40,103 +40,111 @@ class FurdController extends BaseController
     {
         helper(['filesystem']);
 
-// 1) Subida temporal
-$files = $this->request->getFiles()['evidencias'] ?? [];
-$tmpDir = WRITEPATH . 'uploads/tmp';
-if (!is_dir($tmpDir)) mkdir($tmpDir, 0777, true);
+        // 1) Subida temporal
+        $files = $this->request->getFiles()['evidencias'] ?? [];
+        $tmpDir = WRITEPATH . 'uploads/tmp';
+        if (!is_dir($tmpDir)) mkdir($tmpDir, 0777, true);
 
-$temp = []; // [{tmp, original, mime, size}]
-if (!empty($files)) {
-    foreach ($files as $file) {
-        if ($file->isValid() && !$file->hasMoved()) {
-            $newName  = $file->getRandomName();
-            $original = $file->getClientName();
-            $mime     = $file->getClientMimeType();
-            $size     = (int) $file->getSize();
+        $temp = []; // [{tmp, original, mime, size}]
+        if (!empty($files)) {
+            foreach ($files as $file) {
+                if ($file->isValid() && !$file->hasMoved()) {
+                    $newName  = $file->getRandomName();
+                    $original = $file->getClientName();
+                    $mime     = $file->getClientMimeType();
+                    $size     = (int) $file->getSize();
 
-            $file->move($tmpDir, $newName);
-            $temp[] = [
-                'tmp'      => $newName,
-                'original' => $original,
-                'mime'     => $mime,
-                'size'     => $size,
-            ];
+                    $file->move($tmpDir, $newName);
+                    $temp[] = [
+                        'tmp'      => $newName,
+                        'original' => $original,
+                        'mime'     => $mime,
+                        'size'     => $size,
+                    ];
+                }
+            }
+
+            // 👉 Solo si hay archivos nuevos, actualizamos la sesión
+            if (!empty($temp)) {
+                session()->set('temp_evidencias', array_column($temp, 'original')); // solo nombres para mostrar
+                session()->set('temp_evidencias_meta', $temp);                      // metadata para mover a Drive
+            }
         }
-    }
 
-    // 👉 Solo si hay archivos nuevos, actualizamos la sesión
-    if (!empty($temp)) {
-        session()->set('temp_evidencias', array_column($temp, 'original')); // solo nombres para mostrar
-        session()->set('temp_evidencias_meta', $temp);                      // metadata para mover a Drive
-    }
-}
+        // 2) Normalizar fecha + validar
+        $rawFecha = trim((string)$this->request->getPost('fecha_evento'));
+        if ($rawFecha === '') {
+            $errors = ['fecha_evento' => 'La fecha del evento es obligatoria.'];
 
-// 2) Normalizar fecha + validar
-$rawFecha = trim((string)$this->request->getPost('fecha_evento'));
-if ($rawFecha === '') {
-    $errors = ['fecha_evento' => 'La fecha del evento es obligatoria.'];
+            if ($this->request->isAJAX()) {
+                return $this->response
+                    ->setStatusCode(422)
+                    ->setJSON(['ok' => false, 'errors' => $errors]);
+            }
 
-    if ($this->request->isAJAX()) {
-        return $this->response
-            ->setStatusCode(422)
-            ->setJSON(['ok' => false, 'errors' => $errors]);
-    }
+            return redirect()->back()->with('errors', $errors)->withInput();
+        }
 
-    return redirect()->back()->with('errors', $errors)->withInput();
-}
+        $fechaTexto = mb_strtolower($rawFecha, 'UTF-8');
+        $fechaTexto = strtr($fechaTexto, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', ',' => '']);
+        $meses = [
+            'enero' => 'january',
+            'febrero' => 'february',
+            'marzo' => 'march',
+            'abril' => 'april',
+            'mayo'    => 'may',
+            'junio' => 'june',
+            'julio' => 'july',
+            'agosto'  => 'august',
+            'septiembre' => 'september',
+            'setiembre' => 'september',
+            'octubre' => 'october',
+            'noviembre' => 'november',
+            'diciembre' => 'december'
+        ];
 
-$fechaTexto = mb_strtolower($rawFecha, 'UTF-8');
-$fechaTexto = strtr($fechaTexto, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', ',' => '']);
-$meses = [
-    'enero' => 'january', 'febrero' => 'february', 'marzo' => 'march',
-    'abril' => 'april',   'mayo'    => 'may',      'junio' => 'june',
-    'julio' => 'july',    'agosto'  => 'august',   'septiembre' => 'september',
-    'setiembre' => 'september', 'octubre' => 'october',
-    'noviembre' => 'november',  'diciembre' => 'december'
-];
+        if (preg_match('~^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$~', $fechaTexto, $m)) {
+            $timestamp = strtotime(sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]));
+        } else {
+            $timestamp = strtotime(str_ireplace(array_keys($meses), array_values($meses), $fechaTexto));
+        }
 
-if (preg_match('~^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*$~', $fechaTexto, $m)) {
-    $timestamp = strtotime(sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]));
-} else {
-    $timestamp = strtotime(str_ireplace(array_keys($meses), array_values($meses), $fechaTexto));
-}
+        if ($timestamp === false) {
+            $errors = ['fecha_evento' => 'La fecha ingresada no es válida.'];
 
-if ($timestamp === false) {
-    $errors = ['fecha_evento' => 'La fecha ingresada no es válida.'];
+            if ($this->request->isAJAX()) {
+                return $this->response
+                    ->setStatusCode(422)
+                    ->setJSON(['ok' => false, 'errors' => $errors]);
+            }
 
-    if ($this->request->isAJAX()) {
-        return $this->response
-            ->setStatusCode(422)
-            ->setJSON(['ok' => false, 'errors' => $errors]);
-    }
+            return redirect()->back()->with('errors', $errors)->withInput();
+        }
 
-    return redirect()->back()->with('errors', $errors)->withInput();
-}
+        $fechaConvertida = date('Y-m-d', $timestamp);
 
-$fechaConvertida = date('Y-m-d', $timestamp);
+        $postData = $this->request->getPost();
+        $postData['fecha_evento'] = $fechaConvertida;
 
-$postData = $this->request->getPost();
-$postData['fecha_evento'] = $fechaConvertida;
+        $validation = \Config\Services::validation();
+        $validation->setRules(\App\Requests\FurdRegistroRequest::rules(), \App\Requests\FurdRegistroRequest::messages());
 
-$validation = \Config\Services::validation();
-$validation->setRules(\App\Requests\FurdRegistroRequest::rules(), \App\Requests\FurdRegistroRequest::messages());
+        if (!$validation->run($postData)) {
+            $errors = $validation->getErrors();
 
-if (!$validation->run($postData)) {
-    $errors = $validation->getErrors();
+            if ($this->request->isAJAX()) {
+                // ❗ Aquí ahora respondemos JSON, sin redirect
+                return $this->response
+                    ->setStatusCode(422)
+                    ->setJSON([
+                        'ok'     => false,
+                        'errors' => $errors,
+                    ]);
+            }
 
-    if ($this->request->isAJAX()) {
-        // ❗ Aquí ahora respondemos JSON, sin redirect
-        return $this->response
-            ->setStatusCode(422)
-            ->setJSON([
-                'ok'     => false,
-                'errors' => $errors,
-            ]);
-    }
-
-    // Fallback clásico (sin JS)
-    return redirect()->back()->with('errors', $errors)->withInput();
-}
+            // Fallback clásico (sin JS)
+            return redirect()->back()->with('errors', $errors)->withInput();
+        }
 
 
         // 3) Persistencia
@@ -175,7 +183,7 @@ if (!$validation->run($postData)) {
                 'empresa_usuaria' => (string)($postData['empresa_usuaria'] ?? ''),
                 'nombre_completo' => (string)($postData['nombre_completo'] ?? ''),
                 'correo'          => (string)($postData['correo'] ?? ''),
-                'correo_cliente'  => (string)($postData['correo_cliente'] ?? ''), 
+                'correo_cliente'  => (string)($postData['correo_cliente'] ?? ''),
                 'fecha_evento'    => $fechaConvertida,
                 'hora_evento'     => (string)($postData['hora'] ?? ''),
                 'superior'        => (string)($postData['superior'] ?? ''),
