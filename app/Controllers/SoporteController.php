@@ -305,14 +305,15 @@ class SoporteController extends BaseController
      */
     public function reviewCliente(string $consecutivo)
     {
+
         // 1) Normalizar consecutivo (PD-000123)
         $consecNorm = $this->normalizeConsecutivo($consecutivo);
         if ($consecNorm === null) {
             throw PageNotFoundException::forPageNotFound('Consecutivo inválido');
         }
 
-        $furdModel     = new FurdModel();
-        $soporteModel  = new FurdSoporteModel();
+        $furdModel    = new FurdModel();
+        $soporteModel = new FurdSoporteModel();
 
         // 2) Buscar FURD + soporte
         $furd = $furdModel->findByConsecutivo($consecNorm);
@@ -325,15 +326,30 @@ class SoporteController extends BaseController
             throw PageNotFoundException::forPageNotFound('No existe soporte registrado para este proceso');
         }
 
+        // 2.1) Adjuntos de la fase SOPORTE
+        $adjModel       = new FurdAdjuntoModel();
+        $rawAdjuntos    = $adjModel->listByFase((int) $furd['id'], 'soporte');
+        $adjuntosSoporte = array_map(static function (array $a) {
+            $id   = (int) $a['id'];
+            $name = $a['nombre_original'] ?? basename((string)($a['ruta'] ?? ''));
+
+            return [
+                'id'           => $id,
+                'nombre'       => $name,
+                'url_open'     => site_url('adjuntos/' . $id . '/open'),
+                'url_download' => site_url('adjuntos/' . $id . '/download'),
+            ];
+        }, $rawAdjuntos);
+
         // 3) Si es GET ⇒ solo mostramos formulario
         if ($this->request->getMethod() === 'get') {
-            $data = [
-                'furd'    => $furd,
-                'soporte' => $soporte,
-                'errors'  => [],
-                'old'     => [],
-            ];
-            return view('soporte/review_cliente', $data);
+            return view('soporte/review_cliente', [
+                'furd'            => $furd,
+                'soporte'         => $soporte,
+                'errors'          => [],
+                'old'             => [],
+                'adjuntosSoporte' => $adjuntosSoporte,
+            ]);
         }
 
         // 4) Si es POST ⇒ procesar respuesta del cliente
@@ -342,6 +358,7 @@ class SoporteController extends BaseController
             'cliente_decision'      => (string) $this->request->getPost('cliente_decision'),
             'cliente_justificacion' => (string) $this->request->getPost('cliente_justificacion'),
             'cliente_comentario'    => (string) $this->request->getPost('cliente_comentario'),
+            'cliente_fecha_inicio_suspension' => (string) $this->request->getPost('cliente_fecha_inicio_suspension'),
         ];
 
         $post = array_map('trim', $post);
@@ -352,83 +369,94 @@ class SoporteController extends BaseController
             $errors['cliente_estado'] = 'Debes indicar si apruebas o rechazas la decisión propuesta.';
         }
 
-        // (Opcional) si rechaza, exigir al menos algún texto
+        // ¿La decisión propuesta es suspensión disciplinaria?
+        $isSuspension = strcasecmp($soporte['decision_propuesta'] ?? '', 'Suspensión disciplinaria') === 0;
+
+        // Si rechaza, exigir algo de texto
         if ($post['cliente_estado'] === 'rechazado') {
             if ($post['cliente_decision'] === '' && $post['cliente_justificacion'] === '') {
                 $errors['cliente_decision'] = 'Si rechazas la decisión, describe qué cambio propones o una justificación.';
             }
         }
 
+        // Si ES suspensión y APRUEBA, la fecha es obligatoria
+        if ($isSuspension && $post['cliente_estado'] === 'aprobado' && $post['cliente_fecha_inicio_suspension'] === '') {
+            $errors['cliente_fecha_inicio_suspension'] = 'Debes indicar la fecha de inicio de la suspensión disciplinaria.';
+        }
+
         if (!empty($errors)) {
             $data = [
-                'furd'    => $furd,
-                'soporte' => $soporte,
-                'errors'  => $errors,
-                'old'     => $post,
+                'furd'            => $furd,
+                'soporte'         => $soporte,
+                'errors'          => $errors,
+                'old'             => $post,
+                'adjuntosSoporte' => $adjuntosSoporte,
             ];
             return view('soporte/review_cliente', $data);
         }
 
         // 5) Actualizar soporte con la respuesta del cliente
         $update = [
-            'cliente_estado'        => $post['cliente_estado'],
-            'cliente_decision'      => $post['cliente_decision']      ?: null,
-            'cliente_justificacion' => $post['cliente_justificacion'] ?: null,
-            'cliente_comentario'    => $post['cliente_comentario']    ?: null,
-            'cliente_respondido_at' => date('Y-m-d H:i:s'),
+            'cliente_estado'                 => $post['cliente_estado'],
+            'cliente_decision'               => $post['cliente_decision']      ?: null,
+            'cliente_justificacion'         => $post['cliente_justificacion'] ?: null,
+            'cliente_comentario'            => $post['cliente_comentario']    ?: null,
+            'cliente_respondido_at'         => date('Y-m-d H:i:s'),
+            'cliente_fecha_inicio_suspension' => $post['cliente_fecha_inicio_suspension'] ?: null,
         ];
 
         $soporteModel->update((int) $soporte['id'], $update);
         $soporte = array_merge($soporte, $update); // para el correo
 
-// 6) Notificar al emisor (por ahora: correo "fromEmail" del sistema)
-$emailConfig = config('Email');
-$to          = $emailConfig->fromEmail; // por ahora enviamos al emisor configurado
 
-if ($to) {
-    $email = service('email');
+        // 6) Notificar al emisor (por ahora: correo "fromEmail" del sistema)
+        $emailConfig = config('Email');
+        $to          = $emailConfig->fromEmail; // por ahora enviamos al emisor configurado
 
-    // Asunto según estado
-    $estado     = $soporte['cliente_estado'] ?? 'pendiente';
-    $estadoText = $estado === 'aprobado'
-        ? 'APROBÓ la decisión'
-        : ($estado === 'rechazado' ? 'SOLICITÓ AJUSTES' : 'respondió');
+        if ($to) {
+            $email = service('email');
 
-    $subject = sprintf(
-        'Respuesta del cliente (%s) – %s',
-        $estadoText,
-        $furd['consecutivo'] ?? $consecNorm
-    );
+            // Asunto según estado
+            $estado     = $soporte['cliente_estado'] ?? 'pendiente';
+            $estadoText = $estado === 'aprobado'
+                ? 'APROBÓ la decisión'
+                : ($estado === 'rechazado' ? 'SOLICITÓ AJUSTES' : 'respondió');
 
-    // Datos del cliente
-    $clienteNombre = $furd['empresa_usuaria'] ?? null;
+            $subject = sprintf(
+                'Respuesta del cliente (%s) – %s',
+                $estadoText,
+                $furd['consecutivo'] ?? $consecNorm
+            );
 
-    $clienteEmail = $furd['correo_cliente']
-        ?? $furd['email_cliente']
-        ?? $furd['correo_contacto']
-        ?? null;
+            // Datos del cliente
+            $clienteNombre = $furd['empresa_usuaria'] ?? null;
 
-    // cuerpo HTML
-    $body = view(
-        'emails/furd/soporte_respuesta_cliente',
-        [
-            'furd'          => $furd,
-            'soporte'       => $soporte,
-            'clienteNombre' => $clienteNombre,
-            'clienteEmail'  => $clienteEmail,
-        ],
-        ['debug' => false]
-    );
+            $clienteEmail = $furd['correo_cliente']
+                ?? $furd['email_cliente']
+                ?? $furd['correo_contacto']
+                ?? null;
 
-    $email->setTo($to);
-    $email->setSubject($subject);
+            // cuerpo HTML
+            $body = view(
+                'emails/furd/soporte_respuesta_cliente',
+                [
+                    'furd'          => $furd,
+                    'soporte'       => $soporte,
+                    'clienteNombre' => $clienteNombre,
+                    'clienteEmail'  => $clienteEmail,
+                ],
+                ['debug' => false]
+            );
 
-    // 👇 ESTA LÍNEA ES LA CLAVE
-    $email->setMailType('html');
+            $email->setTo($to);
+            $email->setSubject($subject);
 
-    $email->setMessage($body);
-    $email->send();
-}
+            // 👇 ESTA LÍNEA ES LA CLAVE
+            $email->setMailType('html');
+
+            $email->setMessage($body);
+            $email->send();
+        }
 
 
 

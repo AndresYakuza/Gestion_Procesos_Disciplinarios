@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use CodeIgniter\Email\Email;
+use App\Models\FurdModel;
+use App\Models\FurdSoporteModel;
+
 
 class FurdMailService
 {
@@ -74,6 +77,13 @@ class FurdMailService
             return false;
         }
 
+        if (empty($soporte['notificado_cliente_at'])) {
+            $sm = new FurdSoporteModel();
+            $sm->update((int) $soporte['id'], [
+                'notificado_cliente_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
         return true;
     }
 
@@ -119,6 +129,118 @@ class FurdMailService
             ]);
             return false;
         }
+
+        return true;
+    }
+
+    public function notifySoporteRecordatorio(array $furd, array $soporte): bool
+    {
+        $toCliente = $furd['correo_cliente'] ?? '';
+        if ($toCliente === '') {
+            return false;
+        }
+
+        // Ajusta esto a tu config real
+        $emailConfig = config('Email');
+        $correoGestion = config('Gpd')->correoGestionProcesos ?? null;
+
+        $subject = 'Recordatorio de respuesta – Proceso disciplinario ' . ($furd['consecutivo'] ?? '');
+        $body    = view('emails/furd/soporte_recordatorio', [
+            'furd'    => $furd,
+            'soporte' => $soporte,
+        ]);
+
+        $this->email->clear(true);
+        $this->email->setMailType('html');
+        $this->email->setFrom($emailConfig->fromEmail, $emailConfig->fromName);
+        $this->email->setTo($toCliente);
+        if ($correoGestion) {
+            $this->email->setCC($correoGestion);
+        }
+        $this->email->setSubject($subject);
+        $this->email->setMessage($body);
+
+        $this->email->setAltMessage(
+            "Recordatorio de respuesta para el proceso disciplinario {$furd['consecutivo']}.\n" .
+                "Trabajador: {$furd['nombre_completo']} (CC {$furd['cedula']})."
+        );
+
+        if (! $this->email->send()) {
+            log_message('error', 'Error enviando recordatorio FURD {id}. Debug: {debug}', [
+                'id'    => $furd['id'] ?? null,
+                'debug' => $this->email->printDebugger(['headers', 'subject']),
+            ]);
+            return false;
+        }
+
+        (new FurdSoporteModel())->update((int) $soporte['id'], [
+            'recordatorio_cliente_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return true;
+    }
+
+    public function notifySoporteAutoArchivado(array $furd, array $soporte): bool
+    {
+        $toTrabajador = trim((string) ($furd['correo'] ?? ''));
+        $toCliente    = trim((string) ($furd['correo_cliente'] ?? ''));
+
+        // Si no hay ningún correo destino, no hacemos nada
+        if ($toTrabajador === '' && $toCliente === '') {
+            return false;
+        }
+
+        $emailConfig   = config('Email');
+        $correoGestion = config('Gpd')->correoGestionProcesos
+            ?? $emailConfig->fromEmail; // fallback al emisor
+
+        $subject = 'Archivo automático – Proceso disciplinario ' . ($furd['consecutivo'] ?? '');
+        $body    = view('emails/furd/soporte_auto_archivado', [
+            'furd'    => $furd,
+            'soporte' => $soporte,
+        ]);
+
+        // Construimos lista de destinatarios (trabajador + cliente)
+        $destinatarios = array_filter([$toTrabajador, $toCliente]);
+
+        $this->email->clear(true);
+        $this->email->setMailType('html');
+        $this->email->setFrom($emailConfig->fromEmail, $emailConfig->fromName);
+        $this->email->setTo($destinatarios);
+        // Gestión de Procesos Disciplinarios siempre en copia
+        if (!empty($correoGestion)) {
+            $this->email->setCC($correoGestion);
+        }
+        $this->email->setSubject($subject);
+        $this->email->setMessage($body);
+
+        $this->email->setAltMessage(
+            "Se ha archivado automáticamente el proceso disciplinario {$furd['consecutivo']} "
+                . "por vencimiento del plazo de respuesta del cliente."
+        );
+
+        if (!$this->email->send()) {
+            log_message('error', 'Error enviando auto-archivo FURD {id}. Debug: {debug}', [
+                'id'    => $furd['id'] ?? null,
+                'debug' => $this->email->printDebugger(['headers', 'subject']),
+            ]);
+            return false;
+        }
+
+        $now = date('Y-m-d H:i:s');
+
+        // Marcar auto-archivo en soporte
+        $sm = new FurdSoporteModel();
+        $sm->update((int) $soporte['id'], [
+            'auto_archivado_at' => $now,
+        ]);
+
+        // Actualizar estado del FURD
+        $fm = new FurdModel();
+        $fm->update((int) $furd['id'], [
+            'estado'     => 'archivado',
+            'updated_at' => $now,
+        ]);
 
         return true;
     }

@@ -166,10 +166,7 @@ class LineaTiempoController extends BaseController
             'adjuntos'     => $this->getAdjuntos($furd['id'], 'descargos'),
         ];
 
-
-
-        // 4️⃣ Soporte (con decisión propuesta + justificación)
-        // 4️⃣ Soporte (decisión propuesta + respuesta cliente)
+                // 4️⃣ Soporte (decisión propuesta + respuesta cliente)
         $soporte = db_connect()->table('tbl_furd_soporte')
             ->where('furd_id', $furd['id'])
             ->get()
@@ -183,20 +180,28 @@ class LineaTiempoController extends BaseController
         $clienteDecision      = $soporte['cliente_decision']      ?? null;
         $clienteJustificacion = $soporte['cliente_justificacion'] ?? null;
         $clienteComentario    = $soporte['cliente_comentario']    ?? null;
+        $clienteFechaSusp     = $soporte['cliente_fecha_inicio_suspension'] ?? null;
+
+        $notificadoClienteAt   = $soporte['notificado_cliente_at']   ?? null;
+        $recordatorioClienteAt = $soporte['recordatorio_cliente_at'] ?? null;
+        $autoArchivadoAt       = $soporte['auto_archivado_at']       ?? null;
 
         if ($soporte) {
-            $justOrigFull = trim((string)($soporte['justificacion'] ?? ''));
+            $decisionPropuesta = (string) ($soporte['decision_propuesta'] ?? '—');
+            $justOrigFull      = trim((string) ($soporte['justificacion'] ?? ''));
+            $isSuspension      = strcasecmp($decisionPropuesta, 'Suspensión disciplinaria') === 0;
 
+            // Resumen corto, mismo que en portal cliente
             if ($clienteEstado === 'pendiente') {
-                $resumen = 'Decisión propuesta: ' . ($soporte['decision_propuesta'] ?? '—')
-                    . '. A la espera de respuesta del cliente.';
+                $resumen = 'Decisión propuesta: ' . $decisionPropuesta . '. A la espera de respuesta del cliente.';
             } else {
                 $estadoTxt = $clienteEstado === 'aprobado' ? 'APROBADA' : 'RECHAZADA';
-                $resumen = 'Decisión propuesta: ' . ($soporte['decision_propuesta'] ?? '—')
+                $resumen = 'Decisión propuesta: ' . $decisionPropuesta
                     . ". Cliente: {$estadoTxt}"
                     . ($clienteDecision ? ' · Ajuste sugerido: ' . $clienteDecision : '');
             }
 
+            // Texto largo: justificación original + ajustes + comentario
             $partesFull = [];
 
             if ($justOrigFull !== '') {
@@ -211,14 +216,31 @@ class LineaTiempoController extends BaseController
                 $partesFull[] = "Comentario del cliente:\n" . $clienteComentario;
             }
 
-            $soporteDetalleFull = $partesFull
-                ? implode("\n\n", $partesFull)
-                : '— Sin información de soporte registrada —';
-
+            $soporteDetalleFull  = $partesFull ? implode("\n\n", $partesFull) : '— Sin información de soporte registrada —';
             $soporteDetalleShort = mb_strimwidth($resumen, 0, 220, '…', 'UTF-8');
+
+            // META igual que en portal cliente
+            $metaSoporte = [
+                'Responsable'        => $soporte['responsable']        ?? '—',
+                'Decisión propuesta' => $decisionPropuesta,
+            ];
+
+            if ($clienteEstado === 'pendiente') {
+                $metaSoporte['Notificación inicial al cliente'] = $notificadoClienteAt
+                    ? Time::parse($notificadoClienteAt)->format('d/m/Y H:i')
+                    : '—';
+                $metaSoporte['Recordatorio al cliente'] = $recordatorioClienteAt
+                    ? Time::parse($recordatorioClienteAt)->format('d/m/Y H:i')
+                    : '—';
+            } elseif ($isSuspension) {
+                $metaSoporte['Fecha inicio suspensión (cliente)'] = $clienteFechaSusp
+                    ? Time::parse($clienteFechaSusp)->format('d/m/Y')
+                    : '—';
+            }
         } else {
             $soporteDetalleFull  = '— Sin soporte registrado —';
             $soporteDetalleShort = $soporteDetalleFull;
+            $metaSoporte         = [];
         }
 
         $etapas[] = [
@@ -229,12 +251,9 @@ class LineaTiempoController extends BaseController
                 : '',
             'detalle'      => $soporteDetalleShort,
             'detalle_full' => $soporteDetalleFull,
-            // 👇 meta general
-            'meta'         => [
-                'Responsable'        => $soporte['responsable']        ?? '—',
-                'Decisión propuesta' => $soporte['decision_propuesta'] ?? '—',
-            ],
-            // 👇 datos crudos para que la vista pinte viejo vs nuevo
+            'meta'         => $metaSoporte,
+
+            // datos crudos para el bloque especial de soporte
             'decision_propuesta'      => $soporte['decision_propuesta']      ?? null,
             'justificacion_original'  => $soporte['justificacion']           ?? null,
             'cliente_estado'          => $clienteEstado,
@@ -245,10 +264,22 @@ class LineaTiempoController extends BaseController
             'adjuntos'                => $this->getAdjuntos($furd['id'], 'soporte'),
         ];
 
+        // 5️⃣ Archivo automático (si aplica)
+        if (!empty($autoArchivadoAt)) {
+            $etapas[] = [
+                'clave'        => 'archivado',
+                'titulo'       => 'Archivo automático',
+                'fecha'        => Time::parse($autoArchivadoAt)->format('d/m/Y'),
+                'detalle'      => 'El proceso fue archivado automáticamente por falta de respuesta del cliente dentro del plazo de 10 días.',
+                'detalle_full' => 'El proceso fue archivado automáticamente por falta de respuesta formal del cliente dentro del término de diez (10) días calendario previsto en el reglamento interno de trabajo.',
+                'meta'         => [
+                    'Fecha de auto-archivo' => Time::parse($autoArchivadoAt)->format('d/m/Y H:i'),
+                ],
+                'adjuntos'     => [],
+            ];
+        }
 
-
-
-        // 5️⃣ Decisión
+        // 6️⃣ Decisión
         $decision = db_connect()
             ->table('tbl_furd_decision')
             ->where('furd_id', $furd['id'])
@@ -280,7 +311,6 @@ class LineaTiempoController extends BaseController
             ],
             'adjuntos' => $this->getAdjuntos($furd['id'], 'decision'),
         ];
-
 
         return view('linea_tiempo/show', compact('proceso', 'etapas'));
     }

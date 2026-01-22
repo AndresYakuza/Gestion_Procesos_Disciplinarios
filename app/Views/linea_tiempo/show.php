@@ -104,18 +104,18 @@ $etapas = array_map(function ($e) {
               $hasAdjuntos = !empty($e['adjuntos']);
               ?>
 
-                            <?php if ($isSoporte): ?>
+              <?php if ($isSoporte): ?>
                 <?php
-                  $estadoCliente   = $e['cliente_estado']        ?? 'pendiente';
-                  $respondidoAt    = $e['cliente_respondido_at'] ?? null;
-                  $decOriginal     = $e['decision_propuesta']    ?? ($e['meta']['Decisión propuesta'] ?? null);
-                  $decCliente      = $e['cliente_decision']      ?? null;
-                  $justOrig        = $e['justificacion_original'] ?? null;
-                  $justCliente     = $e['cliente_justificacion']  ?? null;
-                  $comentario      = $e['cliente_comentario']     ?? null;
+                $estadoCliente   = $e['cliente_estado']        ?? 'pendiente';
+                $respondidoAt    = $e['cliente_respondido_at'] ?? null;
+                $decOriginal     = $e['decision_propuesta']    ?? ($e['meta']['Decisión propuesta'] ?? null);
+                $decCliente      = $e['cliente_decision']      ?? null;
+                $justOrig        = $e['justificacion_original'] ?? null;
+                $justCliente     = $e['cliente_justificacion']  ?? null;
+                $comentario      = $e['cliente_comentario']     ?? null;
 
-                  $hayCambiosDecision = $decCliente && $decOriginal && ($decCliente !== $decOriginal);
-                  $hayCambiosJustif   = $justCliente && $justOrig && ($justCliente !== $justOrig);
+                $hayCambiosDecision = $decCliente && $decOriginal && ($decCliente !== $decOriginal);
+                $hayCambiosJustif   = $justCliente && $justOrig && ($justCliente !== $justOrig);
                 ?>
 
                 <div class="mb-3">
@@ -126,7 +126,7 @@ $etapas = array_map(function ($e) {
                   <?php if ($justOrig): ?>
                     <p class="mb-2 small">
                       <strong>Justificación original:</strong><br>
-                      <span style="white-space: pre-line;">
+                      <span class="fw-semibold">
                         <?= nl2br(esc($justOrig)) ?>
                       </span>
                     </p>
@@ -172,9 +172,9 @@ $etapas = array_map(function ($e) {
                         <?php if ($hayCambiosJustif): ?>
                           <div>
                             <span class="text-muted">Justificación ajustada por el cliente:</span>
-                            <div class="fw-semibold small" style="white-space: pre-line;">
+                            <span class="fw-semibold">
                               <?= nl2br(esc($justCliente)) ?>
-                            </div>
+                            </span>
                           </div>
                         <?php endif; ?>
                       </div>
@@ -188,7 +188,7 @@ $etapas = array_map(function ($e) {
                     <?php if ($comentario): ?>
                       <div class="small text-muted">
                         <span class="fw-semibold">Comentario del cliente:</span><br>
-                        <span style="white-space: pre-line;">
+                        <span class="fw-semibold">
                           <?= nl2br(esc($comentario)) ?>
                         </span>
                       </div>
@@ -197,9 +197,23 @@ $etapas = array_map(function ($e) {
                 </div>
 
                 <?php
-                  // ya mostramos todo lo importante arriba, evitamos meta duplicada
-                  $hasDetalle = false;
-                  $hasMeta    = false;
+                // 👉 NUEVO: pintar meta de soporte (Responsable, Notificación, Recordatorio, etc.)
+                $metaSoporteView = $e['meta'] ?? [];
+                if (!empty($metaSoporteView)):
+                ?>
+                  <div class="tl-section-separator"></div>
+                  <dl class="row small mb-3">
+                    <?php foreach ($metaSoporteView as $k => $v): ?>
+                      <dt class="col-sm-3 text-muted"><?= esc($k) ?></dt>
+                      <dd class="col-sm-9"><?= esc($v) ?></dd>
+                    <?php endforeach; ?>
+                  </dl>
+                <?php endif; ?>
+
+                <?php
+                // ya mostramos detalle y meta aquí para soporte; evita render genérico abajo
+                $hasDetalle = false;
+                $hasMeta    = false;
                 ?>
               <?php endif; ?>
 
@@ -231,8 +245,6 @@ $etapas = array_map(function ($e) {
 
                 </p>
               <?php endif; ?>
-
-
 
               <?php if ($hasDetalle && ($hasFaltas || $hasMeta || $hasAdjuntos)): ?>
                 <div class="tl-section-separator"></div>

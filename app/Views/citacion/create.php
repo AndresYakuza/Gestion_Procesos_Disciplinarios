@@ -8,10 +8,10 @@
 <?= $this->section('content'); ?>
 
 <?php
-$errors         = session('errors') ?? [];
-$oldConsecutivo = old('consecutivo') ?? (session('consecutivo') ?? '');
-$fechasHabilitadas = $fechasHabilitadas ?? [];
-
+$errors             = session('errors') ?? [];
+$oldConsecutivo     = old('consecutivo') ?? (session('consecutivo') ?? '');
+$fechasHabilitadas  = $fechasHabilitadas ?? [];
+$plantillasDescargo = $plantillasDescargo ?? [];
 ?>
 
 <div class="page-citacion">
@@ -113,13 +113,38 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
           </i>
           <br>
           <label class="form-label">Modelo del descargo</label>
-          <select name="medio" class="form-select" required>
+          <select id="selectModeloDescargo" name="medio" class="form-select" required>
             <option value="" disabled <?= old('medio') ? '' : 'selected' ?>>Elige una opción…</option>
             <option value="virtual" <?= old('medio') === 'virtual'    ? 'selected' : '' ?>>Virtual</option>
             <option value="presencial" <?= old('medio') === 'presencial' ? 'selected' : '' ?>>Presencial</option>
             <option value="escrito" <?= old('medio') === 'escrito' ? 'selected' : '' ?>>Escrito</option>
           </select>
         </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Plantilla sugerida</label>
+          <div id="plantillaDescargoBox" class="plantilla-card plantilla-empty">
+            <div class="plantilla-card-main">
+              <div class="plantilla-card-icon">
+                <i class="bi bi-file-earmark-text"></i>
+              </div>
+              <div class="plantilla-card-text" id="textoModeloDescargo">
+                Selecciona un modelo de descargo para ver aquí la plantilla descargable.
+              </div>
+            </div>
+            <div class="plantilla-card-action">
+              <a
+                id="linkModeloDescargo"
+                href="#"
+                class="btn btn-sm btn-outline-primary d-none"
+                target="_blank"
+                rel="noopener">
+                <i class="bi bi-download me-1"></i> Descargar modelo
+              </a>
+            </div>
+          </div>
+        </div>
+
 
         <div class="col-12">
           <label class="form-label" for="motivo">Hecho o motivo de la intervención</label>
@@ -192,6 +217,8 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
   <script>
     (() => {
       const baseFind = '<?= base_url('citacion/find'); ?>';
+      const PLANTILLAS_DESCARGO = <?= json_encode($plantillasDescargo ?? [], JSON_UNESCAPED_UNICODE); ?>;
+
 
       const enabledDates = <?= json_encode($fechasHabilitadas ?? []) ?>;
       const fechaInput = document.getElementById('fecha');
@@ -207,6 +234,39 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
 
       const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
       const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+            const selectModelo = document.getElementById('selectModeloDescargo');
+      const boxPlantilla = document.getElementById('plantillaDescargoBox');
+      const textoPlantilla = document.getElementById('textoModeloDescargo');
+      const linkPlantilla = document.getElementById('linkModeloDescargo');
+
+      function updateModeloDescargoBox() {
+        if (!selectModelo || !boxPlantilla || !textoPlantilla || !linkPlantilla) return;
+
+        const value = (selectModelo.value || '').toLowerCase();
+        const cfg = PLANTILLAS_DESCARGO[value];
+
+        if (!value || !cfg) {
+          textoPlantilla.textContent =
+            'Selecciona un modelo de descargo para ver aquí la plantilla descargable.';
+          linkPlantilla.classList.add('d-none');
+          linkPlantilla.removeAttribute('href');
+          boxPlantilla.classList.add('plantilla-empty');
+          return;
+        }
+
+        textoPlantilla.textContent =
+          cfg.label || 'Plantilla sugerida para este modelo de descargo.';
+        linkPlantilla.href = cfg.url;
+        linkPlantilla.classList.remove('d-none');
+        boxPlantilla.classList.remove('plantilla-empty');
+      }
+
+      if (selectModelo) {
+        selectModelo.addEventListener('change', updateModeloDescargoBox);
+        // Para que se actualice si viene con old('medio')
+        updateModeloDescargoBox();
+      }
 
       // 🧮 Contador de caracteres para el motivo de citación
       const motivoCount = document.getElementById('motivoCount');
@@ -564,6 +624,40 @@ $fechasHabilitadas = $fechasHabilitadas ?? [];
         }
       });
     });
+
+    // ==============================
+    //  Modelo de descargo → plantilla
+    // ==============================
+    const PLANTILLAS_DESCARGO = <?= json_encode($plantillasDescargo ?? [], JSON_UNESCAPED_UNICODE); ?>;
+
+    const selectModelo = document.getElementById('selectModeloDescargo');
+    const boxModelo = document.getElementById('boxModeloDescargo');
+    const txtModelo = document.getElementById('textoModeloDescargo');
+    const linkModelo = document.getElementById('linkModeloDescargo');
+
+    function updateModeloDescargoBox() {
+      if (!selectModelo || !boxModelo || !txtModelo || !linkModelo) return;
+
+      const val = (selectModelo.value || '').toLowerCase();
+      const cfg = PLANTILLAS_DESCARGO[val] || null;
+
+      if (!cfg || !cfg.url) {
+        txtModelo.textContent =
+          'Selecciona un modelo de descargo para ver aquí la plantilla descargable.';
+        linkModelo.classList.add('d-none');
+        linkModelo.href = '#';
+        return;
+      }
+
+      txtModelo.textContent = cfg.label || 'Plantilla sugerida para este modelo de descargo.';
+      linkModelo.href = cfg.url;
+      linkModelo.classList.remove('d-none');
+    }
+
+    selectModelo?.addEventListener('change', updateModeloDescargoBox);
+
+    // Estado inicial por si viene old('medio')
+    updateModeloDescargoBox();
   </script>
 
   <?= $this->endSection(); ?>

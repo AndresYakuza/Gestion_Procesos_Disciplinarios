@@ -113,14 +113,56 @@ $yaRespondio  = $estadoActual !== 'pendiente';
                                 </div>
 
                                 <div class="review-summary-box">
+                                    <?php
+                                    $decisionPropuesta = trim((string)($soporte['decision_propuesta'] ?? ''));
+                                    ?>
                                     <p class="mb-2">
                                         <span class="summary-label">Decisión sugerida:</span>
-                                        <span class="summary-value"><?= esc($soporte['decision_propuesta'] ?? '') ?></span>
+                                        <span
+                                            class="summary-value"
+                                            id="decisionSugeridaText"
+                                            data-decision="<?= esc($decisionPropuesta) ?>">
+                                            <?= esc($decisionPropuesta) ?>
+                                        </span>
                                     </p>
                                     <p class="mb-1 summary-label">Justificación:</p>
                                     <div class="summary-justificacion">
                                         <?= nl2br(esc($soporte['justificacion'] ?? '')); ?>
                                     </div>
+
+                                    <?php if (!empty($adjuntosSoporte)): ?>
+                                        <div class="mt-3">
+                                            <h6 class="mb-1">
+                                                <i class="bi bi-paperclip me-1"></i>
+                                                Adjuntos del soporte
+                                            </h6>
+
+                                            <ul class="list-unstyled mb-0">
+                                                <?php foreach ($adjuntosSoporte as $adj): ?>
+                                                    <li class="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2 mb-2">
+                                                        <div class="text-truncate">
+                                                            <i class="bi bi-file-earmark-text me-1 text-muted"></i>
+                                                            <span class="text-truncate">
+                                                                <?= esc($adj['nombre']) ?>
+                                                            </span>
+                                                        </div>
+                                                        <div class="d-flex gap-2">
+                                                            <a href="<?= esc($adj['url_open']) ?>"
+                                                                target="_blank"
+                                                                rel="noopener"
+                                                                class="btn btn-sm btn-outline-secondary">
+                                                                <i class="bi bi-box-arrow-up-right"></i> Ver
+                                                            </a>
+                                                            <a href="<?= esc($adj['url_download']) ?>"
+                                                                class="btn btn-sm btn-outline-primary">
+                                                                <i class="bi bi-download"></i> Descargar
+                                                            </a>
+                                                        </div>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </section>
 
@@ -193,6 +235,21 @@ $yaRespondio  = $estadoActual !== 'pendiente';
                                             </div>
                                         </div>
 
+                                                                            <!-- Campo fecha de inicio suspensión (oculto inicialmente) -->
+                                    <div class="mb-3 d-none" id="wrapFechaSuspension">
+                                        <label for="fechaSuspension" class="form-label">
+                                            ¿Desde qué fecha inicia la suspensión disciplinaria?
+                                        </label>
+                                        <input
+                                            type="date"
+                                            id="fechaSuspension"
+                                            name="cliente_fecha_inicio_suspension"
+                                            class="form-control">
+                                        <div class="form-text">
+                                            Esta fecha se incluirá en el bloque de decisión del cliente.
+                                        </div>
+                                    </div>
+
                                         <!-- Cambio de decisión -->
                                         <div class="mb-3">
                                             <label class="form-label">
@@ -260,3 +317,47 @@ $yaRespondio  = $estadoActual !== 'pendiente';
 </body>
 
 </html>
+
+<script>
+    (function() {
+        const decisionEl = document.getElementById('decisionSugeridaText');
+        const wrapFecha = document.getElementById('wrapFechaSuspension');
+        const fechaInput = document.getElementById('fechaSuspension');
+        const radiosEstado = document.querySelectorAll('input[name="cliente_estado"]');
+
+        if (!decisionEl || !wrapFecha || !fechaInput || !radiosEstado.length) {
+            return;
+        }
+
+        const decisionSugerida = (decisionEl.dataset.decision || decisionEl.textContent || '')
+            .toLowerCase()
+            .trim();
+
+        function isSuspension() {
+            return decisionSugerida === 'suspensión disciplinaria' ||
+                decisionSugerida === 'suspension disciplinaria';
+        }
+
+        function actualizarVisibilidadFecha() {
+            const radioChecked = document.querySelector('input[name="cliente_estado"]:checked');
+            const estado = radioChecked ? radioChecked.value : '';
+
+            const debeMostrar = isSuspension() && estado === 'aprobado';
+
+            if (debeMostrar) {
+                wrapFecha.classList.remove('d-none');
+                fechaInput.required = true;
+            } else {
+                wrapFecha.classList.add('d-none');
+                fechaInput.required = false;
+                fechaInput.value = '';
+            }
+        }
+
+        radiosEstado.forEach(r => r.addEventListener('change', actualizarVisibilidadFecha));
+
+        // Estado inicial
+        actualizarVisibilidadFecha();
+    })();
+</script>
+

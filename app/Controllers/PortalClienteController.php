@@ -224,98 +224,107 @@ class PortalClienteController extends BaseController
      *  - cliente_justificacion (obligatorio si rechazado y no hay decisión)
      *  - cliente_comentario    (opcional)
      */
-    public function responderDecision(string $consecutivo)
-    {
-        if ($this->request->getMethod() !== 'post') {
-            return $this->response
-                ->setStatusCode(405)
-                ->setJSON(['ok' => false, 'msg' => 'Método no permitido.']);
-        }
+    // public function responderDecision(string $consecutivo)
+    // {
+    //     if ($this->request->getMethod() !== 'post') {
+    //         return $this->response
+    //             ->setStatusCode(405)
+    //             ->setJSON(['ok' => false, 'msg' => 'Método no permitido.']);
+    //     }
 
-        $email = trim((string) $this->request->getPost('correo_cliente'));
-        if ($email === '') {
-            return $this->response
-                ->setStatusCode(400)
-                ->setJSON(['ok' => false, 'msg' => 'El correo del cliente es obligatorio.']);
-        }
+    //     $email = trim((string) $this->request->getPost('correo_cliente'));
+    //     if ($email === '') {
+    //         return $this->response
+    //             ->setStatusCode(400)
+    //             ->setJSON(['ok' => false, 'msg' => 'El correo del cliente es obligatorio.']);
+    //     }
 
-        $id = $this->decodeConsecutivo($consecutivo);
-        if (!$id) {
-            return $this->response
-                ->setStatusCode(404)
-                ->setJSON(['ok' => false, 'msg' => 'Consecutivo inválido.']);
-        }
+    //     $id = $this->decodeConsecutivo($consecutivo);
+    //     if (!$id) {
+    //         return $this->response
+    //             ->setStatusCode(404)
+    //             ->setJSON(['ok' => false, 'msg' => 'Consecutivo inválido.']);
+    //     }
 
-        $furdModel = new FurdModel();
+    //     $furdModel = new FurdModel();
 
-        $furd = $furdModel
-            ->where('id', $id)
-            ->where('correo_cliente', $email) // 🔒 seguridad
-            ->first();
+    //     $furd = $furdModel
+    //         ->where('id', $id)
+    //         ->where('correo_cliente', $email) // 🔒 seguridad
+    //         ->first();
 
-        if (!$furd) {
-            return $this->response
-                ->setStatusCode(404)
-                ->setJSON(['ok' => false, 'msg' => 'Proceso no encontrado para este correo.']);
-        }
+    //     if (!$furd) {
+    //         return $this->response
+    //             ->setStatusCode(404)
+    //             ->setJSON(['ok' => false, 'msg' => 'Proceso no encontrado para este correo.']);
+    //     }
 
-        $soporteModel = new FurdSoporteModel();
+    //     $soporteModel = new FurdSoporteModel();
 
-        $soporte = $soporteModel
-            ->where('furd_id', (int) $furd['id'])
-            ->first();
+    //     $soporte = $soporteModel
+    //         ->where('furd_id', (int) $furd['id'])
+    //         ->first();
 
-        if (!$soporte) {
-            return $this->response
-                ->setStatusCode(404)
-                ->setJSON(['ok' => false, 'msg' => 'No existe soporte registrado para este proceso.']);
-        }
+    //     if (!$soporte) {
+    //         return $this->response
+    //             ->setStatusCode(404)
+    //             ->setJSON(['ok' => false, 'msg' => 'No existe soporte registrado para este proceso.']);
+    //     }
 
-        $post = [
-            'cliente_estado'        => trim((string) $this->request->getPost('cliente_estado')),
-            'cliente_decision'      => trim((string) $this->request->getPost('cliente_decision')),
-            'cliente_justificacion' => trim((string) $this->request->getPost('cliente_justificacion')),
-            'cliente_comentario'    => trim((string) $this->request->getPost('cliente_comentario')),
-        ];
+    //     $post = [
+    //         'cliente_estado'        => trim((string) $this->request->getPost('cliente_estado')),
+    //         'cliente_decision'      => trim((string) $this->request->getPost('cliente_decision')),
+    //         'cliente_justificacion' => trim((string) $this->request->getPost('cliente_justificacion')),
+    //         'cliente_comentario'    => trim((string) $this->request->getPost('cliente_comentario')),
+    //     ];
 
-        $errors = [];
+    //     $errors = [];
 
-        if (!in_array($post['cliente_estado'], ['aprobado', 'rechazado'], true)) {
-            $errors['cliente_estado'] = 'Debes indicar si apruebas o rechazas la decisión propuesta.';
-        }
+    //     if (!in_array($post['cliente_estado'], ['aprobado', 'rechazado'], true)) {
+    //         $errors['cliente_estado'] = 'Debes indicar si apruebas o rechazas la decisión propuesta.';
+    //     }
 
-        if ($post['cliente_estado'] === 'rechazado') {
-            if ($post['cliente_decision'] === '' && $post['cliente_justificacion'] === '') {
-                $errors['cliente_decision'] = 'Si rechazas la decisión, describe el cambio propuesto o una justificación.';
-            }
-        }
+    //     $isSuspension = strcasecmp($soporte['decision_propuesta'] ?? '', 'Suspensión disciplinaria') === 0;
 
-        if (!empty($errors)) {
-            return $this->response
-                ->setStatusCode(422)
-                ->setJSON([
-                    'ok'     => false,
-                    'errors' => $errors,
-                ]);
-        }
 
-        $update = [
-            'cliente_estado'        => $post['cliente_estado'],
-            'cliente_decision'      => $post['cliente_decision']      ?: null,
-            'cliente_justificacion' => $post['cliente_justificacion'] ?: null,
-            'cliente_comentario'    => $post['cliente_comentario']    ?: null,
-            'cliente_respondido_at' => date('Y-m-d H:i:s'),
-        ];
+    //     if ($post['cliente_estado'] === 'rechazado') {
+    //         if ($post['cliente_decision'] === '' && $post['cliente_justificacion'] === '') {
+    //             $errors['cliente_decision'] = 'Si rechazas la decisión, describe el cambio propuesto o una justificación.';
+    //         }
+    //     }
 
-        $soporteModel->update((int) $soporte['id'], $update);
+    //     if ($isSuspension && $post['cliente_estado'] === 'aprobado' && $post['cliente_fecha_inicio_suspension'] === '') {
+    //         $errors['cliente_fecha_inicio_suspension'] = 'Debes indicar la fecha de inicio de la suspensión disciplinaria.';
+    //     }
 
-        // Aquí puedes llamar al mismo servicio de correo que uses en SoporteController::reviewCliente
+    //     if (!empty($errors)) {
+    //         return $this->response
+    //             ->setStatusCode(422)
+    //             ->setJSON([
+    //                 'ok'     => false,
+    //                 'errors' => $errors,
+    //             ]);
+    //     }
 
-        return $this->response->setJSON([
-            'ok'     => true,
-            'estado' => $post['cliente_estado'],
-        ]);
-    }
+    //     $update = [
+    //         'cliente_estado'        => $post['cliente_estado'],
+    //         'cliente_decision'      => $post['cliente_decision']      ?: null,
+    //         'cliente_justificacion' => $post['cliente_justificacion'] ?: null,
+    //         'cliente_comentario'    => $post['cliente_comentario']    ?: null,
+    //         'cliente_respondido_at' => date('Y-m-d H:i:s'),
+    //         'cliente_fecha_inicio_suspension' => $post['cliente_fecha_inicio_suspension'] ?: null,
+
+    //     ];
+
+    //     $soporteModel->update((int) $soporte['id'], $update);
+
+    //     // Aquí puedes llamar al mismo servicio de correo que uses en SoporteController::reviewCliente
+
+    //     return $this->response->setJSON([
+    //         'ok'     => true,
+    //         'estado' => $post['cliente_estado'],
+    //     ]);
+    // }
 
     // ---------------------------------------------------------
     // Helpers privados
@@ -501,17 +510,33 @@ class PortalClienteController extends BaseController
         $clienteDecision      = $soporte['cliente_decision']      ?? null;
         $clienteJustificacion = $soporte['cliente_justificacion'] ?? null;
         $clienteComentario    = $soporte['cliente_comentario']    ?? null;
+        $clienteFechaSusp = $soporte['cliente_fecha_inicio_suspension'] ?? null;
+
+
+        $notificadoClienteAt   = $soporte['notificado_cliente_at']   ?? null;
+        $recordatorioClienteAt = $soporte['recordatorio_cliente_at'] ?? null;
+        $autoArchivadoAt       = $soporte['auto_archivado_at']       ?? null;
+
+        $decisionPropuesta = (string) ($soporte['decision_propuesta'] ?? '—');
+        $isSuspension      = strcasecmp($decisionPropuesta, 'Suspensión disciplinaria') === 0;
 
         /** 🔗 La revisión de cliente siempre va por CONSECUTIVO (PD-000xxx), 
          *  igual que en la vista administrativa.
          */
         $consecutivo = $furd['consecutivo'] ?? sprintf('PD-%06d', $furd['id']);
-        $urlRevision = base_url('soporte/revision-cliente/' . $consecutivo);
+        /**
+         * El cliente solo puede responder si:
+         *  - el proceso sigue en estado técnico "soporte"
+         *  - y el estado del cliente está pendiente.
+         * Si el proceso está "archivado" (o ya pasó a "decision"), no se expone el enlace.
+         */
+        $puedeResponder = ($furd['estado'] === 'soporte') && ($clienteEstado === 'pendiente');
+
+        $urlRevision = $puedeResponder
+            ? base_url('soporte/revision-cliente/' . $consecutivo)
+            : null;
 
         if ($soporte) {
-            $decisionPropuesta = (string) ($soporte['decision_propuesta'] ?? '—');
-
-
             if ($clienteEstado === 'pendiente') {
                 $resumen = 'Decisión propuesta: ' . $decisionPropuesta . '. A la espera de respuesta del cliente.';
             } else {
@@ -519,6 +544,27 @@ class PortalClienteController extends BaseController
                 $resumen = 'Decisión propuesta: ' . $decisionPropuesta
                     . ". Cliente: {$estadoTxt}"
                     . ($clienteDecision ? ' · Ajuste sugerido: ' . $clienteDecision : '');
+            }
+
+            // 👇 meta con el comportamiento solicitado
+            $metaSoporte = [
+                'Responsable'        => $soporte['responsable']        ?? '—',
+                'Decisión propuesta' => $decisionPropuesta,
+            ];
+
+            if ($clienteEstado === 'pendiente') {
+                $metaSoporte['Notificación inicial al cliente'] = $notificadoClienteAt
+                    ? Time::parse($notificadoClienteAt)->format('d/m/Y H:i')
+                    : '—';
+                $metaSoporte['Recordatorio al cliente'] = $recordatorioClienteAt
+                    ? Time::parse($recordatorioClienteAt)->format('d/m/Y H:i')
+                    : '—';
+                // aquí NO se muestra aún la fecha de inicio suspensión
+            } elseif ($isSuspension) {
+                // cliente ya tomó decisión → mostramos solo la fecha de inicio (si aplica)
+                $metaSoporte['Fecha inicio suspensión (cliente)'] = $clienteFechaSusp
+                    ? Time::parse($clienteFechaSusp)->format('d/m/Y')
+                    : '—';
             }
 
             $items[] = [
@@ -530,13 +576,7 @@ class PortalClienteController extends BaseController
                 'detalle'                => mb_strimwidth($resumen, 0, 220, '…', 'UTF-8'),
                 'detalle_full'           => $resumen,
                 'estado'                 => 'completado',
-
-                // meta opcional
-                'meta'                   => [
-                    'Responsable'        => $soporte['responsable']        ?? '—',
-                    'Decisión propuesta' => $soporte['decision_propuesta'] ?? '—',
-                ],
-
+                'meta'                   => $metaSoporte,
                 'cliente_estado'         => $clienteEstado,
                 'cliente_respondido'     => $clienteRespondidoAt,
                 'cliente_decision'       => $clienteDecision,
@@ -544,6 +584,9 @@ class PortalClienteController extends BaseController
                 'justificacion_original' => $soporte['justificacion'] ?? null,
                 'cliente_justificacion'  => $clienteJustificacion,
                 'decision_propuesta'     => $decisionPropuesta,
+                'cliente_fecha_inicio_suspension' => $clienteFechaSusp
+                    ? Time::parse($clienteFechaSusp)->format('Y-m-d')
+                    : null,
 
                 'url_revision'           => $urlRevision,
                 'adjuntos'               => $this->getAdjuntos($id, 'soporte'),
@@ -558,6 +601,17 @@ class PortalClienteController extends BaseController
                 'estado'         => 'pendiente',
                 'cliente_estado' => 'pendiente',
                 'url_revision'   => null,
+            ];
+        }
+
+        if (!empty($autoArchivadoAt)) {
+            $items[] = [
+                'clave'        => 'archivado',
+                'titulo'       => 'Archivo automático',
+                'fecha'        => Time::parse($autoArchivadoAt)->format('d/m/Y'),
+                'detalle'      => 'El proceso fue archivado automáticamente por falta de respuesta del cliente dentro del plazo de 10 días.',
+                'detalle_full' => 'El proceso fue archivado automáticamente por falta de respuesta formal dentro del plazo de diez (10) días calendario establecido para la aprobación o rechazo de la decisión propuesta.',
+                'estado'       => 'completado',
             ];
         }
 

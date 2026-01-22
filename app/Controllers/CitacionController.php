@@ -22,11 +22,26 @@ class CitacionController extends BaseController
     {
         $fechasHabilitadas = $this->calcularFechasHabilitadas();
 
+        $plantillasDescargo = [
+            'virtual' => [
+                'label' => 'Modelo de citación – Virtual',
+                'url'   => 'https://docs.google.com/document/d/1ZcebCcnhzQCbGdBq9AhnX-naw459xWLJ/export?format=docx',
+            ],
+            'presencial' => [
+                'label' => 'Modelo de citación – Presencial',
+                'url'   => 'https://docs.google.com/document/d/1opZIaG6nxCmSvLZdJqpPAn1XRPvFvHwe/export?format=docx',
+            ],
+            'escrito' => [
+                'label' => 'Modelo de citación – Escrito',
+                'url'   => 'https://docs.google.com/document/d/1zCpKS_m9hPgYPe1I5cNG3jG_f5USialx/export?format=docx',
+            ],
+        ];
+
         return view('citacion/create', [
-            'fechasHabilitadas' => $fechasHabilitadas,
+            'fechasHabilitadas'  => $fechasHabilitadas,
+            'plantillasDescargo' => $plantillasDescargo,
         ]);
     }
-
 
     public function find()
     {
@@ -276,8 +291,6 @@ class CitacionController extends BaseController
                 ->withInput();
         }
     }
-
-
 
 
     public function update(int $id)

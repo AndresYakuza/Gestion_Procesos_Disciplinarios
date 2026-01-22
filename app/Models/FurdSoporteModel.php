@@ -24,7 +24,11 @@ class FurdSoporteModel extends Model
         'cliente_decision',
         'cliente_justificacion',
         'cliente_comentario',
-        'cliente_respondido_at'
+        'cliente_respondido_at',
+        'notificado_cliente_at', 
+        'recordatorio_cliente_at',
+        'auto_archivado_at',
+        'cliente_fecha_inicio_suspension',
     ];
 
     public function findByFurd(int $furdId): ?array

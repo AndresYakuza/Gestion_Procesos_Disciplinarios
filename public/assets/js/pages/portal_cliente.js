@@ -682,7 +682,6 @@
         </div>
       `;
 
-
       // ===== Contenido principal (misma card + timeline) =====
       if (!items.length) {
         timelineContent.innerHTML = `
@@ -757,6 +756,7 @@
             const justCliente = etapa.cliente_justificacion || null;
             const comentario = etapa.cliente_comentario || null;
             const urlRevision = etapa.url_revision || null;
+            const fechaSusp = etapa.cliente_fecha_inicio_suspension;
 
             const hayCambiosDecision = !!(
               decCliente &&
@@ -793,6 +793,15 @@
                 A la espera de respuesta del cliente sobre la decisión propuesta.
               </div>
             `;
+
+              if (fechaSusp) {
+                html += `
+    <p class="small mb-2">
+      <strong>Fecha de inicio de la suspensión disciplinaria (según cliente):</strong><br>
+      ${fechaSusp}
+    </p>
+  `;
+              }
 
               if (urlRevision) {
                 html += `
@@ -850,9 +859,7 @@
                   html += `
                   <div>
                     <span class="text-muted">Justificación ajustada por el cliente:</span>
-                    <div class="fw-semibold small" style="white-space: pre-line;">
-                      ${justCliente}
-                    </div>
+                    <span class="fw-semibold">${justCliente}</span>
                   </div>
                 `;
                 }
@@ -1375,29 +1382,28 @@
     });
   })();
 
-    // Botones de ayuda (info) para los labels con .btn-info-help
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-info-help');
+  // Botones de ayuda (info) para los labels con .btn-info-help
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-info-help");
     if (!btn) return;
 
-    const title = btn.dataset.infoTitle || 'Información';
-    const html  = btn.dataset.infoText || '';
+    const title = btn.dataset.infoTitle || "Información";
+    const html = btn.dataset.infoText || "";
 
-    if (typeof Swal === 'undefined') {
-      alert(title + '\n\n' + html.replace(/<[^>]+>/g, ''));
+    if (typeof Swal === "undefined") {
+      alert(title + "\n\n" + html.replace(/<[^>]+>/g, ""));
       return;
     }
 
     Swal.fire({
-      icon: 'info',
+      icon: "info",
       title: title,
       html: html,
-      confirmButtonText: 'Entendido',
-      confirmButtonColor: '#0d6efd',
+      confirmButtonText: "Entendido",
+      confirmButtonColor: "#0d6efd",
       customClass: {
-        popup: 'swal2-popup-help'
-      }
+        popup: "swal2-popup-help",
+      },
     });
   });
-  
 })();
