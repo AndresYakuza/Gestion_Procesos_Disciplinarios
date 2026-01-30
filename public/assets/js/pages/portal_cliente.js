@@ -176,56 +176,111 @@
     }
   })();
 
-  // Envío AJAX del FURD
+  // Envío AJAX del FURD con progreso y barras por archivo
   if (formFurd) {
-    formFurd.addEventListener("submit", async (ev) => {
+    formFurd.addEventListener("submit", (ev) => {
       ev.preventDefault();
       setAlertFurd("");
-      showLoader();
+
+      // Validar que haya al menos una falta
+      const faltas = document.querySelectorAll(".faltas-check:checked").length;
+      if (faltas === 0) {
+        setAlertFurd("Debes seleccionar al menos una falta.", "warning");
+        return;
+      }
 
       const btn = document.getElementById("btnEnviarFurd");
       const spinner = btn?.querySelector(".spinner-border");
       const btnText = btn?.querySelector(".btn-text");
 
+      let sending = false;
+      if (sending) return;
+      sending = true;
+
+      showLoader("Enviando FURD, por favor espera...");
+
       if (btn) btn.disabled = true;
       if (spinner) spinner.classList.remove("d-none");
       if (btnText) btnText.textContent = "Enviando...";
 
-      try {
-        const fd = new FormData(formFurd);
-        const resp = await fetch(FURD_STORE_URL, {
-          method: "POST",
-          body: fd,
-          headers: { "X-Requested-With": "XMLHttpRequest" },
-        });
+      const formData = new FormData(formFurd);
 
-        const data = await resp.json().catch(() => ({}));
+      // Construir meta y arrancar barras de progreso
+      buildUploadMeta();
 
-        if (resp.ok && data.ok) {
-          showToast(data?.message || "FURD registrado correctamente.");
-          formFurd.reset();
-          setAlertFurd("");
-          // refrescar lista de procesos
-          procesosCargados = false;
-          await loadMisProcesos();
-        } else if (resp.status === 422 && data.errors) {
-          const summary = Object.values(data.errors).join(" ");
-          setAlertFurd(summary, "danger");
-        } else {
-          setAlertFurd(data.msg || "No se pudo registrar el FURD.", "danger");
+      const xhr = new XMLHttpRequest();
+      xhr.open(formFurd.method || "POST", FURD_STORE_URL);
+      xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+
+      // Progreso de subida → actualiza barras
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return;
+        updateUploadProgressBars(evt.loaded);
+      };
+
+      xhr.onload = () => {
+        hideLoader();
+
+        let data = null;
+        const contentType = xhr.getResponseHeader("Content-Type") || "";
+
+        if (contentType.includes("application/json")) {
+          try {
+            data = JSON.parse(xhr.responseText || "{}");
+          } catch {
+            data = null;
+          }
         }
-      } catch (e) {
-        console.error(e);
+
+        // Esperamos JSON del backend
+        if (data) {
+          if (data.ok) {
+            showToast(
+              data.message || "FURD registrado correctamente.",
+              "success",
+            );
+            formFurd.reset();
+            setAlertFurd("");
+
+            // limpiamos preview
+            if (evidenciasPreview) evidenciasPreview.innerHTML = "";
+            uploadFilesMeta = [];
+
+            // refrescar lista de procesos
+            procesosCargados = false;
+            loadMisProcesos().catch(() => {});
+          } else if (data.errors) {
+            const summary = Object.values(data.errors).join(" ");
+            setAlertFurd(summary, "danger");
+          } else {
+            setAlertFurd(data.msg || "No se pudo registrar el FURD.", "danger");
+          }
+        } else {
+          setAlertFurd(
+            "Respuesta inesperada del servidor al registrar el FURD.",
+            "danger",
+          );
+        }
+
+        sending = false;
+        if (btn) btn.disabled = false;
+        if (spinner) spinner.classList.add("d-none");
+        if (btnText) btnText.textContent = "Enviar FURD";
+      };
+
+      xhr.onerror = () => {
+        hideLoader();
         setAlertFurd(
           "Ocurrió un error de comunicación con el servidor.",
           "danger",
         );
-      } finally {
-        hideLoader();
+        sending = false;
         if (btn) btn.disabled = false;
         if (spinner) spinner.classList.add("d-none");
         if (btnText) btnText.textContent = "Enviar FURD";
-      }
+      };
+
+      xhr.send(formData);
     });
   }
 
@@ -705,9 +760,11 @@
           const etapa = rawEtapa || {};
           const isLast = index === items.length - 1;
 
-          const clave = (etapa.clave || "")
-            .toString()
-            .toLowerCase()
+          // 👇 Normalizamos una sola vez
+          const rawClave = (etapa.clave || "").toString().toLowerCase();
+          const clave = rawClave
+            .normalize("NFD") // quita tildes
+            .replace(/[\u0300-\u036f]/g, "")
             .replace(/[\s_]+/g, "-");
 
           const itemEl = document.createElement("div");
@@ -741,152 +798,290 @@
 
           // --- Contenido de la etapa ---
           const isSoporte = etapa.clave === "soporte";
+          const isCitacion = etapa.clave === "citacion";
           const partes = [];
 
-          // Bloque especial para SOPORTE (igual lógica que en la vista admin)
+          // Bloque especial para SOPORTE (misma lógica que en la vista admin)
           if (isSoporte) {
             const estadoCliente = etapa.cliente_estado || "pendiente";
             const respondidoAt = etapa.cliente_respondido || null;
+
             const decOriginal =
               etapa.decision_propuesta ||
               (etapa.meta && etapa.meta["Decisión propuesta"]) ||
               null;
+
             const decCliente = etapa.cliente_decision || null;
             const justOrig = etapa.justificacion_original || null;
             const justCliente = etapa.cliente_justificacion || null;
             const comentario = etapa.cliente_comentario || null;
             const urlRevision = etapa.url_revision || null;
-            const fechaSusp = etapa.cliente_fecha_inicio_suspension;
 
-            const hayCambiosDecision = !!(
-              decCliente &&
-              decOriginal &&
-              decCliente !== decOriginal
-            );
-            const hayCambiosJustif = !!(
-              justCliente &&
-              justOrig &&
-              justCliente !== justOrig
-            );
+            // Fechas de suspensión que ahora vienen separadas
+            const fechaSuspIni = etapa.cliente_fecha_inicio_suspension || null;
+            const fechaSuspFin = etapa.cliente_fecha_fin_suspension || null;
+
+            const hayCambiosDecision =
+              !!decCliente && !!decOriginal && decCliente !== decOriginal;
+            const hayCambiosJustif =
+              !!justCliente && !!justOrig && justCliente !== justOrig;
 
             let html = `
-            <div class="mb-3">
-              <p class="mb-1">
-                <strong>Decisión propuesta:</strong>
-                ${decOriginal || "—"}
-              </p>
-          `;
+    <div class="mb-3">
+      <p class="mb-1">
+        <strong>Decisión propuesta:</strong>
+        ${decOriginal || "—"}
+      </p>
+  `;
 
             if (justOrig) {
               html += `
-              <p class="mb-2 small">
-                <strong>Justificación original:</strong><br>
-                <span style="white-space: pre-line;">${justOrig}</span>
-              </p>
-            `;
+      <p class="mb-2 small">
+        <strong>Justificación original:</strong><br>
+        <span style="white-space: pre-line;">${justOrig}</span>
+      </p>
+    `;
             }
 
             if (estadoCliente === "pendiente") {
+              // 🔸 Cliente aún no responde
               html += `
-              <div class="alert alert-warning small mb-2">
-                <i class="bi bi-hourglass-split me-1"></i>
-                A la espera de respuesta del cliente sobre la decisión propuesta.
-              </div>
-            `;
+      <div class="alert alert-warning small mb-2">
+        <i class="bi bi-hourglass-split me-1"></i>
+        A la espera de respuesta del cliente sobre la decisión propuesta.
+      </div>
+    `;
 
-              if (fechaSusp) {
-                html += `
-    <p class="small mb-2">
-      <strong>Fecha de inicio de la suspensión disciplinaria (según cliente):</strong><br>
-      ${fechaSusp}
-    </p>
-  `;
-              }
+              // 👇 Aquí NO se muestran fechas de suspensión todavía (solo cuando ya respondió)
 
               if (urlRevision) {
                 html += `
-      <div class="mt-2">
-      <br> 
-        <a href="${urlRevision}"
-           class="btn btn-sm btn-success"
-           target="_blank"
-           rel="noopener">
-          Revisar y responder a la propuesta
-        </a>
-        <div class="form-text small text-muted mt-1">
-          Se abrirá un formulario seguro para registrar tu respuesta.
+        <div class="mt-2">
+          <a href="${urlRevision}"
+             class="btn btn-sm btn-success"
+             target="_blank"
+             rel="noopener">
+            Revisar y responder a la propuesta
+          </a>
+          <div class="form-text small text-muted mt-1">
+            Se abrirá un formulario seguro para registrar tu respuesta.
+          </div>
         </div>
-      </div>
-    `;
+      `;
               }
             } else {
+              // 🔸 Cliente ya respondió (aprobó o rechazó)
+              const badgeEstado =
+                estadoCliente === "aprobado" ? "success" : "danger";
+              const txtEstado =
+                estadoCliente === "aprobado"
+                  ? "Cliente APROBÓ"
+                  : "Cliente RECHAZÓ";
+
               html += `
-              <div class="d-flex align-items-center gap-2 mb-2">
-                <span class="badge bg-${
-                  estadoCliente === "aprobado" ? "success" : "danger"
-                }">
-                  Cliente ${estadoCliente === "aprobado" ? "APROBÓ" : "RECHAZÓ"}
-                </span>
-                ${
-                  respondidoAt
-                    ? `<small class="text-muted">el ${respondidoAt}</small>`
-                    : ""
-                }
-              </div>
-            `;
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-${badgeEstado}">${txtEstado}</span>
+        ${
+          respondidoAt
+            ? `<small class="text-muted">el ${respondidoAt}</small>`
+            : ""
+        }
+      </div>
+    `;
+
+              // Si es una suspensión y ya tenemos rango de fechas, se muestra aquí
+              if (fechaSuspIni) {
+                html += `
+        <p class="small mb-2">
+          <strong>Período de suspensión acordado:</strong><br>
+          Desde ${fechaSuspIni}${fechaSuspFin ? ` hasta ${fechaSuspFin}` : ""}
+        </p>
+      `;
+              }
 
               if (hayCambiosDecision || hayCambiosJustif) {
                 html += `
-                <div class="alert alert-info small mb-2">
-                  <div class="fw-semibold mb-1">
-                    <i class="bi bi-pencil-square me-1"></i>
-                    Cambios sugeridos por el cliente
-                  </div>
-              `;
+        <div class="alert alert-info small mb-2">
+          <div class="fw-semibold mb-1">
+            <i class="bi bi-pencil-square me-1"></i>
+            Cambios sugeridos por el cliente
+          </div>
+      `;
 
                 if (hayCambiosDecision) {
                   html += `
-                  <div class="mb-2">
-                    <span class="text-muted">Decisión original:</span>
-                    <span class="text-decoration-line-through">${decOriginal}</span><br>
-                    <span class="text-muted">Decisión ajustada:</span>
-                    <span class="fw-semibold">${decCliente}</span>
-                  </div>
-                `;
+          <div class="mb-2">
+            <span class="text-muted">Decisión original:</span>
+            <span class="text-decoration-line-through">${decOriginal}</span><br>
+            <span class="text-muted">Decisión ajustada:</span>
+            <span class="fw-semibold">${decCliente}</span>
+          </div>
+        `;
                 }
 
                 if (hayCambiosJustif) {
                   html += `
-                  <div>
-                    <span class="text-muted">Justificación ajustada por el cliente:</span>
-                    <span class="fw-semibold">${justCliente}</span>
-                  </div>
-                `;
+          <div>
+            <span class="text-muted">Justificación ajustada por el cliente:</span>
+            <span class="fw-semibold">${justCliente}</span>
+          </div>
+        `;
                 }
 
                 html += `</div>`;
               } else {
                 html += `
-                <div class="alert alert-success small mb-2">
-                  <i class="bi bi-hand-thumbs-up me-1"></i>
-                  El cliente aprobó la decisión sin solicitar cambios.
-                </div>
-              `;
+        <div class="alert alert-success small mb-2">
+          <i class="bi bi-hand-thumbs-up me-1"></i>
+          El cliente aprobó la decisión sin solicitar cambios.
+        </div>
+      `;
               }
 
               if (comentario) {
                 html += `
-                <div class="small text-muted">
-                  <span class="fw-semibold">Comentario del cliente:</span><br>
-                  <span style="white-space: pre-line;">${comentario}</span>
-                </div>
-              `;
+        <div class="small text-muted">
+          <span class="fw-semibold">Comentario del cliente:</span><br>
+          <span style="white-space: pre-line;">${comentario}</span>
+        </div>
+      `;
               }
             }
 
             html += `</div>`;
             partes.push(html);
+          } else if (isCitacion) {
+            // ==========================
+            // BLOQUE ESPECIAL CITACIÓN
+            // ==========================
+            const hist = Array.isArray(etapa.citaciones)
+              ? etapa.citaciones
+              : [];
+
+            if (hist.length) {
+              // ✅ Hay historial: mostramos SOLO la línea de tiempo de citaciones
+              const vigente = hist[hist.length - 1];
+
+              const fechaVig =
+                etapa.meta?.["Fecha citación vigente"] || vigente.fecha || "—";
+              const horaVig =
+                etapa.meta?.["Hora citación vigente"] || vigente.hora || "—";
+              const numVig = vigente.numero || hist.length;
+
+              let html = `
+      <div class="tl-citacion-wrap mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+          <div>
+            <div class="fw-semibold">Historial de citaciones</div>
+            <div class="small text-muted">
+              Visualiza la secuencia de citaciones y la que está vigente.
+            </div>
+          </div>
+          <div class="text-end small tl-citacion-vigente">
+            <div class="text-muted text-uppercase">Citación vigente</div>
+            <div class="fw-semibold text-success">
+              #${numVig} · ${fechaVig}${horaVig ? " · " + horaVig : ""}
+            </div>
+          </div>
+        </div>
+        <div class="tl-citaciones-list">
+    `;
+
+              hist.forEach((c, idx) => {
+                const isLast = idx === hist.length - 1;
+                const vigenteC = idx === hist.length - 1;
+
+                html += `
+        <div class="tl-citacion-item ${vigenteC ? "is-current" : ""}">
+          <div class="tl-citacion-line">
+            <span class="tl-citacion-dot"></span>
+            ${!isLast ? '<span class="tl-citacion-spine"></span>' : ""}
+          </div>
+          <div class="tl-citacion-card">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge bg-light text-body fw-semibold">
+                  Citación #${c.numero ?? idx + 1}
+                </span>
+                ${
+                  c.medio
+                    ? `<span class="badge bg-primary-subtle text-primary">${c.medio}</span>`
+                    : ""
+                }
+                ${
+                  vigenteC
+                    ? '<span class="badge bg-success-subtle text-success">Vigente</span>'
+                    : ""
+                }
+              </div>
+              <div class="small text-muted text-end">
+                ${c.fecha || "—"}${c.hora ? " · " + c.hora : ""}
+              </div>
+            </div>
+            <div class="small mb-1">
+              <span class="text-muted text-uppercase">Motivo</span><br>
+              ${c.motivo || "—"}
+            </div>
+            ${
+              c.motivo_recitacion
+                ? `<div class="small">
+                     <span class="text-muted text-uppercase">Motivo recitación</span><br>
+                     ${c.motivo_recitacion}
+                   </div>`
+                : ""
+            }
+          </div>
+        </div>
+      `;
+              });
+
+              html += `
+        </div>
+      </div>
+    `;
+
+              partes.push(html);
+
+              // 👈 IMPORTANTE: aquí ya NO renderizamos bloque "Detalle",
+              // toda la info ya está en el historial.
+            } else {
+              // ❗ No hay citaciones: usamos el bloque genérico de detalle
+              const short = etapa.detalle || "";
+              const full = etapa.detalle_full || short;
+              const showButton = full && full !== short;
+
+              if (short || full) {
+                let detalleHtml = `
+        <p class="mb-3 tl-detalle-text">
+          <strong>Detalle:</strong>
+          <span class="tl-detalle-resumen">${short}</span>
+      `;
+
+                if (showButton) {
+                  detalleHtml += `
+          <button
+            type="button"
+            class="btn btn-sm tl-detalle-ver-mas ms-2"
+            data-bs-toggle="modal"
+            data-bs-target="#modalDetalleEtapa"
+            data-detalle-full="${escapeAttr(full)}"
+            data-etapa="${escapeAttr(etapa.titulo || "Detalle")}">
+            <span class="tl-detalle-pill-icon">
+              <i class="bi bi-arrows-fullscreen"></i>
+            </span>
+            <span class="tl-detalle-pill-text">Ver completo</span>
+          </button>
+        `;
+                }
+
+                detalleHtml += `</p>`;
+                partes.push(detalleHtml);
+              }
+            }
           } else {
+            // ==========================
+            // BLOQUE GENÉRICO (tal cual)
+            // ==========================
             const short = etapa.detalle || "";
             const full = etapa.detalle_full || short;
 
@@ -894,26 +1089,26 @@
               const showButton = full && full !== short;
 
               let detalleHtml = `
-              <p class="mb-3 tl-detalle-text">
-                <strong>Detalle:</strong>
-                <span class="tl-detalle-resumen">${short}</span>
-              `;
+      <p class="mb-3 tl-detalle-text">
+        <strong>Detalle:</strong>
+        <span class="tl-detalle-resumen">${short}</span>
+    `;
 
               if (showButton) {
                 detalleHtml += `
-                  <button
-                    type="button"
-                    class="btn btn-sm tl-detalle-ver-mas ms-2"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modalDetalleEtapa"
-                    data-detalle-full="${escapeAttr(full)}"
-                    data-etapa="${escapeAttr(etapa.titulo || "Detalle")}">
-                    <span class="tl-detalle-pill-icon">
-                      <i class="bi bi-arrows-fullscreen"></i>
-                    </span>
-                    <span class="tl-detalle-pill-text">Ver completo</span>
-                  </button>
-                `;
+        <button
+          type="button"
+          class="btn btn-sm tl-detalle-ver-mas ms-2"
+          data-bs-toggle="modal"
+          data-bs-target="#modalDetalleEtapa"
+          data-detalle-full="${escapeAttr(full)}"
+          data-etapa="${escapeAttr(etapa.titulo || "Detalle")}">
+          <span class="tl-detalle-pill-icon">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </span>
+          <span class="tl-detalle-pill-text">Ver completo</span>
+        </button>
+      `;
               }
 
               detalleHtml += `</p>`;
@@ -1405,5 +1600,178 @@
         popup: "swal2-popup-help",
       },
     });
+  });
+
+  // =============================
+  // Evidencias: preview + validación
+  // =============================
+  const evidenciasInput = document.getElementById("evidencias");
+  const evidenciasPreview = document.getElementById("evidenciasPreview");
+  const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
+  const ALLOWED_EXT = [
+    "pdf",
+    "jpg",
+    "jpeg",
+    "png",
+    "heic",
+    "doc",
+    "docx",
+    "xlsx",
+    "xls",
+  ];
+
+  // Renderiza la lista de archivos con barra de progreso en 0%
+  const renderEvidenciasPreview = () => {
+    if (!evidenciasPreview || !evidenciasInput) return;
+    evidenciasPreview.innerHTML = "";
+
+    const files = Array.from(evidenciasInput.files || []);
+    if (!files.length) return;
+
+    files.forEach((file, idx) => {
+      const row = document.createElement("div");
+      row.className = "evidencia-row mb-1";
+
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+
+      row.innerHTML = `
+        <div class="d-flex w-100 align-items-center justify-content-between">
+          <div class="me-2">
+            <i class="bi bi-paperclip me-1"></i>
+            <span class="file-name">${file.name}</span>
+            <span class="text-muted ms-1">(${sizeMb} MB)</span>
+          </div>
+          <button type="button"
+                  class="btn btn-sm btn-link text-danger p-0 js-remove-file"
+                  data-file-idx="${idx}"
+                  title="Quitar archivo">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="progress mt-1" style="height: 4px;">
+          <div class="progress-bar"
+               role="progressbar"
+               data-file-idx="${idx}"
+               style="width: 0%;"></div>
+        </div>
+      `;
+
+      evidenciasPreview.appendChild(row);
+    });
+  };
+
+  // Valida tipo y tamaño, y vuelve a asignar el FileList aceptado
+  const handleEvidenciasChange = () => {
+    if (!evidenciasInput) return;
+    const dt = new DataTransfer();
+
+    Array.from(evidenciasInput.files || []).forEach((file) => {
+      const ext = file.name.split(".").pop().toLowerCase();
+      const isAllowedExt = ALLOWED_EXT.includes(ext);
+      const isAllowedSize = file.size <= MAX_FILE_SIZE;
+
+      if (!isAllowedExt) {
+        showToast(
+          `El archivo "${file.name}" no está permitido. Solo se permiten imágenes (JPG, JPEG, PNG, HEIC), PDF y archivos de Office (DOC, DOCX, XLS, XLSX).`,
+          "warning",
+        );
+        return;
+      }
+
+      if (!isAllowedSize) {
+        showToast(
+          `El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`,
+          "warning",
+        );
+        return;
+      }
+
+      dt.items.add(file);
+    });
+
+    evidenciasInput.files = dt.files;
+    renderEvidenciasPreview();
+  };
+
+  evidenciasInput?.addEventListener("change", handleEvidenciasChange);
+
+  // Quitar archivo individual desde el preview
+  evidenciasPreview?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".js-remove-file");
+    if (!btn || !evidenciasInput) return;
+
+    const idx = parseInt(btn.dataset.fileIdx, 10);
+    if (Number.isNaN(idx)) return;
+
+    const dt = new DataTransfer();
+    Array.from(evidenciasInput.files || []).forEach((file, i) => {
+      if (i !== idx) dt.items.add(file);
+    });
+
+    evidenciasInput.files = dt.files;
+    renderEvidenciasPreview();
+
+    if (!dt.files.length) {
+      showToast("Se han quitado todas las evidencias seleccionadas.", "info");
+    }
+  });
+
+  // Meta para progreso por archivo
+  let uploadFilesMeta = [];
+
+  const buildUploadMeta = () => {
+    if (!evidenciasInput) {
+      uploadFilesMeta = [];
+      return 0;
+    }
+
+    const files = Array.from(evidenciasInput.files || []);
+    let offset = 0;
+    uploadFilesMeta = files.map((file, idx) => {
+      const start = offset;
+      const end = start + file.size;
+      offset = end;
+      return { index: idx, start, end, size: file.size };
+    });
+
+    return offset; // total bytes (por si lo necesitas)
+  };
+
+  const updateUploadProgressBars = (loaded) => {
+    if (!uploadFilesMeta.length || !evidenciasPreview) return;
+
+    uploadFilesMeta.forEach((meta) => {
+      const bar = evidenciasPreview.querySelector(
+        `.progress-bar[data-file-idx="${meta.index}"]`,
+      );
+      if (!bar) return;
+
+      let percent = 0;
+      if (loaded <= meta.start) {
+        percent = 0;
+      } else if (loaded >= meta.end) {
+        percent = 100;
+      } else {
+        percent = ((loaded - meta.start) / meta.size) * 100;
+      }
+
+      bar.style.width = `${percent}%`;
+    });
+  };
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const btnRefresh = document.getElementById("btnPortalRefresh");
+    if (btnRefresh) {
+      btnRefresh.addEventListener("click", function () {
+        // Mostrar el loader global si existe
+        const loader = document.getElementById("globalLoader");
+        if (loader) {
+          loader.classList.remove("d-none");
+        }
+
+        // Recargar la página completa
+        window.location.reload();
+      });
+    }
   });
 })();

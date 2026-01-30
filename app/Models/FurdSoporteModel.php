@@ -29,6 +29,7 @@ class FurdSoporteModel extends Model
         'recordatorio_cliente_at',
         'auto_archivado_at',
         'cliente_fecha_inicio_suspension',
+        'cliente_fecha_fin_suspension',
     ];
 
     public function findByFurd(int $furdId): ?array

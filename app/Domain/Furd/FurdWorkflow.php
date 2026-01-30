@@ -58,20 +58,31 @@ final class FurdWorkflow
     public function canStartCitacion(array $furdRow): bool
     {
         $id = (int)($furdRow['id'] ?? 0);
-        if ($id <= 0) return false;
+        if ($id <= 0) {
+            return false;
+        }
 
         // Debe existir registro
         if (!$this->hasPhase($id, FurdPhases::REGISTRO)) {
             return false;
         }
 
-        // No permitir otra citación si ya hay una (para este flujo)
-        if ($this->hasPhase($id, FurdPhases::CITACION)) {
+        // *** NUEVA REGLA ***
+        // Permitimos más de una citación siempre que NO se haya completado
+        // la fase siguiente (Descargos) ni fases posteriores.
+        if ($this->hasPhase($id, FurdPhases::DESCARGOS)) {
+            return false;
+        }
+        if ($this->hasPhase($id, FurdPhases::SOPORTE)) {
+            return false;
+        }
+        if ($this->hasPhase($id, FurdPhases::DECISION)) {
             return false;
         }
 
         return true;
     }
+
 
     /** ¿Se puede iniciar el acta de descargos para este FURD? */
     public function canStartDescargos(array $furdRow): bool

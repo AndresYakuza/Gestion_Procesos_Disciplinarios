@@ -235,20 +235,43 @@ $yaRespondio  = $estadoActual !== 'pendiente';
                                             </div>
                                         </div>
 
-                                                                            <!-- Campo fecha de inicio suspensión (oculto inicialmente) -->
-                                    <div class="mb-3 d-none" id="wrapFechaSuspension">
-                                        <label for="fechaSuspension" class="form-label">
-                                            ¿Desde qué fecha inicia la suspensión disciplinaria?
-                                        </label>
-                                        <input
-                                            type="date"
-                                            id="fechaSuspension"
-                                            name="cliente_fecha_inicio_suspension"
-                                            class="form-control">
-                                        <div class="form-text">
-                                            Esta fecha se incluirá en el bloque de decisión del cliente.
+                                        <!-- Campo fecha de inicio suspensión (oculto inicialmente) -->
+                                        <!-- Campo fechas de suspensión (oculto inicialmente) -->
+                                        <div class="mb-3 d-none" id="wrapFechaSuspension">
+                                            <label class="form-label">
+                                                ¿Desde qué fecha inicia y hasta qué fecha termina la suspensión disciplinaria?
+                                            </label>
+
+                                            <div class="row g-2">
+                                                <div class="col-12 col-md-6">
+                                                    <input
+                                                        type="date"
+                                                        id="fechaSuspensionInicio"
+                                                        name="cliente_fecha_inicio_suspension"
+                                                        class="form-control">
+                                                    <div class="form-text">
+                                                        Fecha de inicio de la suspensión.
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    <input
+                                                        type="date"
+                                                        id="fechaSuspensionFin"
+                                                        name="cliente_fecha_fin_suspension"
+                                                        class="form-control">
+                                                    <div class="form-text">
+                                                        Fecha de finalización de la suspensión.
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-text">
+                                                Se aplican las mismas reglas: la fecha de inicio debe ser al menos tres días
+                                                después de la fecha actual (sin contar domingos) y ninguna de las dos puede ser domingo.
+                                            </div>
                                         </div>
-                                    </div>
+
 
                                         <!-- Cambio de decisión -->
                                         <div class="mb-3">
@@ -319,13 +342,14 @@ $yaRespondio  = $estadoActual !== 'pendiente';
 </html>
 
 <script>
-    (function() {
-        const decisionEl = document.getElementById('decisionSugeridaText');
-        const wrapFecha = document.getElementById('wrapFechaSuspension');
-        const fechaInput = document.getElementById('fechaSuspension');
+    (function () {
+        const decisionEl   = document.getElementById('decisionSugeridaText');
+        const wrapFecha    = document.getElementById('wrapFechaSuspension');
+        const fechaInicio  = document.getElementById('fechaSuspensionInicio');
+        const fechaFin     = document.getElementById('fechaSuspensionFin');
         const radiosEstado = document.querySelectorAll('input[name="cliente_estado"]');
 
-        if (!decisionEl || !wrapFecha || !fechaInput || !radiosEstado.length) {
+        if (!decisionEl || !wrapFecha || !fechaInicio || !fechaFin || !radiosEstado.length) {
             return;
         }
 
@@ -334,27 +358,128 @@ $yaRespondio  = $estadoActual !== 'pendiente';
             .trim();
 
         function isSuspension() {
-            return decisionSugerida === 'suspensión disciplinaria' ||
-                decisionSugerida === 'suspension disciplinaria';
+            return decisionSugerida === 'suspensión disciplinaria'
+                || decisionSugerida === 'suspension disciplinaria';
+        }
+
+        let minFechaIso = '';
+
+        // Calcula la fecha mínima: 3 días después de hoy, sin contar domingos
+        function calcularMinFechaSuspension() {
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            let diasValidos = 0;
+            const d = new Date(hoy);
+
+            while (diasValidos < 3) {
+                d.setDate(d.getDate() + 1);
+
+                // 0 = domingo
+                if (d.getDay() === 0) {
+                    continue;
+                }
+                diasValidos++;
+            }
+
+            const y  = d.getFullYear();
+            const m  = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+
+            minFechaIso = `${y}-${m}-${dd}`;
+            fechaInicio.min = minFechaIso;
+            fechaFin.min    = minFechaIso;
+        }
+
+        function esDomingo(date) {
+            return date.getDay() === 0;
+        }
+
+        function resetFin() {
+            fechaFin.value = '';
+            fechaFin.min   = minFechaIso || '';
+        }
+
+        function validarFechaInicio() {
+            if (!fechaInicio.value) {
+                resetFin();
+                return;
+            }
+
+            const seleccionada = new Date(fechaInicio.value + 'T00:00:00');
+
+            if (esDomingo(seleccionada)) {
+                alert('No puedes seleccionar domingos como fecha de inicio de la suspensión.');
+                fechaInicio.value = '';
+                resetFin();
+                return;
+            }
+
+            if (minFechaIso && fechaInicio.value < minFechaIso) {
+                alert('La fecha de inicio debe ser al menos tres días después de la fecha actual (sin contar domingos).');
+                fechaInicio.value = '';
+                resetFin();
+                return;
+            }
+
+            // Ajustamos el mínimo de la fecha fin para que no pueda ser menor que el inicio
+            const nuevaMin = (!minFechaIso || fechaInicio.value > minFechaIso)
+                ? fechaInicio.value
+                : minFechaIso;
+
+            fechaFin.min = nuevaMin;
+
+            if (fechaFin.value) {
+                validarFechaFin();
+            }
+        }
+
+        function validarFechaFin() {
+            if (!fechaFin.value) return;
+
+            const seleccionada = new Date(fechaFin.value + 'T00:00:00');
+
+            if (esDomingo(seleccionada)) {
+                alert('No puedes seleccionar domingos como fecha de finalización de la suspensión.');
+                fechaFin.value = '';
+                return;
+            }
+
+            const ref = fechaInicio.value || minFechaIso;
+
+            if (ref && fechaFin.value < ref) {
+                alert('La fecha de finalización debe ser igual o posterior a la fecha de inicio de la suspensión.');
+                fechaFin.value = '';
+            }
         }
 
         function actualizarVisibilidadFecha() {
             const radioChecked = document.querySelector('input[name="cliente_estado"]:checked');
-            const estado = radioChecked ? radioChecked.value : '';
+            const estado       = radioChecked ? radioChecked.value : '';
 
             const debeMostrar = isSuspension() && estado === 'aprobado';
 
             if (debeMostrar) {
                 wrapFecha.classList.remove('d-none');
-                fechaInput.required = true;
+                fechaInicio.required = true;
+                fechaFin.required    = true;
+                calcularMinFechaSuspension();
+                validarFechaInicio();
+                validarFechaFin();
             } else {
                 wrapFecha.classList.add('d-none');
-                fechaInput.required = false;
-                fechaInput.value = '';
+                fechaInicio.required = false;
+                fechaFin.required    = false;
+                fechaInicio.value    = '';
+                resetFin();
             }
         }
 
         radiosEstado.forEach(r => r.addEventListener('change', actualizarVisibilidadFecha));
+        fechaInicio.addEventListener('change', validarFechaInicio);
+        fechaInicio.addEventListener('blur', validarFechaInicio);
+        fechaFin.addEventListener('change', validarFechaFin);
+        fechaFin.addEventListener('blur', validarFechaFin);
 
         // Estado inicial
         actualizarVisibilidadFecha();

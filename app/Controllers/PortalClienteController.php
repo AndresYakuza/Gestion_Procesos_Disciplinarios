@@ -408,35 +408,106 @@ class PortalClienteController extends BaseController
             ],
             'faltas'   => $faltas,
             'adjuntos' => $this->getAdjuntos($id, 'registro'),
+
         ];
 
-        // 2️⃣ Citación
-        $citacion = $db->table('tbl_furd_citacion')
+        // 2️⃣ Citación (cliente: resumen + trazabilidad)
+        $citacionesRows = $db->table('tbl_furd_citacion')
             ->where('furd_id', $id)
+            ->orderBy('numero', 'ASC')
+            ->orderBy('created_at', 'ASC')
             ->get()
-            ->getRowArray();
+            ->getResultArray();
 
-        if ($citacion) {
-            $motivoFull  = (string) ($citacion['motivo'] ?? '');
-            $motivoShort = mb_strimwidth($motivoFull, 0, 220, '…', 'UTF-8');
+        // La usaremos luego para el caso de descargo escrito
+        $citacion          = null;
+        $historialCitacion = [];
+
+        if (!empty($citacionesRows)) {
+            // Historial estructurado (igual que en línea de tiempo admin)
+            foreach ($citacionesRows as $row) {
+                $historialCitacion[] = [
+                    'numero'            => (int) ($row['numero'] ?? 1),
+                    'fecha'             => !empty($row['fecha_evento'])
+                        ? Time::parse($row['fecha_evento'])->format('d/m/Y')
+                        : '',
+                    'hora'              => $row['hora']   ?? '',
+                    'medio'             => $row['medio']  ?? '',
+                    'motivo'            => $row['motivo'] ?? '',
+                    'motivo_recitacion' => $row['motivo_recitacion'] ?? '',
+                ];
+            }
+
+            $citacion = end($citacionesRows); // vigente
+
+            // Texto base con citación vigente
+            $vigenteFecha = !empty($citacion['fecha_evento'])
+                ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
+                : '—';
+
+            $vigenteHora  = $citacion['hora']  ?? '—';
+            $vigenteMedio = $citacion['medio'] ?? '—';
+            $vigenteNum   = (int) ($citacion['numero'] ?? 1);
+
+            $lineaVigente = "Citación vigente #{$vigenteNum} el {$vigenteFecha}"
+                . ($vigenteHora !== '—' ? " a las {$vigenteHora}" : '')
+                . " por medio {$vigenteMedio}.";
+
+            $motivoVigente = trim((string) ($citacion['motivo'] ?? ''));
+            if ($motivoVigente !== '') {
+                $lineaVigente .= " Motivo: {$motivoVigente}.";
+            }
+
+            if (!empty($citacion['motivo_recitacion'])) {
+                $lineaVigente .= ' Motivo de la recitación vigente: '
+                    . $citacion['motivo_recitacion'] . '.';
+            }
+
+            // Resumen plano en texto (por si se usa en otros lados)
+            $historialText = '';
+            if (count($citacionesRows) > 1) {
+                $partsHist = [];
+                foreach ($citacionesRows as $cRow) {
+                    $num   = (int) ($cRow['numero'] ?? 1);
+                    $fecha = !empty($cRow['fecha_evento'])
+                        ? Time::parse($cRow['fecha_evento'])->format('d/m/Y')
+                        : '—';
+                    $medio = $cRow['medio'] ?? '—';
+
+                    $txt = "Citación #{$num} ({$fecha}, medio {$medio})";
+                    if (!empty($cRow['motivo_recitacion'])) {
+                        $txt .= ' · Motivo recitación: ' . $cRow['motivo_recitacion'];
+                    }
+                    $partsHist[] = $txt;
+                }
+
+                $historialText = " Historial de citaciones: " . implode(' | ', $partsHist) . '.';
+            }
+
+            $detalleFull  = $lineaVigente . $historialText;
+            $detalleShort = mb_strimwidth($detalleFull, 0, 220, '…', 'UTF-8');
+
+            $metaCitacion = [
+                'Fecha citación vigente' => $vigenteFecha,
+                'Hora citación vigente'  => $vigenteHora,
+                'Medio citación vigente' => $vigenteMedio,
+                'Total de citaciones'    => (string) count($citacionesRows),
+            ];
 
             $items[] = [
                 'clave'        => 'citacion',
                 'titulo'       => 'Citación',
-                'fecha'        => $citacion['created_at']
+                'fecha'        => !empty($citacion['created_at'])
                     ? Time::parse($citacion['created_at'])->format('d/m/Y')
                     : '',
-                'detalle'      => $motivoShort,
-                'detalle_full' => $motivoFull,
+                'detalle'      => $detalleShort,
+                'detalle_full' => $detalleFull,
                 'estado'       => 'completado',
-                'meta'         => [
-                    'Fecha del evento (Descargo)' => isset($citacion['fecha_evento'])
-                        ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
-                        : '—',
-                    'Hora'  => $citacion['hora']  ?? '—',
-                    'Medio' => $citacion['medio'] ?? '—',
-                ],
+                'meta'         => $metaCitacion,
                 'adjuntos'     => $this->getAdjuntos($id, 'citacion'),
+
+                // 👈 NUEVO: historial para el Portal Cliente
+                'citaciones'   => $historialCitacion,
             ];
         } else {
             $items[] = [
@@ -448,6 +519,8 @@ class PortalClienteController extends BaseController
                 'estado'       => 'pendiente',
             ];
         }
+
+
 
         // 3️⃣ Descargos / Cargos y Descargos
         $descargos = $db->table('tbl_furd_descargos')
@@ -510,7 +583,8 @@ class PortalClienteController extends BaseController
         $clienteDecision      = $soporte['cliente_decision']      ?? null;
         $clienteJustificacion = $soporte['cliente_justificacion'] ?? null;
         $clienteComentario    = $soporte['cliente_comentario']    ?? null;
-        $clienteFechaSusp = $soporte['cliente_fecha_inicio_suspension'] ?? null;
+        $clienteFechaSusp    = $soporte['cliente_fecha_inicio_suspension'] ?? null;
+        $clienteFechaSuspFin = $soporte['cliente_fecha_fin_suspension']    ?? null;
 
 
         $notificadoClienteAt   = $soporte['notificado_cliente_at']   ?? null;
@@ -565,6 +639,10 @@ class PortalClienteController extends BaseController
                 $metaSoporte['Fecha inicio suspensión (cliente)'] = $clienteFechaSusp
                     ? Time::parse($clienteFechaSusp)->format('d/m/Y')
                     : '—';
+
+                $metaSoporte['Fecha fin suspensión (cliente)'] = $clienteFechaSuspFin
+                    ? Time::parse($clienteFechaSuspFin)->format('d/m/Y')
+                    : '—';
             }
 
             $items[] = [
@@ -586,6 +664,9 @@ class PortalClienteController extends BaseController
                 'decision_propuesta'     => $decisionPropuesta,
                 'cliente_fecha_inicio_suspension' => $clienteFechaSusp
                     ? Time::parse($clienteFechaSusp)->format('Y-m-d')
+                    : null,
+                'cliente_fecha_fin_suspension' => $clienteFechaSuspFin
+                    ? Time::parse($clienteFechaSuspFin)->format('Y-m-d')
                     : null,
 
                 'url_revision'           => $urlRevision,

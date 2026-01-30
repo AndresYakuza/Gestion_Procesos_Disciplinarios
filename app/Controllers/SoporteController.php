@@ -359,6 +359,8 @@ class SoporteController extends BaseController
             'cliente_justificacion' => (string) $this->request->getPost('cliente_justificacion'),
             'cliente_comentario'    => (string) $this->request->getPost('cliente_comentario'),
             'cliente_fecha_inicio_suspension' => (string) $this->request->getPost('cliente_fecha_inicio_suspension'),
+            'cliente_fecha_fin_suspension'    => (string)$this->request->getPost('cliente_fecha_fin_suspension'),
+
         ];
 
         $post = array_map('trim', $post);
@@ -379,9 +381,29 @@ class SoporteController extends BaseController
             }
         }
 
-        // Si ES suspensión y APRUEBA, la fecha es obligatoria
-        if ($isSuspension && $post['cliente_estado'] === 'aprobado' && $post['cliente_fecha_inicio_suspension'] === '') {
-            $errors['cliente_fecha_inicio_suspension'] = 'Debes indicar la fecha de inicio de la suspensión disciplinaria.';
+        // 🔹 Validaciones específicas para suspensión aprobada
+        if ($isSuspension && $post['cliente_estado'] === 'aprobado') {
+            if ($post['cliente_fecha_inicio_suspension'] === '') {
+                $errors['cliente_fecha_inicio_suspension'] = 'Debes indicar la fecha de inicio de la suspensión disciplinaria.';
+            }
+            if ($post['cliente_fecha_fin_suspension'] === '') {
+                $errors['cliente_fecha_fin_suspension'] = 'Debes indicar la fecha de finalización de la suspensión disciplinaria.';
+            }
+
+            // Si ambas fechas vienen, validamos que fin ≥ inicio
+            if (
+                $post['cliente_fecha_inicio_suspension'] !== '' &&
+                $post['cliente_fecha_fin_suspension'] !== ''
+            ) {
+                $ini = \DateTime::createFromFormat('Y-m-d', $post['cliente_fecha_inicio_suspension']);
+                $fin = \DateTime::createFromFormat('Y-m-d', $post['cliente_fecha_fin_suspension']);
+
+                if (!$ini || !$fin) {
+                    $errors['cliente_fecha_fin_suspension'] = 'Las fechas de suspensión no tienen un formato válido (YYYY-MM-DD).';
+                } elseif ($fin < $ini) {
+                    $errors['cliente_fecha_fin_suspension'] = 'La fecha de finalización debe ser igual o posterior a la fecha de inicio de la suspensión disciplinaria.';
+                }
+            }
         }
 
         if (!empty($errors)) {
@@ -403,6 +425,8 @@ class SoporteController extends BaseController
             'cliente_comentario'            => $post['cliente_comentario']    ?: null,
             'cliente_respondido_at'         => date('Y-m-d H:i:s'),
             'cliente_fecha_inicio_suspension' => $post['cliente_fecha_inicio_suspension'] ?: null,
+            'cliente_fecha_fin_suspension'   => $post['cliente_fecha_fin_suspension']    ?: null,
+
         ];
 
         $soporteModel->update((int) $soporte['id'], $update);
@@ -457,10 +481,6 @@ class SoporteController extends BaseController
             $email->setMessage($body);
             $email->send();
         }
-
-
-
-
 
         // 7) Vista de agradecimiento
         return view(

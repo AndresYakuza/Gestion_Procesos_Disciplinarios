@@ -7,7 +7,7 @@
  * @var string $urlAprobacion
  */
 
-$nombreCliente = trim($furd['nombre_completo'] ?? 'cliente');
+$nombreCliente = trim($furd['empresa_usuaria'] ?? 'cliente');
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -16,7 +16,7 @@ $nombreCliente = trim($furd['nombre_completo'] ?? 'cliente');
   <title>Revisión de decisión propuesta</title>
 </head>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color:#333;">
-  <p>Estimado(a) <?= esc($nombreCliente); ?>,</p>
+  <p>Estimado(a) cliente <?= esc($nombreCliente); ?>,</p>
 
   <p>
     Se ha registrado una <strong>decisión propuesta</strong> en el proceso disciplinario

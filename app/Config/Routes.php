@@ -44,7 +44,9 @@ $routes->get('soporte/find', 'SoporteController::find'); // AJAX
 $routes->post('soporte', 'SoporteController::store');
 $routes->post('soporte/(:num)', 'SoporteController::update/$1');
 
-$routes->match(['get','post'], 'soporte/revision-cliente/(:segment)', 'SoporteController::reviewCliente/$1');
+$routes->get('soporte/revision-cliente/(:segment)', 'SoporteController::reviewCliente/$1');
+$routes->post('soporte/revision-cliente/(:segment)', 'SoporteController::reviewCliente/$1');
+
 
 
 /** Decisión (fase 5) */

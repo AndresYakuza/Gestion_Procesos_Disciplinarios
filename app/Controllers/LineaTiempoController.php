@@ -85,31 +85,84 @@ class LineaTiempoController extends BaseController
 
 
         // 2️⃣ Citación
-        $citacion = db_connect()->table('tbl_furd_citacion')
+        // 2️⃣ Citación (con trazabilidad y citación vigente)
+        $citacionesRows = db_connect()->table('tbl_furd_citacion')
             ->where('furd_id', $furd['id'])
+            ->orderBy('numero', 'ASC')      // primero las antiguas
+            ->orderBy('created_at', 'ASC')
             ->get()
-            ->getRowArray();
+            ->getResultArray();
 
-        $motivoFull  = $citacion ? (string)$citacion['motivo'] : '';
-        $motivoShort = mb_strimwidth($motivoFull, 0, 220, '…', 'UTF-8');
+        $citacion          = null; // importante para reutilizarlo después (descargos)
+        $historialCitacion = [];
 
-        $etapas[] = [
-            'clave'        => 'citacion',
-            'titulo'       => 'Citación',
-            'fecha'        => isset($citacion['created_at'])
-                ? Time::parse($citacion['created_at'])->format('d/m/Y')
-                : '',
-            'detalle'      => $motivoShort,
-            'detalle_full' => $motivoFull,
-            'meta'    => [
-                'Fecha del evento (Descargo)' => isset($citacion['fecha_evento'])
+        if (!empty($citacionesRows)) {
+            // Mapeamos todas las citaciones para el historial
+            foreach ($citacionesRows as $row) {
+                $historialCitacion[] = [
+                    'numero'            => (int) ($row['numero'] ?? 1),
+                    'fecha'             => !empty($row['fecha_evento'])
+                        ? Time::parse($row['fecha_evento'])->format('d/m/Y')
+                        : '',
+                    'hora'              => $row['hora']   ?? '',
+                    'medio'             => $row['medio']  ?? '',
+                    'motivo'            => $row['motivo'] ?? '',
+                    'motivo_recitacion' => $row['motivo_recitacion'] ?? '',
+                ];
+            }
+
+            // La citación vigente es la última de la lista (mayor número)
+            $citacion = end($citacionesRows);
+
+            $partesMotivo = [];
+            if (!empty($citacion['motivo'])) {
+                $partesMotivo[] = (string) $citacion['motivo'];
+            }
+            if (!empty($citacion['motivo_recitacion'])) {
+                $partesMotivo[] = 'Motivo de la recitación vigente: ' . $citacion['motivo_recitacion'];
+            }
+
+            $motivoFull = trim(implode("\n\n", $partesMotivo));
+            if ($motivoFull === '') {
+                $motivoFull = 'Citación registrada para el proceso.';
+            }
+
+            $motivoShort = mb_strimwidth($motivoFull, 0, 220, '…', 'UTF-8');
+
+            $metaCitacion = [
+                'Fecha citación vigente' => !empty($citacion['fecha_evento'])
                     ? Time::parse($citacion['fecha_evento'])->format('d/m/Y')
                     : '—',
-                'Hora'  => $citacion['hora'] ?? '—',
-                'Medio' => $citacion['medio'] ?? '—',
-            ],
-            'adjuntos' => $this->getAdjuntos($furd['id'], 'citacion'),
-        ];
+                'Hora citación vigente'  => $citacion['hora']  ?? '—',
+                'Medio citación vigente' => $citacion['medio'] ?? '—',
+                'Total de citaciones'    => (string) count($historialCitacion),
+            ];
+
+            $etapas[] = [
+                'clave'        => 'citacion',
+                'titulo'       => 'Citación',
+                'fecha'        => !empty($citacion['created_at'])
+                    ? Time::parse($citacion['created_at'])->format('d/m/Y')
+                    : '',
+                'detalle'      => $motivoShort,
+                'detalle_full' => $motivoFull,
+                'meta'         => $metaCitacion,
+                'adjuntos'     => $this->getAdjuntos($furd['id'], 'citacion'),
+                'citaciones'   => $historialCitacion, // 👈 trazabilidad completa
+            ];
+        } else {
+            // Caso sin citaciones todavía
+            $etapas[] = [
+                'clave'        => 'citacion',
+                'titulo'       => 'Citación',
+                'fecha'        => '',
+                'detalle'      => 'Sin citación registrada.',
+                'detalle_full' => 'Sin citación registrada.',
+                'meta'         => [],
+                'adjuntos'     => [],
+                'citaciones'   => [],
+            ];
+        }
 
 
         // 3️⃣ Descargos / Cargos y Descargos
@@ -166,7 +219,7 @@ class LineaTiempoController extends BaseController
             'adjuntos'     => $this->getAdjuntos($furd['id'], 'descargos'),
         ];
 
-                // 4️⃣ Soporte (decisión propuesta + respuesta cliente)
+        // 4️⃣ Soporte (decisión propuesta + respuesta cliente)
         $soporte = db_connect()->table('tbl_furd_soporte')
             ->where('furd_id', $furd['id'])
             ->get()
@@ -181,6 +234,8 @@ class LineaTiempoController extends BaseController
         $clienteJustificacion = $soporte['cliente_justificacion'] ?? null;
         $clienteComentario    = $soporte['cliente_comentario']    ?? null;
         $clienteFechaSusp     = $soporte['cliente_fecha_inicio_suspension'] ?? null;
+        $clienteFechaSuspFin  = $soporte['cliente_fecha_fin_suspension'] ?? null;
+
 
         $notificadoClienteAt   = $soporte['notificado_cliente_at']   ?? null;
         $recordatorioClienteAt = $soporte['recordatorio_cliente_at'] ?? null;
@@ -235,6 +290,10 @@ class LineaTiempoController extends BaseController
             } elseif ($isSuspension) {
                 $metaSoporte['Fecha inicio suspensión (cliente)'] = $clienteFechaSusp
                     ? Time::parse($clienteFechaSusp)->format('d/m/Y')
+                    : '—';
+
+                $metaSoporte['Fecha fin suspensión (cliente)'] = $clienteFechaSuspFin
+                    ? Time::parse($clienteFechaSuspFin)->format('d/m/Y')
                     : '—';
             }
         } else {

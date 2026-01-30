@@ -175,6 +175,42 @@ $plantillasDescargo = $plantillasDescargo ?? [];
         <!-- tarjetas de adjuntos se inyectan por JS -->
       </div>
 
+      <!-- Historial de citaciones (solo lectura) -->
+      <div class="section-header mt-4">
+        <i class="bi bi-clock-history"></i>
+        <h6>Historial de citaciones</h6>
+      </div>
+
+      <div id="citacionesHistory" class="citaciones-history">
+        <p class="text-muted small mb-0">
+          Aún no hay citaciones registradas para este proceso.
+        </p>
+      </div>
+
+      <!-- Datos adicionales cuando es una nueva citación -->
+      <div id="recitacionPanel" class="mt-4 d-none">
+        <div class="alert alert-warning small mb-3">
+          <strong>Nota:</strong> este proceso ya tiene al menos una citación previa.
+          Estás registrando una nueva citación para el mismo trabajador.
+          Describe brevemente el motivo (por ejemplo, inasistencia, novedad médica,
+          falla de conexión, etc.).
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="motivo_recitacion">
+            Motivo de la nueva citación
+          </label>
+          <textarea
+            id="motivo_recitacion"
+            name="motivo_recitacion"
+            class="form-control"
+            rows="2"
+            maxlength="1000"
+            placeholder="Ej.: El trabajador no asistió a la citación anterior por incapacidad médica sin notificación previa…"><?= old('motivo_recitacion') ?></textarea>
+        </div>
+      </div>
+
+
       <div class="sticky-actions bg-body border-top mt-4 pt-3 pb-3">
         <div class="d-flex gap-2 justify-content-end">
           <a href="<?= base_url('/') ?>" class="btn btn-outline-secondary">
@@ -235,10 +271,13 @@ $plantillasDescargo = $plantillasDescargo ?? [];
       const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
       const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
 
-            const selectModelo = document.getElementById('selectModeloDescargo');
+      const selectModelo = document.getElementById('selectModeloDescargo');
       const boxPlantilla = document.getElementById('plantillaDescargoBox');
       const textoPlantilla = document.getElementById('textoModeloDescargo');
       const linkPlantilla = document.getElementById('linkModeloDescargo');
+
+      const citHistory = document.getElementById('citacionesHistory');
+      const recitacionPanel = document.getElementById('recitacionPanel');
 
       function updateModeloDescargoBox() {
         if (!selectModelo || !boxPlantilla || !textoPlantilla || !linkPlantilla) return;
@@ -401,6 +440,103 @@ $plantillasDescargo = $plantillasDescargo ?? [];
         wrap.innerHTML = arr.map(card).join('');
       };
 
+      const renderCitaciones = (rows = []) => {
+        if (!citHistory) return;
+
+        // Estado vacío
+        if (!rows.length) {
+          citHistory.innerHTML = `
+            <div class="cit-history-empty">
+              <div class="cit-history-empty-icon">
+                <i class="bi bi-calendar2-week"></i>
+              </div>
+              <div class="cit-history-empty-text">
+                <p class="mb-1 fw-semibold">Sin citaciones registradas aún</p>
+                <p class="mb-0 small text-muted">
+                  Cuando generes la primera citación, aparecerá aquí el historial de todas las citaciones del trabajador.
+                </p>
+              </div>
+            </div>
+          `;
+
+          if (recitacionPanel) {
+            recitacionPanel.classList.add('d-none');
+          }
+          return;
+        }
+
+        const lastIndex = rows.length - 1;
+
+        const items = rows.map((c, idx) => {
+          const n = c.numero ?? 1;
+          const fecha = c.fecha_evento ?? '';
+          const hora = c.hora ?? '';
+          const medioRaw = (c.medio || '').toLowerCase();
+          const motivoR = c.motivo_recitacion || '';
+
+          const isLatest = idx === lastIndex;
+
+          let medioLabel = 'N/D';
+          let medioIcon = 'bi-dot';
+
+          switch (medioRaw) {
+            case 'virtual':
+              medioLabel = 'Virtual';
+              medioIcon = 'bi-camera-video';
+              break;
+            case 'presencial':
+              medioLabel = 'Presencial';
+              medioIcon = 'bi-building';
+              break;
+            case 'escrito':
+              medioLabel = 'Descargo escrito';
+              medioIcon = 'bi-file-earmark-text';
+              break;
+            default:
+              medioLabel = medioRaw ? medioRaw.charAt(0).toUpperCase() + medioRaw.slice(1) : 'N/D';
+          }
+
+        return `
+          <div class="cit-item ${isLatest ? 'cit-item-latest' : ''}">
+            <div class="cit-item-header">
+              <div class="cit-item-title">
+                <span class="cit-chip">Citación #${n}</span>
+                ${isLatest ? '<span class="cit-chip-status">Citación vigente</span>' : ''}
+              </div>
+              <div class="cit-item-datetime">
+                <i class="bi bi-calendar-event me-1"></i>
+                <span>${fecha || 'Fecha N/D'}${hora ? ' · ' + hora : ''}</span>
+              </div>
+            </div>
+
+            <div class="cit-item-body small">
+              <div class="cit-item-tags">
+                <span class="cit-badge">
+                  <i class="bi ${medioIcon} me-1"></i>${medioLabel}
+                </span>
+
+                ${motivoR
+                  ? `<span class="cit-badge cit-badge-warning">
+                      <i class="bi bi-arrow-clockwise me-1"></i>Motivo recitación:
+                      <span class="cit-motivo-text">${motivoR}</span>
+                    </span>`
+                  : ''
+                }
+              </div>
+            </div>
+          </div>
+        `;
+        });
+
+        citHistory.innerHTML = items.join('');
+
+        // Si ya existe al menos una citación, mostramos el panel de re–citación
+        if (recitacionPanel) {
+          recitacionPanel.classList.remove('d-none');
+        }
+      };
+
+
       // ---------- Cargar adjuntos + hecho desde el FURD ----------
 
       const loadAdjuntos = async () => {
@@ -427,12 +563,14 @@ $plantillasDescargo = $plantillasDescargo ?? [];
 
           if (!data.ok) {
             renderAdjuntos([]);
+            renderCitaciones([]);
             notify('No se encontró ningún registro con ese consecutivo.', 'error');
             return;
           }
 
           // adjuntos ya vienen con "url" apuntando al visor en Drive
           renderAdjuntos(data.adjuntos || []);
+          renderCitaciones(data.citaciones || []);
           notify('Registro encontrado y cargado.', 'success');
 
           // rellenar el motivo con el "hecho" del FURD (solo si está vacío)
@@ -443,6 +581,7 @@ $plantillasDescargo = $plantillasDescargo ?? [];
         } catch (e) {
           console.error(e);
           renderAdjuntos([]);
+          renderCitaciones([]);
           notify('No se encontraron adjuntos para ese consecutivo.', 'error');
         } finally {
           setLoadingInput(false);

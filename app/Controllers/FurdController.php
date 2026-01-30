@@ -252,7 +252,16 @@ class FurdController extends BaseController
 
             $db->transComplete();
 
+            // 🔔 Enviar correos de notificación (trabajador + procesos disciplinarios)
+            try {
+                $this->enviarCorreosRegistroFurd($id);
+            } catch (\Throwable $mailEx) {
+                // No romper el flujo si el correo falla; solo se deja log
+                log_message('error', 'Error enviando correos de FURD creado (ID: ' . $id . '): ' . $mailEx->getMessage());
+            }
+
             $mensajeOk = "Registro creado con consecutivo {$consecutivo}. Continúa con la Citación.";
+
 
             // 👉 Si la petición viene por AJAX (tu XHR del formulario)
             if ($this->request->isAJAX()) {
@@ -278,8 +287,90 @@ class FurdController extends BaseController
         }
     }
 
+    /**
+     * Envía correos cuando se crea un FURD:
+     *  - Al trabajador (si hay correo)
+     *  - Al área de procesos disciplinarios
+     */
+    private function enviarCorreosRegistroFurd(int $furdId): void
+    {
+        $db = db_connect();
+
+        // Datos del FURD + empleado + proyecto
+        $furd = $db->table('tbl_furd f')
+            ->select("
+            f.*,
+            e.numero_documento AS cedula_trabajador,
+            e.nombre_completo  AS nombre_trabajador,
+            e.correo           AS correo_trabajador,
+            f.empresa_usuaria  AS empresa,
+            p.nombre           AS proyecto
+        ")
+            ->join('tbl_empleados e', 'e.id = f.empleado_id', 'left')
+            ->join('tbl_proyectos p', 'p.id = f.proyecto_id', 'left')
+            ->where('f.id', $furdId)
+            ->get()
+            ->getRowArray();
 
 
+
+        if (!$furd) {
+            return;
+        }
+
+        // Faltas asociadas
+        $faltas = $this->getFaltasByFurdId($furdId);
+
+        // Adjuntos de la fase de registro
+        $adjuntos = (new \App\Models\FurdAdjuntoModel())->listByFase($furdId, 'registro');
+
+        $consecutivo = $furd['consecutivo'] ?? sprintf('PD-%06d', $furdId);
+
+        $correoTrabajador = trim((string)($furd['correo'] ?? $furd['correo_trabajador'] ?? ''));
+        $correoCliente    = trim((string)($furd['correo_cliente'] ?? ''));
+        $correoProcesos   = trim((string)env('email.fromEmail', ''));
+
+        // Si no hay ningún destinatario útil, no hacemos nada.
+        if ($correoTrabajador === '' && $correoProcesos === '') {
+            return;
+        }
+
+        $email = \Config\Services::email();
+
+        // ====== cuerpo HTML común ======
+        $html = view('emails/furd/furd_registro_resumen', [
+            'furd'        => $furd,
+            'faltas'      => $faltas,
+            'adjuntos'    => $adjuntos,
+            'consecutivo' => $consecutivo,
+        ]);
+
+        // 1) Correo al trabajador (SOLO al trabajador)
+        if ($correoTrabajador !== '') {
+            $email->clear(true);
+            $email->setTo($correoTrabajador);
+            // OJO: quitamos el BCC a procesos
+            $email->setSubject("Registro de proceso disciplinario {$consecutivo}");
+            $email->setMessage($html);
+            $email->setMailType('html');
+            $email->send();
+        }
+
+        // 2) ÚNICO correo a procesos disciplinarios (y opcionalmente al cliente)
+        if ($correoProcesos !== '') {
+            $email->clear(true);
+            $email->setTo($correoProcesos);
+
+            if ($correoCliente !== '') {
+                $email->setCC($correoCliente);
+            }
+
+            $email->setSubject("Nuevo FURD registrado {$consecutivo}");
+            $email->setMessage($html);
+            $email->setMailType('html');
+            $email->send();
+        }
+    }
 
 
     /** (opcional) elimina todo el proceso */
@@ -358,5 +449,20 @@ class FurdController extends BaseController
         }, $rows ?? []);
 
         return $this->response->setJSON($out);
+    }
+    // Helper para obtener las faltas (reutilizable)
+    private function getFaltasByFurdId(int $furdId): array
+    {
+        return db_connect()->table('tbl_furd_faltas ff')
+            ->select('rf.codigo, rf.gravedad, rf.descripcion')
+            ->join(
+                'tbl_rit_faltas rf',
+                'rf.id = COALESCE(ff.falta_id, ff.rit_falta_id)',
+                'left'
+            )
+            ->where('ff.furd_id', $furdId)
+            ->orderBy('rf.codigo', 'ASC')
+            ->get()
+            ->getResultArray();
     }
 }

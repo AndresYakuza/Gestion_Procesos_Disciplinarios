@@ -619,6 +619,260 @@
   }
 }
 
+/* =========================================================
+   Historial de citaciones – mini timeline dentro de la card
+   ========================================================= */
+
+.tl-cit-wrapper {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #f9fafb;
+  padding: 0.8rem 1rem 0.9rem;
+}
+
+/* Encabezado del bloque */
+.tl-cit-header-main {
+  gap: 0.75rem;
+}
+
+.tl-cit-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tl-cit-icon i {
+  font-size: 1rem;
+}
+
+.tl-cit-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.tl-cit-current-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+}
+
+.tl-cit-current-value {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+/* Contenedor tipo mini timeline */
+.tl-cit-history {
+  position: relative;
+  margin-top: 0.65rem;
+  padding-left: 1.5rem;
+  border-left: 2px dashed rgba(148, 163, 184, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Cada citación */
+.tl-cit-item {
+  position: relative;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #ffffff;
+  padding: 0.55rem 0.8rem 0.6rem 1rem;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.03);
+}
+
+/* Bullet del mini timeline */
+.tl-cit-item::before {
+  content: "";
+  position: absolute;
+  left: -1.34rem;
+  top: 0.9rem;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid #9ca3af;
+  box-shadow: 0 0 0 2px #f9fafb;
+}
+
+/* Header de cada citación */
+.tl-cit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.tl-cit-badge-num {
+  background: #eef2ff;
+  color: #4338ca;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.tl-cit-badge-medio {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+}
+
+.tl-cit-badge-vigente {
+  background: #dcfce7;
+  color: #15803d;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+}
+
+.tl-cit-fecha {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+/* Cuerpo: filas Motivo / Motivo recitación */
+.tl-cit-body {
+  margin-top: 0.25rem;
+  color: #4b5563;
+}
+
+.tl-cit-row + .tl-cit-row {
+  margin-top: 0.15rem;
+}
+
+.tl-cit-label {
+  display: inline-block;
+  min-width: 7.2rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.tl-cit-text {
+  font-size: 0.82rem;
+}
+
+/* Estado vigente – resalta bullet, borde y fondo */
+.tl-cit-item.vigente {
+  border-color: rgba(22, 163, 74, 0.7);
+  background: linear-gradient(90deg, #ecfdf3, #ffffff);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.12);
+}
+
+.tl-cit-item.vigente::before {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 2px #dcfce7;
+}
+
+/* Responsive móvil */
+@media (max-width: 576px) {
+  .tl-cit-wrapper {
+    padding: 0.7rem 0.75rem 0.85rem;
+  }
+
+  .tl-cit-history {
+    padding-left: 1.25rem;
+  }
+
+  .tl-cit-item {
+    padding: 0.5rem 0.7rem 0.55rem 0.85rem;
+  }
+
+  .tl-cit-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .tl-cit-fecha {
+    align-self: flex-start;
+  }
+
+  .tl-cit-item::before {
+    left: -1.1rem;
+  }
+}
+
+/* Contenedor historial de citaciones */
+.tl-citacion-wrap {
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 1rem 1.25rem;
+}
+
+/* Lista vertical */
+.tl-citaciones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Item */
+.tl-citacion-item {
+  display: flex;
+  align-items: stretch;
+}
+
+/* Columna línea */
+.tl-citacion-line {
+  width: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tl-citacion-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 2px solid #7c3aed;
+  background: #fff;
+}
+
+.tl-citacion-item.is-current .tl-citacion-dot {
+  background: #22c55e;
+  border-color: #22c55e;
+}
+
+.tl-citacion-spine {
+  flex: 1;
+  width: 2px;
+  margin-top: 2px;
+  background: linear-gradient(to bottom, #e5e7eb 33%, transparent 33%);
+  background-size: 2px 8px;
+}
+
+/* Card de cada citación */
+.tl-citacion-card {
+  flex: 1;
+  margin-left: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.tl-citacion-item.is-current .tl-citacion-card {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+
+
+
 
 
 

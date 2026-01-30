@@ -34,9 +34,19 @@ $consecutivoInicial = $consecutivoInicial ?? '';
             <i class="bi bi-people-fill me-1"></i>
             <span class="fw-semibold">Portal del Cliente</span>
           </div>
-          <div class="small">
-            Correo asociado:
-            <strong><?= $clienteEmail ? esc($clienteEmail) : '— (no enviado en la URL)' ?></strong>
+
+          <div class="d-flex align-items-center gap-3">
+            <div class="small">
+              Correo asociado:
+              <strong><?= $clienteEmail ? esc($clienteEmail) : '— (no enviado en la URL)' ?></strong>
+            </div>
+
+            <button
+              id="btnPortalRefresh"
+              type="button"
+              class="btn btn-portal-refresh">
+              Actualizar
+            </button>
           </div>
         </div>
 
@@ -507,8 +517,10 @@ $consecutivoInicial = $consecutivoInicial ?? '';
         style="width: 200px; height: 200px;"
         loop
         autoplay></lottie-player>
-      <p class="loader-text mb-0 text-muted">
-        Guardando Proceso Disciplinario, por favor espera...
+      <p
+        class="loader-text mb-0 text-muted"
+        data-default-text="Procesando solicitud, por favor espera...">
+        Procesando solicitud, por favor espera...
       </p>
     </div>
   </div>

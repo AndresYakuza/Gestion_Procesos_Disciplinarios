@@ -102,7 +102,106 @@ $etapas = array_map(function ($e) {
               $hasFaltas   = !empty($e['faltas']);
               $hasMeta     = !empty($e['meta']);
               $hasAdjuntos = !empty($e['adjuntos']);
+              $isCitacion  = ($e['clave'] ?? '') === 'citacion';
               ?>
+
+              <?php if ($isCitacion && !empty($e['citaciones'])): ?>
+                <?php
+                // número de citación vigente
+                $maxNumero = max(array_column($e['citaciones'], 'numero'));
+
+                // datos de la citación vigente (para el encabezado)
+                $citacionVigente = null;
+                foreach ($e['citaciones'] as $cTmp) {
+                  if ($cTmp['numero'] === $maxNumero) {
+                    $citacionVigente = $cTmp;
+                    break;
+                  }
+                }
+                ?>
+
+                <div class="mb-3 tl-cit-wrapper">
+                  <!-- Encabezado del bloque -->
+                  <div class="d-flex align-items-start justify-content-between tl-cit-header-main">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="tl-cit-icon">
+                        <i class="bi bi-bell-fill"></i>
+                      </span>
+                      <div>
+                        <div class="tl-cit-title">Historial de citaciones</div>
+                        <small class="text-muted d-none d-sm-block">
+                          Visualiza la secuencia de citaciones y la que está vigente.
+                        </small>
+                      </div>
+                    </div>
+
+                    <?php if ($citacionVigente): ?>
+                      <div class="tl-cit-current text-end">
+                        <div class="tl-cit-current-label">Citación vigente</div>
+                        <div class="tl-cit-current-value">
+                          #<?= esc($citacionVigente['numero']) ?>
+                          · <?= esc($citacionVigente['fecha'] ?: '—') ?>
+                          <?= $citacionVigente['hora'] ? ' · ' . esc($citacionVigente['hora']) : '' ?>
+                        </div>
+                      </div>
+                    <?php endif; ?>
+                  </div>
+
+                  <!-- Mini timeline interno -->
+                  <div class="tl-cit-history mt-3">
+                    <?php foreach ($e['citaciones'] as $c): ?>
+                      <?php $esVigente = ($c['numero'] === $maxNumero); ?>
+
+                      <div class="tl-cit-item <?= $esVigente ? 'vigente' : '' ?>">
+                        <div class="tl-cit-header">
+                          <div class="d-flex align-items-center gap-2">
+                            <span class="badge tl-cit-badge-num">
+                              Citación #<?= esc($c['numero']) ?>
+                            </span>
+                            <span class="badge tl-cit-badge-medio">
+                              <?= esc($c['medio'] ?: 'N/D') ?>
+                            </span>
+                            <?php if ($esVigente): ?>
+                              <span class="badge tl-cit-badge-vigente">
+                                Vigente
+                              </span>
+                            <?php endif; ?>
+                          </div>
+
+                          <span class="tl-cit-fecha text-mono">
+                            <?= esc($c['fecha'] ?: '—') ?>
+                            <?= $c['hora'] ? ' · ' . esc($c['hora']) : '' ?>
+                          </span>
+                        </div>
+
+                        <div class="tl-cit-body small">
+                          <?php if (!empty($c['motivo'])): ?>
+                            <div class="tl-cit-row">
+                              <span class="tl-cit-label">Motivo</span>
+                              <span class="tl-cit-text"><?= esc($c['motivo']) ?></span>
+                            </div>
+                          <?php endif; ?>
+
+                          <?php if (!empty($c['motivo_recitacion'])): ?>
+                            <div class="tl-cit-row">
+                              <span class="tl-cit-label">Motivo recitación</span>
+                              <span class="tl-cit-text"><?= esc($c['motivo_recitacion']) ?></span>
+                            </div>
+                          <?php endif; ?>
+                        </div>
+                      </div>
+
+                    <?php endforeach; ?>
+                  </div>
+                </div>
+
+                <?php
+                if (count($e['citaciones']) > 1) {
+                  $hasDetalle = false;
+                }
+                ?>
+              <?php endif; ?>
+
 
               <?php if ($isSoporte): ?>
                 <?php

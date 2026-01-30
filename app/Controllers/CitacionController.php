@@ -78,18 +78,35 @@ class CitacionController extends BaseController
                     ?? $row['tamano_bytes']
                     ?? $row['size']
                     ?? null,
-                // mismo visor que usas en la línea de tiempo
                 'url'    => base_url('adjuntos/' . $id . '/open'),
             ];
         }, $rows ?? []);
+
+        // 🔹 Historial de citaciones
+        $citModel   = new FurdCitacionModel();
+        $citRows    = $citModel->listByFurd((int) $furd['id']);
+        $citaciones = array_map(static function (array $row) {
+            return [
+                'id'                 => (int) $row['id'],
+                'numero'             => (int) ($row['numero'] ?? 1),
+                'fecha_evento'       => $row['fecha_evento'] ?? null,
+                'hora'               => $row['hora'] ?? null,
+                'medio'              => $row['medio'] ?? null,
+                'motivo'             => $row['motivo'] ?? null,
+                'motivo_recitacion'  => $row['motivo_recitacion'] ?? null,
+                'reprogramada_de_id' => $row['reprogramada_de_id'] ? (int) $row['reprogramada_de_id'] : null,
+            ];
+        }, $citRows ?? []);
 
         return $this->response->setJSON([
             'ok'          => true,
             'consecutivo' => $consec,
             'furd'        => $furd,
             'adjuntos'    => $adjuntos,
+            'citaciones'  => $citaciones,
         ]);
     }
+
 
 
     public function store()
@@ -235,16 +252,40 @@ class CitacionController extends BaseController
         $db->transStart();
 
         try {
-            $cit = new FurdCitacionModel();
-
+            $cit   = new FurdCitacionModel();
             $medio = (string) $this->request->getPost('medio');
 
+            // 🔹 calcular número de citación y recitación
+            $ultimo = $cit->where('furd_id', (int) $furd['id'])
+                ->orderBy('numero', 'DESC')
+                ->orderBy('id', 'DESC')
+                ->first();
+
+            $numero           = (int) ($ultimo['numero'] ?? 0) + 1;
+            $reprogramadaDeId = $ultimo['id'] ?? null;
+            $motivoRecitacion = null;
+
+            if (!$ultimo) {
+                // Primera citación
+                $numero           = 1;
+                $reprogramadaDeId = null;
+            } else {
+                // Nueva citación para el mismo proceso
+                $motivoRecitacion = (string) $this->request->getPost('motivo_recitacion');
+                if ($motivoRecitacion === '') {
+                    $motivoRecitacion = null;
+                }
+            }
+
             $payload = [
-                'furd_id'      => (int) $furd['id'],
-                'fecha_evento' => $fechaConvertida,
-                'hora'         => (string) $this->request->getPost('hora'),
-                'medio'        => $medio,
-                'motivo'       => (string) $this->request->getPost('motivo'),
+                'furd_id'            => (int) $furd['id'],
+                'numero'             => $numero,
+                'fecha_evento'       => $fechaConvertida,
+                'hora'               => (string) $this->request->getPost('hora'),
+                'medio'              => $medio,
+                'motivo'             => (string) $this->request->getPost('motivo'),
+                'motivo_recitacion'  => $motivoRecitacion,
+                'reprogramada_de_id' => $reprogramadaDeId,
             ];
 
             $cit->insert($payload);

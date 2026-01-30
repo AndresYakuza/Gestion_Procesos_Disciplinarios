@@ -343,3 +343,52 @@
   padding: 1.5rem 1.75rem !important;
   font-size: 0.9rem;
 }
+
+/* Header degradado (si aún no lo tienes así) */
+.page-furd .main-header {
+  background: linear-gradient(90deg, #4b6cfb, #01aca9);
+  color: #ffffff;
+}
+
+/* Botón de actualizar en el header del portal */
+.page-furd .btn-portal-refresh {
+  padding: 0.25rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.02);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.page-furd .btn-portal-refresh:hover {
+  background: #ffffff;
+  color: #3352cc; /* tono primario sobre blanco */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px);
+}
+
+.page-furd .btn-portal-refresh:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Estado deshabilitado (si lo usas mientras carga) */
+.page-furd .btn-portal-refresh:disabled,
+.page-furd .btn-portal-refresh[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Opcional: mientras el loader global está activo, bloquea scroll */
+body.portal-loading {
+  overflow: hidden;
+}
