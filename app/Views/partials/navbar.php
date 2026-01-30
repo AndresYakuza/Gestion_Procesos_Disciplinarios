@@ -54,6 +54,10 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
           </a>
         </li>
 
+        <?php
+        $ajustesPinOk = session('ajustesPinOk') === true;
+        ?>
+
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle <?= $is('ajustes') ? 'active' : '' ?>" href="#" id="ajustesDropdown" data-bs-toggle="dropdown">
             <i class="bi bi-sliders me-1"></i> Ajustes
@@ -62,6 +66,17 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
             <li><a class="dropdown-item" href="<?= base_url('ajustes/faltas') ?>">
                 <i class="bi bi-exclamation-triangle text-warning me-2"></i> Faltas del RIT
               </a></li>
+
+            <?php if ($ajustesPinOk): ?>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li>
+                <a class="dropdown-item text-danger" href="<?= site_url('ajustes/salir') ?>">
+                  <i class="bi bi-lock me-2"></i> Bloquear ajustes
+                </a>
+              </li>
+            <?php endif; ?>
           </ul>
         </li>
       </ul>
@@ -76,34 +91,43 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
   /* =========================================================
      NAVBAR CON GRADIENTE GLACIAL INVERTIDO + MARCA OSCURA
      ========================================================= */
-.navbar-glass {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1030;
-  background: linear-gradient(
-    135deg,
-    #ffffff 0%,    /* blanco inicial */
-    #e8f5e9 20%,   /* verde muy clarito */
-    #a5d6a7 55%,   /* verde pastel intermedio */
-    #0c8e43 100%   /* verde sólido tipo app de la captura */
-  ) !important;
-  backdrop-filter: blur(15px) saturate(160%);
-  -webkit-backdrop-filter: blur(15px) saturate(160%);
-  border-bottom: 1px solid rgba(12, 142, 67, 0.25);
-  box-shadow: 0 8px 25px rgba(12, 142, 67, 0.25);
-  background-size: 300% 300%;
-  animation: glassShift 14s ease-in-out infinite alternate;
-}
+  .navbar-glass {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    background: linear-gradient(135deg,
+        #ffffff 0%,
+        /* blanco inicial */
+        #e8f5e9 20%,
+        /* verde muy clarito */
+        #a5d6a7 55%,
+        /* verde pastel intermedio */
+        #0c8e43 100%
+        /* verde sólido tipo app de la captura */
+      ) !important;
+    backdrop-filter: blur(15px) saturate(160%);
+    -webkit-backdrop-filter: blur(15px) saturate(160%);
+    border-bottom: 1px solid rgba(12, 142, 67, 0.25);
+    box-shadow: 0 8px 25px rgba(12, 142, 67, 0.25);
+    background-size: 300% 300%;
+    animation: glassShift 14s ease-in-out infinite alternate;
+  }
 
   body {
-  padding-top: 4.5rem; /* ajusta según la altura real del navbar */
-}
+    padding-top: 4.5rem;
+    /* ajusta según la altura real del navbar */
+  }
 
   @keyframes glassShift {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 100% 100%; }
+    0% {
+      background-position: 0% 0%;
+    }
+
+    100% {
+      background-position: 100% 100%;
+    }
   }
 
   /* 🌟 Brillo suave */
@@ -114,16 +138,27 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
     left: -30%;
     width: 160%;
     height: 100%;
-    background: radial-gradient(circle at top left, rgba(255,255,255,0.6), transparent 60%);
+    background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 60%);
     opacity: 0.4;
     pointer-events: none;
     animation: auroraShine 18s ease-in-out infinite;
   }
 
   @keyframes auroraShine {
-    0% { transform: translateX(-30%); opacity: 0.5; }
-    50% { transform: translateX(10%); opacity: 0.7; }
-    100% { transform: translateX(-30%); opacity: 0.5; }
+    0% {
+      transform: translateX(-30%);
+      opacity: 0.5;
+    }
+
+    50% {
+      transform: translateX(10%);
+      opacity: 0.7;
+    }
+
+    100% {
+      transform: translateX(-30%);
+      opacity: 0.5;
+    }
   }
 
   /* =========================================================
@@ -132,7 +167,8 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
   .navbar-brand {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #0f172a; /* negro azulado */
+    color: #0f172a;
+    /* negro azulado */
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -159,15 +195,15 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
 
   .navbar-nav .nav-link:hover {
     color: #3730a3;
-    background: rgba(79,70,229,0.08);
+    background: rgba(79, 70, 229, 0.08);
     transform: translateY(-1px);
   }
 
   .navbar-nav .nav-link.active {
     color: #3730a3 !important;
-    background: rgba(79,70,229,0.12);
+    background: rgba(79, 70, 229, 0.12);
     font-weight: 600;
-    box-shadow: inset 0 -2px 0 rgba(79,70,229,0.6);
+    box-shadow: inset 0 -2px 0 rgba(79, 70, 229, 0.6);
   }
 
   /* =========================================================
@@ -175,8 +211,8 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
      ========================================================= */
   .dropdown-menu {
     background: #ffffff;
-    border: 1px solid rgba(79,70,229,0.1);
-    box-shadow: 0 6px 24px rgba(79,70,229,0.12);
+    border: 1px solid rgba(79, 70, 229, 0.1);
+    box-shadow: 0 6px 24px rgba(79, 70, 229, 0.12);
     border-radius: 0.75rem;
     animation: fadeIn .25s ease-in-out;
     min-width: 240px;
@@ -190,14 +226,21 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
   }
 
   .dropdown-menu .dropdown-item:hover {
-    background: rgba(79,70,229,0.08);
+    background: rgba(79, 70, 229, 0.08);
     color: #4f46e5;
     transform: translateX(4px);
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   /* =========================================================
@@ -205,9 +248,9 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
      ========================================================= */
   .navbar .btn,
   .navbar .nav-link.btn {
-    background: rgba(79,70,229,0.1);
+    background: rgba(79, 70, 229, 0.1);
     color: #4f46e5 !important;
-    border: 1px solid rgba(79,70,229,0.3);
+    border: 1px solid rgba(79, 70, 229, 0.3);
     border-radius: 8px;
     padding: 0.4rem 0.9rem;
     font-weight: 600;
@@ -215,30 +258,26 @@ $is  = fn(string $p) => str_starts_with($seg, trim($p, '/'));
   }
 
   .navbar .btn:hover {
-    background: rgba(79,70,229,0.15);
+    background: rgba(79, 70, 229, 0.15);
     color: #3730a3 !important;
-    box-shadow: 0 4px 12px rgba(79,70,229,0.15);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
   }
 
   /* =========================================================
      RESPONSIVE
      ========================================================= */
-@media (max-width: 992px) {
-  .navbar-glass {
-    background: linear-gradient(
-      180deg,
-      #f8fafc 0%,
-      #e8f5e9 40%,
-      #a5d6a7 75%,
-      #44e989ff 100%
-    ) !important;
-  }
+  @media (max-width: 992px) {
+    .navbar-glass {
+      background: linear-gradient(180deg,
+          #f8fafc 0%,
+          #e8f5e9 40%,
+          #a5d6a7 75%,
+          #44e989ff 100%) !important;
+    }
 
-  .navbar-nav .nav-link {
-    color: #0c8e43;
-    background: rgba(12, 142, 67, 0.05);
+    .navbar-nav .nav-link {
+      color: #0c8e43;
+      background: rgba(12, 142, 67, 0.05);
+    }
   }
-}
-
 </style>
-

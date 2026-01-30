@@ -68,15 +68,20 @@ $routes->get('seguimiento', 'SeguimientoController::index', ['as' => 'seguimient
 $routes->get('linea-tiempo/(:segment)', 'LineaTiempoController::show/$1');
 
 
-// Ajustes 
+// Ajustes
+$routes->group('ajustes', static function ($routes) {
+    // Pantalla de PIN
+    $routes->get('acceso', 'AjustesAccessController::index');
+    $routes->post('acceso', 'AjustesAccessController::check');
+    $routes->get('salir',  'AjustesAccessController::salir');
 
-// Faltas 
-$routes->get('ajustes/faltas',        'RitFaltaController::index');
-$routes->post('ajustes/faltas',       'RitFaltaController::store');
-$routes->get('ajustes/faltas/(:num)/edit', 'RitFaltaController::edit/$1');
-$routes->post('ajustes/faltas/(:num)',      'RitFaltaController::update/$1');
-$routes->post('ajustes/faltas/(:num)/delete', 'RitFaltaController::delete/$1');
-
+    // Faltas protegidas por PIN
+    $routes->get('faltas',                 'RitFaltaController::index',  ['filter' => 'ajustesPin']);
+    $routes->post('faltas',                'RitFaltaController::store',  ['filter' => 'ajustesPin']);
+    $routes->get('faltas/(:num)/edit',     'RitFaltaController::edit/$1',   ['filter' => 'ajustesPin']);
+    $routes->post('faltas/(:num)',         'RitFaltaController::update/$1', ['filter' => 'ajustesPin']);
+    $routes->post('faltas/(:num)/delete',  'RitFaltaController::delete/$1', ['filter' => 'ajustesPin']);
+});
 
 $routes->group('portal-cliente', ['namespace' => 'App\Controllers'], static function ($routes) {
     // Onepage embebible
@@ -91,5 +96,3 @@ $routes->group('portal-cliente', ['namespace' => 'App\Controllers'], static func
     // AJAX: respuesta del cliente a la decisión (aprobar / solicitar ajuste)
     $routes->post('furd/(:segment)/respuesta', 'PortalClienteController::responderDecision/$1');
 });
-
-
