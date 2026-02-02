@@ -14,19 +14,9 @@
   const evidenciasInput = document.getElementById("evidencias");
   const evidenciasPreview = document.getElementById("evidenciasPreview");
   const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
-  const ALLOWED_EXT = [
-    "pdf",
-    "jpg",
-    "jpeg",
-    "png",
-    "heic",
-    "doc",
-    "docx",
-    "xlsx",
-    "xls",
-  ];
+  const ALLOWED_EXT = ["pdf", "jpg", "jpeg", "png", "heic", "doc", "docx", "xlsx", "xls"];
 
-    // 🧮 Contador de caracteres para inputs/textarea
+  // 🧮 Contador de caracteres para inputs/textarea
   const setupCharCounter = (fieldId, counterId, max) => {
     const field = document.getElementById(fieldId);
     const counter = document.getElementById(counterId);
@@ -34,22 +24,15 @@
 
     const update = () => {
       const len = field.value.length;
-      // formato "123/2000"
       counter.textContent = `${len}/${max}`;
-
-      // Colores según cercanía al límite
       counter.classList.remove("text-danger", "text-warning");
-      if (len > max * 0.9) {
-        counter.classList.add("text-danger");
-      } else if (len > max * 0.7) {
-        counter.classList.add("text-warning");
-      }
+      if (len > max * 0.9) counter.classList.add("text-danger");
+      else if (len > max * 0.7) counter.classList.add("text-warning");
     };
 
     field.addEventListener("input", update);
-    update(); // inicial (por si viene con old())
+    update();
   };
-
 
   // 🧩 Mostrar notificaciones tipo toast (Bootstrap)
   function showToast(message, type = "info") {
@@ -101,7 +84,6 @@
       return;
     }
 
-    // 🔄 Cambiar icono a spinner
     if (iconoBuscar) {
       iconoBuscar.classList.remove("bi-search");
       iconoBuscar.classList.add("bi-arrow-repeat", "spin");
@@ -142,10 +124,7 @@
           showToast("Empleado y contrato activo encontrados.", "success");
         } else {
           fill("empresa_usuaria", "");
-          showToast(
-            "Empleado encontrado, pero sin contrato activo.",
-            "warning"
-          );
+          showToast("Empleado encontrado, pero sin contrato activo.", "warning");
         }
       } else {
         fill("nombre_completo", "");
@@ -158,7 +137,6 @@
       console.error(err);
       showToast("Error al buscar el empleado.", "error");
     } finally {
-      // 🔁 Restaurar icono original
       if (iconoBuscar) {
         iconoBuscar.classList.remove("bi-arrow-repeat", "spin");
         iconoBuscar.classList.add("bi-search");
@@ -168,31 +146,27 @@
     }
   }
 
-  // 🔎 Buscar solo al hacer clic
   btnBuscar?.addEventListener("click", buscarEmpleado);
 
-  // ⌨️ Al presionar Enter en el campo cédula, NO hacer submit: solo buscar
   cedula?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-      e.preventDefault(); // evita el submit del formulario
-      buscarEmpleado(); // o: btnBuscar?.click();
+      e.preventDefault();
+      buscarEmpleado();
     }
   });
 
   // 🔎 Filtro de faltas (código + descripción, ignorando acentos)
   const filtro = document.getElementById("filtroFaltas");
-
   if (filtro) {
     const normalizar = (str) =>
       (str || "")
         .toString()
         .toLowerCase()
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, ""); // quita acentos
+        .replace(/[\u0300-\u036f]/g, "");
 
     const aplicarFiltro = () => {
       const q = normalizar(filtro.value.trim());
-
       document.querySelectorAll(".faltas-check").forEach((cb) => {
         const label = cb.closest("label.list-group-item");
         if (!label) return;
@@ -206,10 +180,7 @@
       });
     };
 
-    // filtra mientras escribes
     filtro.addEventListener("input", aplicarFiltro);
-
-    // opcional: Esc para limpiar el filtro
     filtro.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         filtro.value = "";
@@ -218,7 +189,7 @@
     });
   }
 
-  // 👉 Renderizar lista de archivos + barras de progreso (inicialmente en 0%)
+  // 👉 Renderizar lista de archivos + barras de progreso
   const renderEvidenciasPreview = () => {
     if (!evidenciasPreview || !evidenciasInput) return;
     evidenciasPreview.innerHTML = "";
@@ -229,36 +200,34 @@
     files.forEach((file, idx) => {
       const row = document.createElement("div");
       row.className = "evidencia-row mb-1";
-
       const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
 
       row.innerHTML = `
-      <div class="d-flex w-100 align-items-center justify-content-between">
-        <div class="me-2">
-          <i class="bi bi-paperclip me-1"></i>
-          <span class="file-name">${file.name}</span>
-          <span class="text-muted ms-1">(${sizeMb} MB)</span>
+        <div class="d-flex w-100 align-items-center justify-content-between">
+          <div class="me-2">
+            <i class="bi bi-paperclip me-1"></i>
+            <span class="file-name">${file.name}</span>
+            <span class="text-muted ms-1">(${sizeMb} MB)</span>
+          </div>
+          <button type="button"
+                  class="btn btn-sm btn-link text-danger p-0 js-remove-file"
+                  data-file-idx="${idx}"
+                  title="Quitar archivo">
+            <i class="bi bi-x-lg"></i>
+          </button>
         </div>
-        <button type="button"
-                class="btn btn-sm btn-link text-danger p-0 js-remove-file"
-                data-file-idx="${idx}"
-                title="Quitar archivo">
-          <i class="bi bi-x-lg"></i>
-        </button>
-      </div>
-      <div class="progress mt-1" style="height: 4px;">
-        <div class="progress-bar"
-             role="progressbar"
-             data-file-idx="${idx}"
-             style="width: 0%;"></div>
-      </div>
-    `;
+        <div class="progress mt-1" style="height: 4px;">
+          <div class="progress-bar"
+               role="progressbar"
+               data-file-idx="${idx}"
+               style="width: 0%;"></div>
+        </div>
+      `;
 
       evidenciasPreview.appendChild(row);
     });
   };
 
-  // 👉 Validar archivos seleccionados (tipo + tamaño)
   const handleEvidenciasChange = () => {
     if (!evidenciasInput) return;
     const dt = new DataTransfer();
@@ -271,16 +240,13 @@
       if (!isAllowedExt) {
         showToast(
           `El archivo "${file.name}" no está permitido. Solo se permiten imágenes (JPG, JPEG, PNG, HEIC), PDF y archivos de Office (DOC, DOCX, XLS, XLSX).`,
-          "warning"
+          "warning",
         );
         return;
       }
 
       if (!isAllowedSize) {
-        showToast(
-          `El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`,
-          "warning"
-        );
+        showToast(`El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`, "warning");
         return;
       }
 
@@ -293,7 +259,6 @@
 
   evidenciasInput?.addEventListener("change", handleEvidenciasChange);
 
-  // 👉 Quitar archivo individual desde la vista previa
   evidenciasPreview?.addEventListener("click", (e) => {
     const btn = e.target.closest(".js-remove-file");
     if (!btn || !evidenciasInput) return;
@@ -303,7 +268,7 @@
 
     const dt = new DataTransfer();
     Array.from(evidenciasInput.files || []).forEach((file, i) => {
-      if (i !== idx) dt.items.add(file); // dejamos todos menos el que se quiere quitar
+      if (i !== idx) dt.items.add(file);
     });
 
     evidenciasInput.files = dt.files;
@@ -332,53 +297,45 @@
       return { index: idx, start, end, size: file.size };
     });
 
-    return offset; // total bytes
+    return offset;
   };
 
   const updateUploadProgressBars = (loaded) => {
     if (!uploadFilesMeta.length || !evidenciasPreview) return;
 
     uploadFilesMeta.forEach((meta) => {
-      const bar = evidenciasPreview.querySelector(
-        `.progress-bar[data-file-idx="${meta.index}"]`
-      );
+      const bar = evidenciasPreview.querySelector(`.progress-bar[data-file-idx="${meta.index}"]`);
       if (!bar) return;
 
       let percent = 0;
-      if (loaded <= meta.start) {
-        percent = 0;
-      } else if (loaded >= meta.end) {
-        percent = 100;
-      } else {
-        percent = ((loaded - meta.start) / meta.size) * 100;
-      }
+      if (loaded <= meta.start) percent = 0;
+      else if (loaded >= meta.end) percent = 100;
+      else percent = ((loaded - meta.start) / meta.size) * 100;
 
       bar.style.width = `${percent}%`;
     });
   };
 
-  // Botones de ayuda (info) para los labels con .btn-info-help
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-info-help');
+  // Botones de ayuda
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-info-help");
     if (!btn) return;
 
-    const title = btn.dataset.infoTitle || 'Información';
-    const html  = btn.dataset.infoText || '';
+    const title = btn.dataset.infoTitle || "Información";
+    const html = btn.dataset.infoText || "";
 
-    if (typeof Swal === 'undefined') {
-      alert(title + '\n\n' + html.replace(/<[^>]+>/g, ''));
+    if (typeof Swal === "undefined") {
+      alert(title + "\n\n" + html.replace(/<[^>]+>/g, ""));
       return;
     }
 
     Swal.fire({
-      icon: 'info',
+      icon: "info",
       title: title,
       html: html,
-      confirmButtonText: 'Entendido',
-      confirmButtonColor: '#0d6efd',
-      customClass: {
-        popup: 'swal2-popup-help'
-      }
+      confirmButtonText: "Entendido",
+      confirmButtonColor: "#0d6efd",
+      customClass: { popup: "swal2-popup-help" },
     });
   });
 
@@ -386,10 +343,7 @@
   const pillsBox = document.getElementById("faltasPills");
   const selCount = document.getElementById("selCount");
   const sevClass = (s) => {
-    const k = s
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
+    const k = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     if (k.includes("gravisim")) return "bg-danger-subtle text-danger-emphasis";
     if (k.includes("grave")) return "bg-warning-subtle text-warning-emphasis";
     if (k.includes("leve")) return "bg-success-subtle text-success-emphasis";
@@ -423,76 +377,57 @@
     form.addEventListener("submit", (e) => {
       e.preventDefault();
 
-      // 1) Validación de faltas
       const faltas = document.querySelectorAll(".faltas-check:checked").length;
       if (faltas === 0) {
         showToast("Debes seleccionar al menos una falta.", "warning");
-        return; // 👉 importante: NO activar el loader
+        return;
       }
 
-      // 2) Evitar doble envío
       if (sending) return;
       sending = true;
 
-      // 3) Activar loader en botón + overlay central
       btn.disabled = true;
       if (spin) spin.classList.remove("d-none");
       if (txt) txt.textContent = "Guardando...";
       showGlobalLoader();
 
-      // 4) Construir FormData
       const formData = new FormData(form);
-
-      // 5) Preparar meta y barras de progreso por archivo
-      const totalBytes = buildUploadMeta();
+      buildUploadMeta();
 
       const xhr = new XMLHttpRequest();
       xhr.open(form.method || "POST", form.action);
-
       xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
 
-      // 6) Progreso de subida
       xhr.upload.onprogress = (evt) => {
         if (!evt.lengthComputable) return;
-        const loaded = evt.loaded;
-        updateUploadProgressBars(loaded);
+        updateUploadProgressBars(evt.loaded);
       };
 
-      // 7) Respuesta OK → navegamos a la URL final (incluyendo redirects)
       xhr.onload = () => {
         hideGlobalLoader();
 
         const contentType = xhr.getResponseHeader("Content-Type") || "";
         let data = null;
 
-        // Si viene JSON desde el backend, lo intentamos parsear
         if (contentType.includes("application/json")) {
           try {
             data = JSON.parse(xhr.responseText || "{}");
-          } catch (e) {
+          } catch {
             data = null;
           }
         }
 
-        // ✅ Caso 1: JSON de nuestra API
         if (data) {
-          // Éxito: ok = true
           if (data.ok && data.redirectTo) {
             window.location.href = data.redirectTo;
             return;
           }
 
-          // Error de validación: ok = false
           if (data.ok === false && data.errors) {
             const allErrors = Object.values(data.errors);
-            const firstError =
-              allErrors.length > 0
-                ? allErrors[0]
-                : "Revisa los campos obligatorios.";
-
+            const firstError = allErrors.length > 0 ? allErrors[0] : "Revisa los campos obligatorios.";
             showToast(firstError, "warning");
 
-            // Volvemos a habilitar el botón y el texto
             sending = false;
             btn.disabled = false;
             if (spin) spin.classList.add("d-none");
@@ -500,7 +435,6 @@
             return;
           }
 
-          // JSON raro → tratamos como error genérico
           showToast("Error inesperado al guardar el FURD.", "error");
           sending = false;
           btn.disabled = false;
@@ -509,7 +443,6 @@
           return;
         }
 
-        // ✅ Caso 2: no es JSON → comportamiento fallback
         if (xhr.status >= 200 && xhr.status < 400) {
           const finalURL = xhr.responseURL || form.action;
           window.location.href = finalURL;
@@ -524,10 +457,7 @@
 
       xhr.onerror = () => {
         hideGlobalLoader();
-        showToast(
-          "No se pudo conectar con el servidor. Revisa tu conexión.",
-          "error"
-        );
+        showToast("No se pudo conectar con el servidor. Revisa tu conexión.", "error");
         sending = false;
         btn.disabled = false;
         if (spin) spin.classList.add("d-none");
@@ -538,40 +468,232 @@
     });
   });
 
-  const hechoField = document.getElementById('hecho');
-if (hechoField) {
-  const MAX_WORD = 120;
-  let lastValid = hechoField.value;
+  // max palabra
+  const hechoField = document.getElementById("hecho");
+  if (hechoField) {
+    const MAX_WORD = 120;
+    let lastValid = hechoField.value;
 
-  const checkHechoWords = () => {
-    const words = (hechoField.value || '').split(/\s+/);
-    const tooLong = words.some(w => w.length > MAX_WORD);
+    const checkHechoWords = () => {
+      const words = (hechoField.value || "").split(/\s+/);
+      const tooLong = words.some((w) => w.length > MAX_WORD);
 
-    if (tooLong) {
-      // volvemos al valor anterior
-      hechoField.value = lastValid;
-      hechoField.selectionStart = hechoField.selectionEnd = hechoField.value.length;
+      if (tooLong) {
+        hechoField.value = lastValid;
+        hechoField.selectionStart = hechoField.selectionEnd = hechoField.value.length;
 
-      if (typeof showToast === 'function') {
-        showToast(
-          `No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`,
-          'warning'
-        );
+        if (typeof showToast === "function") {
+          showToast(`No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`, "warning");
+        } else {
+          alert(`No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`);
+        }
       } else {
-        alert(`No se permiten palabras de más de ${MAX_WORD} caracteres sin espacios.`);
+        lastValid = hechoField.value;
       }
-    } else {
-      lastValid = hechoField.value;
-    }
-  };
+    };
 
-  hechoField.addEventListener('input', checkHechoWords);
-}
+    hechoField.addEventListener("input", checkHechoWords);
+  }
 
-    document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", () => {
     setupCharCounter("superior", "superiorCount", 60);
     setupCharCounter("hecho", "hechoCount", 5000);
   });
 
   refresh();
+
+  /* =========================================================
+     PRO Single View: ScrollSpy + Progreso (robusto)
+     (✅ FIX: define onScroll antes de usarlo)
+     ========================================================= */
+  (() => {
+    function initScrollSpy() {
+      const topbar = document.getElementById("furdTopbar");
+      const bar = document.getElementById("furdBar");
+      const steps = Array.from(document.querySelectorAll(".furd-step"));
+      const sections = [
+        document.getElementById("secTrabajador"),
+        document.getElementById("secEvento"),
+        document.getElementById("secFaltas"),
+      ].filter(Boolean);
+
+      if (!topbar || !bar || !steps.length || sections.length < 2) return;
+
+      const getScrollContainer = (el) => {
+        let p = el.parentElement;
+        while (p) {
+          const st = getComputedStyle(p);
+          const oy = st.overflowY;
+          const canScroll = oy === "auto" || oy === "scroll" || oy === "overlay";
+          if (canScroll && p.scrollHeight > p.clientHeight + 2) return p;
+          p = p.parentElement;
+        }
+        return window;
+      };
+
+      const scroller = getScrollContainer(topbar);
+
+      const getNavHeight = () => {
+        const nav = document.querySelector(".navbar, .navbar-sticky, header, .topbar");
+        return nav ? nav.getBoundingClientRect().height || 0 : 0;
+      };
+
+      const getOffset = () => {
+        const navH = getNavHeight();
+        const topbarH = topbar.getBoundingClientRect().height || topbar.offsetHeight || 0;
+        return navH + topbarH + 16;
+      };
+
+      const setActiveStep = (activeIndex) => {
+        steps.forEach((s, i) => s.classList.toggle("is-active", i === activeIndex));
+        sections.forEach((sec, i) => sec.classList.toggle("is-current", i === activeIndex));
+        const pct = Math.round(((activeIndex + 1) / steps.length) * 100);
+        bar.style.width = pct + "%";
+      };
+
+      const isAtEnd = () => {
+        if (scroller === window) {
+          const doc = document.documentElement;
+          return window.innerHeight + window.scrollY >= doc.scrollHeight - 8;
+        }
+        return scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 8;
+      };
+
+      const getViewport = () => {
+        if (scroller === window) return { top: getOffset() + 8, bottom: window.innerHeight };
+        const r = scroller.getBoundingClientRect();
+        return { top: Math.max(r.top, getOffset() + 8), bottom: r.bottom };
+      };
+
+      const computeIndex = () => {
+        if (isAtEnd()) return sections.length - 1;
+
+        const vp = getViewport();
+        let bestIdx = 0;
+        let bestVisible = -1;
+
+        for (let i = 0; i < sections.length; i++) {
+          const rect = sections[i].getBoundingClientRect();
+          const visible = Math.max(
+            0,
+            Math.min(rect.bottom, vp.bottom) - Math.max(rect.top, vp.top),
+          );
+          if (visible > bestVisible) {
+            bestVisible = visible;
+            bestIdx = i;
+          }
+        }
+        return bestIdx;
+      };
+
+      // ✅ FIX: ahora sí existe onScroll antes de usarlo
+      let raf = 0;
+      const onScroll = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          setActiveStep(computeIndex());
+        });
+      };
+
+      // Scroll interno (faltas)
+      document.querySelectorAll("#faltasList, .scroll-area").forEach((el) => {
+        el.addEventListener("scroll", onScroll, { passive: true });
+      });
+
+      // Click steps
+      steps.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const sel = btn.getAttribute("data-target");
+          const el = sel ? document.querySelector(sel) : null;
+          if (!el) return;
+
+          const idx = steps.indexOf(btn);
+          if (idx >= 0) setActiveStep(idx);
+
+          const offset = getOffset() + 8;
+
+          if (scroller === window) {
+            const top = window.scrollY + el.getBoundingClientRect().top - offset;
+            window.scrollTo({ top, behavior: "smooth" });
+          } else {
+            const scTop = scroller.scrollTop;
+            const scRectTop = scroller.getBoundingClientRect().top;
+            const top = scTop + (el.getBoundingClientRect().top - scRectTop) - offset;
+            scroller.scrollTo({ top, behavior: "smooth" });
+          }
+        });
+      });
+
+      // Scroll del scroller real
+      if (scroller === window) window.addEventListener("scroll", onScroll, { passive: true });
+      else scroller.addEventListener("scroll", onScroll, { passive: true });
+
+      window.addEventListener("resize", onScroll);
+      document.addEventListener("furd:layout", onScroll);
+
+      setActiveStep(computeIndex());
+      onScroll();
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initScrollSpy);
+    } else {
+      initScrollSpy();
+    }
+  })();
+
+  // Dock del topbar
+  (() => {
+    const topbar = document.getElementById("furdTopbar");
+    const spacer = document.getElementById("furdTopbarSpacer");
+    if (!topbar || !spacer) return;
+
+    const getNavHeight = () => {
+      const nav = document.querySelector(".navbar, .navbar-sticky, header, .topbar");
+      if (!nav) return 0;
+      const r = nav.getBoundingClientRect();
+      return r.height || 0;
+    };
+
+    const getTopOffset = () => getNavHeight() + 10;
+
+    let lastDocked = null;
+    let lastTop = null;
+
+    const dockCheck = () => {
+      const navTop = getTopOffset();
+      const rect = topbar.getBoundingClientRect();
+      const shouldDock = rect.top <= navTop;
+
+      if (shouldDock && !topbar.classList.contains("is-docked")) {
+        spacer.style.height = rect.height + "px";
+        topbar.classList.add("is-docked");
+        topbar.style.top = navTop + "px";
+      }
+
+      if (!shouldDock && topbar.classList.contains("is-docked")) {
+        topbar.classList.remove("is-docked");
+        topbar.style.top = "";
+        spacer.style.height = "0px";
+      }
+
+      if (topbar.classList.contains("is-docked")) {
+        topbar.style.top = getTopOffset() + "px";
+      }
+
+      const isDockedNow = topbar.classList.contains("is-docked");
+      const topNow = topbar.style.top || "";
+
+      if (isDockedNow !== lastDocked || topNow !== lastTop) {
+        lastDocked = isDockedNow;
+        lastTop = topNow;
+        document.dispatchEvent(new Event("furd:layout"));
+      }
+    };
+
+    window.addEventListener("scroll", dockCheck, { passive: true });
+    window.addEventListener("resize", dockCheck);
+    dockCheck();
+  })();
 })();

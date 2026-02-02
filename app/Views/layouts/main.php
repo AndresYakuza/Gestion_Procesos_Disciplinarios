@@ -25,7 +25,7 @@
   <!-- SweetAlert2 (en head para que esté disponible en todo momento) -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  
+
 
   <!-- Estilos adicionales por vista -->
   <?= $this->renderSection('styles') ?>
@@ -35,7 +35,7 @@
 </head>
 
 <body class="theme-rich app-shell">
-<div id="appTop"></div>
+  <div id="appTop"></div>
 
   <?= $this->include('partials/navbar'); ?>
 
@@ -43,7 +43,7 @@
     <?= $this->renderSection('content'); ?>
   </main>
 
-    <?= $this->include('partials/footer'); ?>
+  <?= $this->include('partials/footer'); ?>
 
 
   <!-- ===================== SCRIPTS PRINCIPALES ===================== -->
@@ -59,28 +59,42 @@
   <!-- Choices JS -->
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
+  <!-- GSAP (animaciones pro) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
+
+  <!-- AutoAnimate (animación automática para listas/pills/previews) -->
+<script type="module">
+  import autoAnimate from "https://cdnjs.cloudflare.com/ajax/libs/auto-animate/0.9.0/index.min.js";
+  window.autoAnimate = autoAnimate; // lo expones global por si lo usas sin módulos
+</script>
+
   <!-- =================== Helpers/Init global (ANTES de scripts de vista) =================== -->
   <script>
     const TOAST_ICONS = {
       success: '<i class="bi bi-check-lg"></i>',
-      info:    '<i class="bi bi-info-lg"></i>',
+      info: '<i class="bi bi-info-lg"></i>',
       warning: '<i class="bi bi-exclamation-lg"></i>',
-      error:   '<i class="bi bi-x-lg"></i>'
+      error: '<i class="bi bi-x-lg"></i>'
     };
 
-    function showToast(message, type='success', delay=4500) {
+    function showToast(message, type = 'success', delay = 4500) {
       const iconHtml = `<span class="swal2-toast-icon-custom">${TOAST_ICONS[type] || TOAST_ICONS.success}</span>`;
       Swal.fire({
         toast: true,
         position: 'top-end',
-        icon: 'success',         
-        iconHtml: iconHtml,      
+        icon: 'success',
+        iconHtml: iconHtml,
         title: message,
         showConfirmButton: false,
         timer: delay,
         timerProgressBar: true,
-        customClass: { popup: `swal2-toast-modern toast-${type}` },
-        didOpen: (t)=>{ t.addEventListener('mouseenter', Swal.stopTimer); t.addEventListener('mouseleave', Swal.resumeTimer); }
+        customClass: {
+          popup: `swal2-toast-modern toast-${type}`
+        },
+        didOpen: (t) => {
+          t.addEventListener('mouseenter', Swal.stopTimer);
+          t.addEventListener('mouseleave', Swal.resumeTimer);
+        }
       });
     }
 
