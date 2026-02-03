@@ -423,6 +423,22 @@ $oldFaltas = old('faltas') ?? [];
   </div>
 </div>
 
+<!-- Modal: Vista previa de imagen -->
+<div class="modal fade" id="imgPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="imgPreviewTitle">Vista previa</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-0">
+        <img id="imgPreviewImg" src="" alt="Vista previa" class="w-100 d-block">
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <?= $this->endSection(); ?>
 
 <?= $this->section('scripts'); ?>

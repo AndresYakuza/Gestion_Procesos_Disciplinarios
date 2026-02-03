@@ -577,3 +577,116 @@ body.portal-loading {
   .page-furd .furd-topbar.is-docked{ width: calc(100vw - 1.25rem); }
 }
 
+/* =========================================================
+   ✅ Estados reales por paso (OK/WARN/ERR)
+   ========================================================= */
+.page-furd .furd-step.is-ok{
+  border-color: rgba(16,185,129,.45);
+  box-shadow: 0 16px 28px rgba(16,185,129,.10);
+}
+.page-furd .furd-step.is-ok .dot{
+  background: rgba(16,185,129,.14);
+  color: #047857;
+}
+.page-furd .furd-step.is-ok .state{
+  border-color: rgba(16,185,129,.35);
+  background: rgba(16,185,129,.14);
+  color: #047857;
+}
+
+.page-furd .furd-step.is-warn{
+  border-color: rgba(245,158,11,.45);
+  box-shadow: 0 16px 28px rgba(245,158,11,.10);
+}
+.page-furd .furd-step.is-warn .dot{
+  background: rgba(245,158,11,.16);
+  color: #92400e;
+}
+.page-furd .furd-step.is-warn .state{
+  border-color: rgba(245,158,11,.35);
+  background: rgba(245,158,11,.14);
+  color: #92400e;
+}
+
+.page-furd .furd-step.is-err{
+  border-color: rgba(239,68,68,.45);
+  box-shadow: 0 16px 28px rgba(239,68,68,.10);
+}
+.page-furd .furd-step.is-err .dot{
+  background: rgba(239,68,68,.16);
+  color: #b91c1c;
+}
+.page-furd .furd-step.is-err .state{
+  border-color: rgba(239,68,68,.35);
+  background: rgba(239,68,68,.14);
+  color: #b91c1c;
+}
+
+/* =========================================================
+   📎 Evidencias PREMIUM
+   ========================================================= */
+.page-furd .evidencias-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  padding:.55rem .75rem;
+  border: 1px dashed rgba(15,23,42,.12);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
+  margin-bottom: .5rem;
+}
+
+.page-furd .evidencias-summary{
+  font-weight: 700;
+  color: rgba(15,23,42,.75);
+  display:flex;
+  align-items:center;
+  gap:.45rem;
+}
+
+.page-furd .evidencia-row{
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: 12px;
+  padding: .55rem .65rem;
+  background: rgba(255,255,255,.8);
+}
+
+.page-furd .evidencia-left{
+  display:flex;
+  align-items:center;
+  gap:.55rem;
+  min-width: 0;
+}
+
+.page-furd .evidencia-icon{
+  font-size: 1.15rem;
+  opacity: .9;
+}
+
+.page-furd .evidencia-thumb{
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid rgba(15,23,42,.12);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .18s ease;
+}
+.page-furd .evidencia-thumb:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(2,6,23,.10);
+}
+
+.page-furd .file-name{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 520px;
+}
+
+@media (max-width: 520px){
+  .page-furd .file-name{ max-width: 220px; }
+}
+

@@ -267,8 +267,8 @@ $yaRespondio  = $estadoActual !== 'pendiente';
                                             </div>
 
                                             <div class="form-text">
-                                                Se aplican las mismas reglas: la fecha de inicio debe ser al menos tres días
-                                                después de la fecha actual (sin contar domingos) y ninguna de las dos puede ser domingo.
+                                                La fecha de inicio debe ser al menos tres días
+                                                después de la fecha actual (sin contar domingos).
                                             </div>
                                         </div>
 
