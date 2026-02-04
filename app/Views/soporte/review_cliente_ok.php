@@ -121,9 +121,11 @@ $finTxt = $fechaFinSusp    ? date('d/m/Y', strtotime($fechaFinSusp))    : '—';
                     </span>
                   </p>
 
+                  <br>
+
                   <p class="mb-0">
                     <strong>Justificación original:</strong><br>
-                    <span class="small" style="white-space: pre-line;">
+                    <span class="small">
                       <?= esc($soporte['justificacion'] ?? '') ?>
                     </span>
                   </p>
@@ -148,7 +150,7 @@ $finTxt = $fechaFinSusp    ? date('d/m/Y', strtotime($fechaFinSusp))    : '—';
                     <?php if (!empty($soporte['cliente_decision'])): ?>
                       <p class="mb-2">
                         <strong>Decisión / ajuste propuesto:</strong><br>
-                        <span class="small" style="white-space: pre-line;">
+                        <span class="small">
                           <?= esc($soporte['cliente_decision'] ?? '') ?>
                         </span>
                       </p>
@@ -163,20 +165,20 @@ $finTxt = $fechaFinSusp    ? date('d/m/Y', strtotime($fechaFinSusp))    : '—';
                         Del <?= esc($iniTxt) ?> al <?= esc($finTxt) ?>
                       </div>
                     <?php endif; ?>
-
+                      <br>
                     <?php if (!empty($soporte['cliente_justificacion'])): ?>
                       <p class="mb-2">
                         <strong>Justificación de tu respuesta:</strong><br>
-                        <span class="small" style="white-space: pre-line;">
+                        <span class="small">
                           <?= esc($soporte['cliente_justificacion'] ?? '') ?>
                         </span>
                       </p>
                     <?php endif; ?>
-
+                    <br>
                     <?php if (!empty($soporte['cliente_comentario'])): ?>
                       <p class="mb-0">
                         <strong>Comentario adicional para el área de gestión:</strong><br>
-                        <span class="small" style="white-space: pre-line;">
+                        <span class="small">
                           <?= esc($soporte['cliente_comentario'] ?? '') ?>
                         </span>
                       </p>

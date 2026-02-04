@@ -17,9 +17,9 @@
 
     <!-- Saludo -->
     <p style="margin:0 0 16px 0;">
-      Estimado(a) cliente
+      Estimado cliente,
       <strong><?= esc($furd['empresa_usuaria'] ?? '') ?></strong>,<br>
-      Estimado(a) trabajador(a)
+      Estimado(a) trabajador(a),
       <strong><?= esc($furd['nombre_completo'] ?? '') ?></strong>,
     </p>
 

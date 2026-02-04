@@ -119,7 +119,7 @@ class LineaTiempoController extends BaseController
                 $partesMotivo[] = (string) $citacion['motivo'];
             }
             if (!empty($citacion['motivo_recitacion'])) {
-                $partesMotivo[] = 'Motivo de la recitación vigente: ' . $citacion['motivo_recitacion'];
+                $partesMotivo[] = 'Motivo de la nueva citación vigente: ' . $citacion['motivo_recitacion'];
             }
 
             $motivoFull = trim(implode("\n\n", $partesMotivo));

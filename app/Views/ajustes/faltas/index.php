@@ -96,7 +96,7 @@
     <!-- Paginador -->
     <?php if (!empty($pager)): ?>
       <nav aria-label="Page navigation" class="mt-3">
-        <?= $pager->links('faltas', 'bootstrap_full') ?>
+        <?= $pager->only(['q'])->links('faltas', 'bootstrap_full') ?>
       </nav>
     <?php endif; ?>
   </div>
@@ -204,169 +204,150 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // === Buscador en la tabla (sin ir al servidor) ===
+    // ====== BUSCADOR ULTRA RÁPIDO (carga 1 vez y filtra en JS) ======
     const searchInput = document.getElementById('searchFaltas');
     const searchSpinner = document.getElementById('searchSpinner');
+    const tbody = document.getElementById('tbodyFaltas');
 
-    if (searchInput) {
+    // nav del paginador (tu <nav aria-label="Page navigation"...>)
+    const pagerNav = document.querySelector('nav[aria-label="Page navigation"]');
+
+    if (searchInput && tbody) {
       const searchForm = searchInput.closest('form');
-      const tbody = document.getElementById('tbodyFaltas');
-      const allRows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
-      let spinnerTimer = null;
+      const originalHTML = tbody.innerHTML;
 
-      // evito que el form se envíe y recargue la página
-      if (searchForm) {
-        searchForm.addEventListener('submit', (e) => e.preventDefault());
-      }
+      let allFaltas = null;
+      let t = null;
 
-      const filtrarFaltas = () => {
-        if (!tbody) return;
+      const showSpinner = () => searchSpinner?.classList.remove('d-none');
+      const hideSpinner = () => searchSpinner?.classList.add('d-none');
 
-        const term = searchInput.value.trim().toLowerCase();
+      const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      } [m]));
 
-        // mostrar spinner mientras “filtra”
-        if (searchSpinner) {
-          searchSpinner.classList.remove('d-none');
-          if (spinnerTimer) clearTimeout(spinnerTimer);
+      const formatSev = (s) => {
+        const v = String(s ?? '').trim();
+        if (!v) return '';
+        return v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+      };
+
+      const badgeClass = (sev) => {
+        const n = String(sev ?? '').toLowerCase();
+        if (n.includes('gravísima') || n.includes('gravisima')) return 'badge-soft-danger';
+        if (n.includes('grave')) return 'badge-soft-warning';
+        return 'badge-soft-success';
+      };
+
+      const renderRows = (list) => {
+        if (!list || list.length === 0) {
+          tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="text-center text-muted py-4">Sin resultados.</td>
+          </tr>`;
+          return;
         }
 
-        let visibles = 0;
+        const base = `<?= base_url('ajustes/faltas') ?>`;
 
-        allRows.forEach(tr => {
-          // fila de “no hay registros” la manejamos aparte si quieres
-          const text = tr.textContent.toLowerCase();
-          const show = !term || text.includes(term);
+        tbody.innerHTML = list.map(f => {
+          const sev = formatSev(f.gravedad);
+          const badge = badgeClass(sev);
 
-          tr.style.display = show ? '' : 'none';
-          if (show) visibles++;
+          return `
+          <tr>
+            <td><span class="text-mono">${escapeHtml(f.codigo)}</span></td>
+            <td>${escapeHtml(f.descripcion)}</td>
+            <td><span class="badge ${badge}">${escapeHtml(sev)}</span></td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="${base}/${f.id}/edit">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <button type="button"
+                class="btn btn-sm btn-outline-danger btn-delete"
+                data-id="${escapeHtml(f.id)}"
+                data-descripcion="${escapeHtml(f.descripcion)}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>`;
+        }).join('');
+      };
+
+      const ensureAll = async () => {
+        if (allFaltas) return allFaltas;
+
+        showSpinner();
+        const res = await fetch(`<?= base_url('ajustes/faltas/all') ?>`, {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
         });
 
-        // si quieres, aquí podrías mostrar un mensaje de "sin resultados" si visibles === 0
-
-        // ocultar spinner un poquito después (para que se vea el feedback)
-        if (searchSpinner) {
-          spinnerTimer = setTimeout(() => {
-            searchSpinner.classList.add('d-none');
-          }, 150);
-        }
+        allFaltas = await res.json();
+        hideSpinner();
+        return allFaltas;
       };
 
-      // cada vez que se escribe, filtramos en el DOM
-      searchInput.addEventListener('input', filtrarFaltas);
+      const doFilter = async () => {
+        const term = searchInput.value.trim().toLowerCase();
 
-      // Enter solo vuelve a filtrar, sin recargar
-      searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          filtrarFaltas();
+        // si está vacío, volvemos a la tabla paginada original
+        if (!term) {
+          tbody.innerHTML = originalHTML;
+          pagerNav?.classList.remove('d-none');
+          hideSpinner();
+          return;
         }
+
+        pagerNav?.classList.add('d-none');
+
+        const data = await ensureAll();
+        const filtered = data.filter(f => {
+          const hay = `${f.codigo ?? ''} ${f.descripcion ?? ''}`.toLowerCase();
+          return hay.includes(term);
+        });
+
+        renderRows(filtered);
+      };
+
+      // No recargar al dar Enter
+      searchForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        doFilter();
       });
 
-              // === Contador + bloqueo de palabra gigante en "Nueva falta" ===
-    const nuevaDesc      = document.getElementById('nuevaDescripcion');
-    const nuevaDescCount = document.getElementById('nuevaDescCounter');
-    const MAX_DESC_CHARS = 1500;
-    const MAX_WORD_CHARS = 120;
-
-    // pequeño helper de notificación
-    const notify = (msg) => {
-      if (typeof showToast === 'function') {
-        showToast(msg, 'warning');
-      } else {
-        alert(msg);
-      }
-    };
-
-    const actualizarNuevaDesc = (() => {
-      let lastValid = nuevaDesc ? nuevaDesc.value : '';
-
-      return () => {
-        if (!nuevaDesc || !nuevaDescCount) return;
-
-        let value = nuevaDesc.value || '';
-
-        // límite duro de longitud (por si algún navegador ignora maxlength)
-        if (value.length > MAX_DESC_CHARS) {
-          value = value.slice(0, MAX_DESC_CHARS);
-          nuevaDesc.value = value;
-        }
-
-        // validar palabras muy largas (sin espacios)
-        const words   = value.split(/\s+/);
-        const tooLong = words.some(w => w.length > MAX_WORD_CHARS);
-
-        if (tooLong) {
-          // revertir al último valor válido
-          nuevaDesc.value = lastValid;
-          nuevaDesc.selectionStart = nuevaDesc.selectionEnd = nuevaDesc.value.length;
-          notify(`No se permiten palabras de más de ${MAX_WORD_CHARS} caracteres sin espacios.`);
-          value = nuevaDesc.value;
-        } else {
-          lastValid = value;
-        }
-
-        nuevaDescCount.textContent = `${value.length} / ${MAX_DESC_CHARS}`;
-      };
-    })();
-
-    if (nuevaDesc) {
-      nuevaDesc.addEventListener('input', actualizarNuevaDesc);
-      // inicializar al cargar
-      actualizarNuevaDesc();
+      // Debounce corto para que se sienta inmediato
+      searchInput.addEventListener('input', () => {
+        showSpinner();
+        clearTimeout(t);
+        t = setTimeout(doFilter, 120);
+      });
     }
-    }
-    const deleteButtons = document.querySelectorAll('.btn-delete');
+
+    // ✅ IMPORTANTE: tu lógica de eliminar debe funcionar con filas nuevas (delegación)
     const modalEliminarEl = document.getElementById('modalEliminar');
-    const modalEliminar = new bootstrap.Modal(modalEliminarEl);
+    const modalEliminar = modalEliminarEl ? new bootstrap.Modal(modalEliminarEl) : null;
     const formEliminar = document.getElementById('formEliminar');
     const desc = document.getElementById('faltaDescripcion');
 
-    const modalNuevaForm = document.querySelector('#modalNueva form');
-    const globalLoader = document.getElementById('globalLoader');
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-delete');
+      if (!btn) return;
 
-    const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
-    const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+      const id = btn.dataset.id;
+      const descripcion = btn.dataset.descripcion;
 
-    // --- Abrir modal de eliminar y setear acción ---
-    deleteButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        const descripcion = btn.dataset.descripcion;
-        formEliminar.action = `<?= base_url('ajustes/faltas') ?>/${id}/delete`;
-        desc.textContent = descripcion;
-        modalEliminar.show();
-      });
+      if (formEliminar) formEliminar.action = `<?= base_url('ajustes/faltas') ?>/${id}/delete`;
+      if (desc) desc.textContent = descripcion;
+      modalEliminar?.show();
     });
 
-    // --- Loader al eliminar ---
-    if (formEliminar) {
-      formEliminar.addEventListener('submit', () => {
-        const btn = formEliminar.querySelector('button.btn-danger');
-        if (btn) {
-          btn.disabled = true;
-          btn.innerHTML = `
-          <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-          Eliminando...
-        `;
-        }
-        showGlobalLoader();
-      });
-    }
-
-    // --- Loader al crear (modal Nueva falta) ---
-    if (modalNuevaForm) {
-      modalNuevaForm.addEventListener('submit', () => {
-        const btn = modalNuevaForm.querySelector('.btn-success');
-        if (btn) {
-          btn.disabled = true;
-          btn.innerHTML = `
-          <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-          Guardando...
-        `;
-        }
-        showGlobalLoader();
-      });
-    }
+    // (De aquí para abajo puedes dejar tus loaders / contador como ya los tienes)
   });
 </script>
 

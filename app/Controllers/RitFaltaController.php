@@ -7,19 +7,51 @@ use App\Models\RitFaltaModel;
 
 class RitFaltaController extends BaseController
 {
+    // public function index()
+    // {
+    //     $m = new RitFaltaModel();
+    //     $q = (string) $this->request->getGet('q'); // lo puedes dejar si quieres, ya no se usará
+    //     $perPage = 10; // si quieres ver todas en una sola página
+
+    //     // 🔸 ya no filtramos aquí por q, solo paginamos
+    //     $faltas = $m->orderBy('codigo', 'DESC')
+    //         ->paginate($perPage, 'faltas');
+
+    //     $pager = $m->pager;
+
+    //     // Modelo limpio para calcular el siguiente código
+    //     $m2   = new RitFaltaModel();
+    //     $last = $m2->orderBy('id', 'DESC')->first();
+    //     $n    = $last ? ((int) $last['id'] + 1) : 1;
+    //     $next = 'RIT-' . str_pad((string) $n, 3, '0', STR_PAD_LEFT);
+
+    //     return view('ajustes/faltas/index', [
+    //         'faltas' => $faltas,
+    //         'q'      => $q,
+    //         'next'   => $next,
+    //         'pager'  => $pager,
+    //     ]);
+    // }
+
     public function index()
     {
         $m = new RitFaltaModel();
-        $q = (string) $this->request->getGet('q'); // lo puedes dejar si quieres, ya no se usará
-        $perPage = 10; // si quieres ver todas en una sola página
 
-        // 🔸 ya no filtramos aquí por q, solo paginamos
+        $q = trim((string) $this->request->getGet('q'));
+        $perPage = 10;
+
+        if ($q !== '') {
+            $m->groupStart()
+                ->like('codigo', $q)
+                ->orLike('descripcion', $q)
+            ->groupEnd();
+        }
+
         $faltas = $m->orderBy('codigo', 'DESC')
             ->paginate($perPage, 'faltas');
 
         $pager = $m->pager;
 
-        // Modelo limpio para calcular el siguiente código
         $m2   = new RitFaltaModel();
         $last = $m2->orderBy('id', 'DESC')->first();
         $n    = $last ? ((int) $last['id'] + 1) : 1;
@@ -36,7 +68,6 @@ class RitFaltaController extends BaseController
 
     public function create()
     {
-        // No usamos vista aparte, siempre listamos en index
         return redirect()->to(site_url('ajustes/faltas'));
     }
 
@@ -44,7 +75,6 @@ class RitFaltaController extends BaseController
     {
         $m = new RitFaltaModel();
 
-        // Autogenerar código si no llegó (aunque en la vista viene readonly)
         $codigo = (string) $this->request->getPost('codigo');
         if ($codigo === '') {
             $last = $m->orderBy('id', 'DESC')->first();
@@ -56,10 +86,9 @@ class RitFaltaController extends BaseController
             'codigo'      => $codigo,
             'descripcion' => (string) $this->request->getPost('descripcion'),
             'gravedad'    => (string) $this->request->getPost('gravedad'),
-            'activo'      => 1, // por defecto activa
+            'activo'      => 1, 
         ];
 
-        // 1) Chequeo manual de unicidad de código
         $existe = $m->where('codigo', $data['codigo'])->first();
         if ($existe) {
             return redirect()->back()
@@ -67,9 +96,7 @@ class RitFaltaController extends BaseController
                 ->withInput();
         }
 
-        // 2) Validación del modelo
         if (!$m->save($data)) {
-            // Si algo falla, mostramos claramente los errores del modelo
             return redirect()->back()
                 ->with('errors', $m->errors())
                 ->withInput();
@@ -102,10 +129,9 @@ class RitFaltaController extends BaseController
             'codigo'      => (string) $this->request->getPost('codigo'),
             'descripcion' => (string) $this->request->getPost('descripcion'),
             'gravedad'    => (string) $this->request->getPost('gravedad'),
-            'activo'      => 1, // si en el futuro pones un switch, aquí se ajusta
+            'activo'      => 1, 
         ];
 
-        // 1) Chequeo manual de unicidad de código (excluyendo este id)
         $otro = $m->where('codigo', $data['codigo'])
             ->where('id !=', $id)
             ->first();
@@ -116,7 +142,6 @@ class RitFaltaController extends BaseController
                 ->withInput();
         }
 
-        // 2) Validación normal
         if (!$m->save($data)) {
             return redirect()->back()
                 ->with('errors', $m->errors())
@@ -137,4 +162,16 @@ class RitFaltaController extends BaseController
             ->back()
             ->with('ok', 'Falta eliminada');
     }
+
+    public function all()
+    {
+        $m = new RitFaltaModel();
+
+        $data = $m->select('id, codigo, descripcion, gravedad')
+            ->orderBy('codigo', 'DESC')
+            ->findAll();
+
+        return $this->response->setJSON($data);
+    }
+
 }

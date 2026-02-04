@@ -459,7 +459,7 @@ class PortalClienteController extends BaseController
             }
 
             if (!empty($citacion['motivo_recitacion'])) {
-                $lineaVigente .= ' Motivo de la recitación vigente: '
+                $lineaVigente .= ' Motivo de la nueva citación vigente: '
                     . $citacion['motivo_recitacion'] . '.';
             }
 
@@ -476,7 +476,7 @@ class PortalClienteController extends BaseController
 
                     $txt = "Citación #{$num} ({$fecha}, medio {$medio})";
                     if (!empty($cRow['motivo_recitacion'])) {
-                        $txt .= ' · Motivo recitación: ' . $cRow['motivo_recitacion'];
+                        $txt .= ' · Motivo de nueva citación: ' . $cRow['motivo_recitacion'];
                     }
                     $partsHist[] = $txt;
                 }

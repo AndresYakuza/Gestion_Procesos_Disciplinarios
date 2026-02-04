@@ -184,7 +184,7 @@ $etapas = array_map(function ($e) {
 
                           <?php if (!empty($c['motivo_recitacion'])): ?>
                             <div class="tl-cit-row">
-                              <span class="tl-cit-label">Motivo recitación</span>
+                              <span class="tl-cit-label">Motivo de nueva citación</span>
                               <span class="tl-cit-text"><?= esc($c['motivo_recitacion']) ?></span>
                             </div>
                           <?php endif; ?>

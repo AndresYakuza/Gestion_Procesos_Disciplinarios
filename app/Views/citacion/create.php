@@ -78,7 +78,7 @@ $plantillasDescargo = $plantillasDescargo ?? [];
               type="button"
               class="btn-info-help"
               data-info-title="Fecha del descargo"
-              data-info-text="La fecha del descargo debe estar entre el <strong>5°</strong> y el <strong>7° día hábil</strong> contado desde mañana, contando solo de lunes a sábado y excluyendo domingos y festivos no laborables en Colombia. Solo esas fechas aparecerán disponibles en el calendario.">
+              data-info-text="La fecha del descargo debe estar entre el <strong>5°</strong> y el <strong>7° día hábil</strong> contado desde mañana, teniendo en cuenta solo de lunes a sábado y excluyendo domingos y festivos no laborables en Colombia. Solo esas fechas aparecerán disponibles en el calendario.">
               <i class="bi bi-info-lg"></i>
             </button>
           </label>
@@ -205,7 +205,7 @@ $plantillasDescargo = $plantillasDescargo ?? [];
             name="motivo_recitacion"
             class="form-control"
             rows="2"
-            maxlength="1000"
+            maxlength="1000
             placeholder="Ej.: El trabajador no asistió a la citación anterior por incapacidad médica sin notificación previa…"><?= old('motivo_recitacion') ?></textarea>
         </div>
       </div>

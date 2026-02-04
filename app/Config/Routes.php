@@ -47,6 +47,9 @@ $routes->post('soporte/(:num)', 'SoporteController::update/$1');
 $routes->get('soporte/revision-cliente/(:segment)', 'SoporteController::reviewCliente/$1');
 $routes->post('soporte/revision-cliente/(:segment)', 'SoporteController::reviewCliente/$1');
 
+$routes->get('soporte/reviewClienteOk/(:any)', 'SoporteController::reviewClienteOk/$1');
+
+
 
 
 /** Decisión (fase 5) */
@@ -82,6 +85,8 @@ $routes->group('ajustes', static function ($routes) {
     $routes->post('faltas/(:num)',         'RitFaltaController::update/$1', ['filter' => 'ajustesPin']);
     $routes->post('faltas/(:num)/delete',  'RitFaltaController::delete/$1', ['filter' => 'ajustesPin']);
 });
+
+$routes->get('ajustes/faltas/all', 'RitFaltaController::all');
 
 $routes->group('portal-cliente', ['namespace' => 'App\Controllers'], static function ($routes) {
     // Onepage embebible

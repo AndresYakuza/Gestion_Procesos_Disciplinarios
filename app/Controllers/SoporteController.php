@@ -483,14 +483,35 @@ class SoporteController extends BaseController
         }
 
         // 7) Vista de agradecimiento
-        return view(
-            'soporte/review_cliente_ok',
-            [
-                'furd'           => $furd,
-                'soporte'        => $soporte,
-                'cliente_estado' => $post['cliente_estado'],
-            ],
-            ['debug' => false]
+        session()->setFlashdata('cliente_estado', $post['cliente_estado']);
+
+        return redirect()->to(
+        site_url('soporte/reviewClienteOk/' . ($furd['consecutivo'] ?? $consecNorm))
         );
     }
+
+    public function reviewClienteOk(string $consecutivo)
+    {
+        $consecNorm = $this->normalizeConsecutivo($consecutivo);
+        if ($consecNorm === null) {
+            throw PageNotFoundException::forPageNotFound('Consecutivo inválido');
+        }
+
+        $furd = (new FurdModel())->findByConsecutivo($consecNorm);
+        if (!$furd) {
+            throw PageNotFoundException::forPageNotFound('Proceso disciplinario no encontrado');
+        }
+
+        $soporte = (new FurdSoporteModel())->findByFurd((int)$furd['id']);
+        if (!$soporte) {
+            throw PageNotFoundException::forPageNotFound('No existe soporte registrado para este proceso');
+        }
+
+        return view('soporte/review_cliente_ok', [
+            'furd'           => $furd,
+            'soporte'        => $soporte,
+            'cliente_estado' => session()->getFlashdata('cliente_estado') ?? ($soporte['cliente_estado'] ?? 'pendiente'),
+        ], ['debug' => false]);
+    }
+
 }

@@ -1025,7 +1025,7 @@
             ${
               c.motivo_recitacion
                 ? `<div class="small">
-                     <span class="text-muted text-uppercase">Motivo recitación</span><br>
+                     <span class="text-muted text-uppercase">Motivo de nueva citación</span><br>
                      ${c.motivo_recitacion}
                    </div>`
                 : ""

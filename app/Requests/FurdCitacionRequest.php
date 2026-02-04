@@ -13,6 +13,7 @@ class FurdCitacionRequest
 
             // evidencias opcionales (si decides permitir aquí)
             'adjuntos'        => 'permit_empty',
+            'motivo_recitacion' => 'required|min_length[3]|max_length[5000]|max_word_length[120]'
         ];
     }
 
@@ -40,6 +41,12 @@ class FurdCitacionRequest
                 'max_length' => 'El motivo es demasiado largo (máximo 7000 caracteres).',
                 'max_word_length' => 'El hecho contiene una palabra demasiado larga sin espacios. Divide el texto en frases o agrega espacios.'
             ],
+            'motivo_recitacion' => [
+                'required'   => 'Debes indicar el motivo de la nueva citación.',
+                'min_length' => 'Agrega un poco más de detalle al motivo de la nueva citación.',
+                'max_length' => 'El motivo de la nueva citación es demasiado largo (máximo 5000 caracteres).',
+                'max_word_length' => 'El motivo de la nueva citación contiene una palabra demasiado larga sin espacios. Divide el texto en frases o agrega espacios.'
+            ]
         ];
     }
 }

@@ -15,7 +15,7 @@
 
             <!-- Saludo -->
             <p style="margin:0 0 16px 0; font-size:14px; line-height:1.6;">
-              Estimado(a) cliente
+              Estimado cliente,
               <strong><?= esc($furd['empresa_usuaria'] ?? '') ?></strong>,
             </p>
 

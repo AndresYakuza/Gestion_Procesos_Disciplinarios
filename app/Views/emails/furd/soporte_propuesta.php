@@ -16,7 +16,7 @@ $nombreCliente = trim($furd['empresa_usuaria'] ?? 'cliente');
   <title>Revisión de decisión propuesta</title>
 </head>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color:#333;">
-  <p>Estimado(a) cliente <?= esc($nombreCliente); ?>,</p>
+  <p>Estimado cliente, <?= esc($nombreCliente); ?>,</p>
 
   <p>
     Se ha registrado una <strong>decisión propuesta</strong> en el proceso disciplinario
