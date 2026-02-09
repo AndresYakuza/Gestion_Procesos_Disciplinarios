@@ -1375,6 +1375,37 @@
   // Eventos de tabs
   // -----------------------
 
+  // ✅ Refrescar SOLO "Mis procesos" y quedarse en esa pestaña
+  (function initBtnPortalRefresh() {
+    const btnRefresh = document.getElementById("btnPortalRefresh");
+    const tabMisBtn = document.getElementById("tab-mis-procesos-tab");
+
+    if (!btnRefresh) return;
+
+    btnRefresh.addEventListener("click", async () => {
+      // 1) Mantener/abrir la pestaña Mis procesos
+      if (tabMisBtn) {
+        const tab = new bootstrap.Tab(tabMisBtn);
+        tab.show();
+      }
+
+      // 2) Reconsultar datos
+      showLoader("Actualizando procesos...");
+      try {
+        // fuerza recarga aunque ya estuviera marcado como cargado
+        procesosCargados = false;
+        await loadMisProcesos();
+
+        showToast("Procesos actualizados.", "success");
+      } catch (e) {
+        console.error(e);
+        showToast("No se pudieron actualizar los procesos.", "danger");
+      } finally {
+        hideLoader();
+      }
+    });
+  })();
+
   const tabMisProcesosBtn = document.getElementById("tab-mis-procesos-tab");
   const tabTimelineBtn = document.getElementById("tab-timeline-tab");
 
@@ -1759,19 +1790,4 @@
     });
   };
 
-  document.addEventListener("DOMContentLoaded", function () {
-    const btnRefresh = document.getElementById("btnPortalRefresh");
-    if (btnRefresh) {
-      btnRefresh.addEventListener("click", function () {
-        // Mostrar el loader global si existe
-        const loader = document.getElementById("globalLoader");
-        if (loader) {
-          loader.classList.remove("d-none");
-        }
-
-        // Recargar la página completa
-        window.location.reload();
-      });
-    }
-  });
 })();
