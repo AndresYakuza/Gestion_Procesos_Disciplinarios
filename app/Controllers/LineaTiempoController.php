@@ -55,8 +55,6 @@ class LineaTiempoController extends BaseController
         // 🧱 Inicializamos las etapas
         $etapas = [];
 
-        $faltas = $this->getFaltas((int)$furd['id']);
-
         // 1️⃣ Registro
         $faltas = $this->getFaltas((int)$furd['id']);
 
@@ -84,7 +82,6 @@ class LineaTiempoController extends BaseController
         ];
 
 
-        // 2️⃣ Citación
         // 2️⃣ Citación (con trazabilidad y citación vigente)
         $citacionesRows = db_connect()->table('tbl_furd_citacion')
             ->where('furd_id', $furd['id'])
@@ -97,22 +94,43 @@ class LineaTiempoController extends BaseController
         $historialCitacion = [];
 
         if (!empty($citacionesRows)) {
-            // Mapeamos todas las citaciones para el historial
             foreach ($citacionesRows as $row) {
+
+                $notifRows = db_connect()->table('tbl_furd_citacion_notificacion')
+                    ->where('citacion_id', (int)$row['id'])
+                    ->orderBy('notificado_at', 'DESC')
+                    ->orderBy('id', 'DESC')
+                    ->get()
+                    ->getResultArray();
+
+                $ultimaNotif = $notifRows[0] ?? null;
+
                 $historialCitacion[] = [
                     'numero'            => (int) ($row['numero'] ?? 1),
-                    'fecha'             => !empty($row['fecha_evento'])
-                        ? Time::parse($row['fecha_evento'])->format('d/m/Y')
-                        : '',
-                    'hora'              => $row['hora']   ?? '',
-                    'medio'             => $row['medio']  ?? '',
+                    'fecha'             => !empty($row['fecha_evento']) ? Time::parse($row['fecha_evento'])->format('d/m/Y') : '',
+                    'hora'              => $row['hora'] ?? '',
+                    'medio'             => $row['medio'] ?? '',
                     'motivo'            => $row['motivo'] ?? '',
                     'motivo_recitacion' => $row['motivo_recitacion'] ?? '',
+                    'ultima_notificacion' => $ultimaNotif ? [
+                        'estado'       => $ultimaNotif['estado'] ?? '',
+                        'fecha'        => !empty($ultimaNotif['notificado_at']) ? Time::parse($ultimaNotif['notificado_at'])->format('d/m/Y H:i') : '',
+                        'destinatario' => $ultimaNotif['destinatario'] ?? '',
+                    ] : null,
+                    'notificaciones' => array_map(static function (array $n) {
+                        return [
+                            'estado'       => $n['estado'] ?? '',
+                            'fecha'        => !empty($n['notificado_at']) ? Time::parse($n['notificado_at'])->format('d/m/Y H:i') : '',
+                            'destinatario' => $n['destinatario'] ?? '',
+                            'canal'        => $n['canal'] ?? 'email',
+                            'error'        => $n['error'] ?? null,
+                        ];
+                    }, $notifRows),
                 ];
             }
 
-            // La citación vigente es la última de la lista (mayor número)
             $citacion = end($citacionesRows);
+
 
             $partesMotivo = [];
             if (!empty($citacion['motivo'])) {
@@ -384,8 +402,14 @@ class LineaTiempoController extends BaseController
             return (int)$m[1];
         }
 
+        if (ctype_digit($s)) {
+            $v = (int)$s;
+            return $v > 0 ? $v : null;
+        }
+
         return null;
     }
+
 
     /**
      * Obtiene adjuntos por fase

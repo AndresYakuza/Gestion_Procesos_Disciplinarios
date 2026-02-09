@@ -425,7 +425,17 @@ class PortalClienteController extends BaseController
 
         if (!empty($citacionesRows)) {
             // Historial estructurado (igual que en línea de tiempo admin)
+            // Historial estructurado (igual que en línea de tiempo admin) + notificaciones
             foreach ($citacionesRows as $row) {
+                $notifRows = $db->table('tbl_furd_citacion_notificacion')
+                    ->where('citacion_id', (int)($row['id'] ?? 0))
+                    ->orderBy('notificado_at', 'DESC')
+                    ->orderBy('id', 'DESC')
+                    ->get()
+                    ->getResultArray();
+
+                $ultimaNotif = $notifRows[0] ?? null;
+
                 $historialCitacion[] = [
                     'numero'            => (int) ($row['numero'] ?? 1),
                     'fecha'             => !empty($row['fecha_evento'])
@@ -435,8 +445,31 @@ class PortalClienteController extends BaseController
                     'medio'             => $row['medio']  ?? '',
                     'motivo'            => $row['motivo'] ?? '',
                     'motivo_recitacion' => $row['motivo_recitacion'] ?? '',
+
+                    // 👇 NUEVO: última notificación resumida
+                    'ultima_notificacion' => $ultimaNotif ? [
+                        'estado'       => $ultimaNotif['estado'] ?? '',
+                        'fecha'        => !empty($ultimaNotif['notificado_at'])
+                            ? Time::parse($ultimaNotif['notificado_at'])->format('d/m/Y H:i')
+                            : '',
+                        'destinatario' => $ultimaNotif['destinatario'] ?? '',
+                    ] : null,
+
+                    // 👇 NUEVO: histórico completo
+                    'notificaciones' => array_map(static function (array $n) {
+                        return [
+                            'estado'       => $n['estado'] ?? '',
+                            'fecha'        => !empty($n['notificado_at'])
+                                ? Time::parse($n['notificado_at'])->format('d/m/Y H:i')
+                                : '',
+                            'destinatario' => $n['destinatario'] ?? '',
+                            'canal'        => $n['canal'] ?? 'email',
+                            'error'        => $n['error'] ?? null,
+                        ];
+                    }, $notifRows),
                 ];
             }
+
 
             $citacion = end($citacionesRows); // vigente
 

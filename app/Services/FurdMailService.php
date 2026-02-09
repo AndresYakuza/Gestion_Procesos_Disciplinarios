@@ -5,6 +5,8 @@ namespace App\Services;
 use CodeIgniter\Email\Email;
 use App\Models\FurdModel;
 use App\Models\FurdSoporteModel;
+use App\Models\FurdCitacionNotificacionModel;
+
 
 
 class FurdMailService
@@ -241,6 +243,67 @@ class FurdMailService
             'estado'     => 'archivado',
             'updated_at' => $now,
         ]);
+
+        return true;
+    }
+
+    public function notifyCitacionTrabajador(array $furd, array $citacion): bool
+    {
+        $to = trim((string)($furd['correo'] ?? '')); // correo del trabajador
+        if ($to === '') {
+            log_message('warning', 'Sin correo de trabajador para citación. FURD ID: {id}', [
+                'id' => $furd['id'] ?? null,
+            ]);
+            return false;
+        }
+
+        $emailConfig = config('Email');
+
+        $subject = sprintf(
+            'Notificación de citación – Proceso %s',
+            $furd['consecutivo'] ?? ''
+        );
+
+        $body = view('emails/furd/citacion_trabajador', [
+            'furd'     => $furd,
+            'citacion' => $citacion,
+        ], ['debug' => false]);
+
+        $this->email->clear(true);
+        $this->email->setMailType('html');
+        $this->email->setFrom($emailConfig->fromEmail, $emailConfig->fromName);
+        $this->email->setTo($to);
+        $this->email->setSubject($subject);
+        $this->email->setMessage($body);
+
+        $this->email->setAltMessage(
+            "Tiene una nueva citación del proceso {$furd['consecutivo']}.\n" .
+                "Fecha: " . ($citacion['fecha_evento'] ?? 'N/D') . "\n" .
+                "Hora: " . ($citacion['hora'] ?? 'N/D') . "\n" .
+                "Medio: " . ($citacion['medio'] ?? 'N/D')
+        );
+
+        $ok = $this->email->send();
+
+        // Registrar bitácora de notificación SIEMPRE (éxito o fallo)
+        $notif = new FurdCitacionNotificacionModel();
+        $notif->insert([
+            'citacion_id'  => (int)($citacion['id'] ?? 0),
+            'canal'        => 'email',
+            'destinatario' => $to,
+            'estado'       => $ok ? 'enviado' : 'fallido',
+            'mensaje_id'   => null,
+            'error'        => $ok ? null : substr((string)$this->email->printDebugger(['headers', 'subject']), 0, 500),
+            'notificado_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        if (!$ok) {
+            log_message('error', 'Error enviando citación FURD {id}. Debug: {debug}', [
+                'id'    => $furd['id'] ?? null,
+                'debug' => $this->email->printDebugger(['headers', 'subject']),
+            ]);
+            return false;
+        }
 
         return true;
     }

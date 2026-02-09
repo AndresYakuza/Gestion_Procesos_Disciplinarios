@@ -58,4 +58,34 @@ class FurdCitacionModel extends Model
             ->orderBy('tbl_furd_citacion.id', 'DESC')
             ->first();
     }
+
+    public function listByFurdWithNotificaciones(int $furdId): array
+    {
+        $rows = $this->where('furd_id', $furdId)
+            ->orderBy('numero', 'ASC')
+            ->orderBy('id', 'ASC')
+            ->findAll();
+
+        if (empty($rows)) return [];
+
+        $notifModel = new \App\Models\FurdCitacionNotificacionModel();
+
+        foreach ($rows as &$r) {
+            $hist = $notifModel->listByCitacion((int)$r['id']);
+            $r['notificaciones'] = array_map(static function(array $n){
+                return [
+                    'id'           => (int)$n['id'],
+                    'canal'        => $n['canal'] ?? 'email',
+                    'destinatario' => $n['destinatario'] ?? '',
+                    'estado'       => $n['estado'] ?? '',
+                    'notificado_at'=> $n['notificado_at'] ?? null,
+                    'mensaje_id'   => $n['mensaje_id'] ?? null,
+                    'error'        => $n['error'] ?? null,
+                ];
+            }, $hist);
+        }
+
+        return $rows;
+    }
+
 }

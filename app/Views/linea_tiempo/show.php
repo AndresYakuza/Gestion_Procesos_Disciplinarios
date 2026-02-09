@@ -188,7 +188,48 @@ $etapas = array_map(function ($e) {
                               <span class="tl-cit-text"><?= esc($c['motivo_recitacion']) ?></span>
                             </div>
                           <?php endif; ?>
+
+                          <?php if (!empty($c['ultima_notificacion'])): ?>
+                            <div class="tl-cit-row mt-2">
+                              <span class="tl-cit-label">Fecha de notificación</span>
+                              <span class="tl-cit-text">
+                                <?= esc($c['ultima_notificacion']['fecha']) ?>
+                                · <?= esc($c['ultima_notificacion']['estado']) ?>
+                                · <?= esc($c['ultima_notificacion']['destinatario']) ?>
+                              </span>
+                            </div>
+
+                            <?php if (!empty($c['notificaciones']) && count($c['notificaciones']) > 1): ?>
+                              <button
+                                class="btn btn-sm btn-outline-secondary mt-2"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#histNotifCit<?= (int)$c['numero'] ?>"
+                                aria-expanded="false">
+                                Ver histórico completo
+                              </button>
+
+                              <div class="collapse mt-2" id="histNotifCit<?= (int)$c['numero'] ?>">
+                                <div class="small">
+                                  <?php foreach ($c['notificaciones'] as $idx => $n): ?>
+                                    <?php if ($idx === 0) continue; // ya mostramos la última por defecto 
+                                    ?>
+                                    <div class="border rounded p-2 mb-2">
+                                      <div><strong>Fecha:</strong> <?= esc($n['fecha']) ?></div>
+                                      <div><strong>Estado:</strong> <?= esc($n['estado']) ?></div>
+                                      <div><strong>Canal:</strong> <?= esc($n['canal']) ?></div>
+                                      <div><strong>Destino:</strong> <?= esc($n['destinatario']) ?></div>
+                                      <?php if (!empty($n['error'])): ?>
+                                        <div><strong>Error:</strong> <?= esc($n['error']) ?></div>
+                                      <?php endif; ?>
+                                    </div>
+                                  <?php endforeach; ?>
+                                </div>
+                              </div>
+                            <?php endif; ?>
+                          <?php endif; ?>
                         </div>
+
                       </div>
 
                     <?php endforeach; ?>

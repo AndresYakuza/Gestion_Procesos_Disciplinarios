@@ -107,8 +107,6 @@ class CitacionController extends BaseController
         ]);
     }
 
-
-
     public function store()
     {
         // --- 1) Normalizar fecha (lo que ya tenías) ---
@@ -289,6 +287,13 @@ class CitacionController extends BaseController
             ];
 
             $cit->insert($payload);
+
+            $citacionId = (int)$cit->getInsertID();
+            $citacionDb = $cit->find($citacionId);
+
+            // enviar correo al trabajador y registrar fecha de notificación
+            $mail = new \App\Services\FurdMailService();
+            $mail->notifyCitacionTrabajador($furd, $citacionDb ?? ['id' => $citacionId] + $payload);
 
             $files = $this->request->getFiles()['adjuntos'] ?? [];
             if (!empty($files)) {
