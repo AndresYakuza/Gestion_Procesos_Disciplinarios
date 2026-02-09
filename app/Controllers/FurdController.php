@@ -127,9 +127,13 @@ class FurdController extends BaseController
         $postData['fecha_evento'] = $fechaConvertida;
 
         $validation = \Config\Services::validation();
-        $validation->setRules(\App\Requests\FurdRegistroRequest::rules(), \App\Requests\FurdRegistroRequest::messages());
+        $validation->setRules(
+            \App\Requests\FurdRegistroRequest::rules(),
+            \App\Requests\FurdRegistroRequest::messages()
+        );
 
-        if (!$validation->run($postData)) {
+        if (!$validation->withRequest($this->request)->run($postData)) {
+
             $errors = $validation->getErrors();
 
             if ($this->request->isAJAX()) {

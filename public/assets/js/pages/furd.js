@@ -13,7 +13,10 @@
 
   const evidenciasInput = document.getElementById("evidencias");
   const evidenciasPreview = document.getElementById("evidenciasPreview");
-  const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16 MB
+  // Límite general para adjuntos
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
+  // Extensiones permitidas (incluye videos)
   const ALLOWED_EXT = [
     "pdf",
     "jpg",
@@ -24,7 +27,14 @@
     "docx",
     "xlsx",
     "xls",
+    "mp4",
+    "mov",
+    "avi",
+    "mkv",
+    "webm",
   ];
+
+  const VIDEO_EXT = ["mp4", "mov", "avi", "mkv", "webm"];
 
   /* =========================================================
    ✅ Estados reales por paso + pills OK/pendientes
@@ -129,6 +139,74 @@
 
     field.addEventListener("input", update);
     update();
+  };
+
+  // helper para mensaje formal de video grande
+
+  const getWorkerContextForSupportMail = () => {
+    const nombre =
+      (document.getElementById("nombre_completo")?.value || "").trim() ||
+      "No informado";
+    const cedula =
+      (document.getElementById("cedula")?.value || "").trim() || "No informada";
+    const empresa =
+      (document.getElementById("empresa_usuaria")?.value || "").trim() ||
+      "No informada";
+    return { nombre, cedula, empresa };
+  };
+
+  const showVideoTooLargeMessage = (fileName, sizeBytes) => {
+    const { nombre, cedula, empresa } = getWorkerContextForSupportMail();
+    const sizeMb = (sizeBytes / (1024 * 1024)).toFixed(2);
+
+    const html = `
+    <div class="video-limit-alert text-start">
+      <p class="mb-2">
+        El archivo <strong>${fileName}</strong> (${sizeMb} MB) supera el tamaño máximo permitido de
+        <strong>25 MB</strong> para carga en plataforma.
+      </p>
+
+      <p class="mb-2">
+        Para continuar con el registro de evidencia del proceso disciplinario, por favor remita el video al correo:
+      </p>
+
+      <div class="video-mail-box mb-2">
+        <i class="bi bi-envelope-fill me-2"></i>
+        <strong>asistghycomercial@contactamos.com.co</strong>
+      </div>
+
+      <p class="mb-2">
+        Incluya en el correo la siguiente información del trabajador para asociar correctamente la evidencia:
+      </p>
+
+      <ul class="mb-0 ps-3">
+        <li><strong>Nombre:</strong> ${nombre}</li>
+        <li><strong>Cédula:</strong> ${cedula}</li>
+        <li><strong>Empresa usuaria:</strong> ${empresa}</li>
+        <li><strong>Referencia:</strong> Evidencia para proceso disciplinario</li>
+      </ul>
+    </div>
+  `;
+
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        icon: "warning",
+        title: "Video excede el límite permitido",
+        html,
+        confirmButtonText: "Entendido",
+        confirmButtonColor: "#0d6efd",
+        customClass: {
+          popup: "swal2-popup-help swal-video-limit-popup",
+        },
+      });
+    } else {
+      alert(
+        `El archivo "${fileName}" supera 25 MB.\n\n` +
+          `Envíelo a asistghycomercial@contactamos.com.co e incluya:\n` +
+          `- Nombre: ${nombre}\n- Cédula: ${cedula}\n- Empresa: ${empresa}\n` +
+          `Referencia: evidencia para proceso disciplinario.`,
+      );
+    }
   };
 
   // 🧩 Mostrar notificaciones tipo toast (Bootstrap)
@@ -343,10 +421,9 @@
 
   const iconByExt = (ext) => {
     if (ext === "pdf") return "bi-file-earmark-pdf-fill text-danger";
-    if (ext === "doc" || ext === "docx")
-      return "bi-file-earmark-word-fill text-primary";
-    if (ext === "xls" || ext === "xlsx")
-      return "bi-file-earmark-excel-fill text-success";
+    if (ext === "doc" || ext === "docx") return "bi-file-earmark-word-fill text-primary";
+    if (ext === "xls" || ext === "xlsx") return "bi-file-earmark-excel-fill text-success";
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "bi-file-earmark-play-fill text-purple";
     if (isImg(ext)) return "bi-file-earmark-image-fill text-info";
     return "bi-paperclip";
   };
@@ -435,17 +512,22 @@
 
       if (!isAllowedExt) {
         showToast(
-          `El archivo "${file.name}" no está permitido. Solo se permiten imágenes (JPG, JPEG, PNG, HEIC), PDF y archivos de Office (DOC, DOCX, XLS, XLSX).`,
+          `El archivo "${file.name}" no está permitido. Formatos válidos: imágenes (JPG, JPEG, PNG, HEIC), PDF, Office (DOC, DOCX, XLS, XLSX) y video (MP4, MOV, AVI, MKV, WEBM).`,
           "warning",
         );
         return;
       }
 
       if (!isAllowedSize) {
-        showToast(
-          `El archivo "${file.name}" supera el límite de 16 MB y no se cargará.`,
-          "warning",
-        );
+        // Si es video, mostrar mensaje formal con instrucciones de correo
+        if (VIDEO_EXT.includes(ext)) {
+          showVideoTooLargeMessage(file.name, file.size);
+        } else {
+          showToast(
+            `El archivo "${file.name}" supera el límite permitido de 25 MB y no se cargará.`,
+            "warning"
+          );
+        }
         return;
       }
 

@@ -259,13 +259,13 @@ $oldFaltas = old('faltas') ?? [];
                   </div>
                 <?php endif; ?>
 
-                <input
-                  id="evidencias"
-                  type="file"
-                  class="form-control"
-                  name="evidencias[]"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xlsx,.xls">
+              <input
+                id="evidencias"
+                type="file"
+                class="form-control"
+                name="evidencias[]"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xlsx,.xls,.mp4,.mov,.avi,.mkv,.webm">
                 <div class="form-text">
                   Se permiten varios archivos (imágenes, PDF, Office).
                 </div>

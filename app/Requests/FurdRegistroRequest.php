@@ -20,8 +20,11 @@ class FurdRegistroRequest
             'faltas'          => 'required',
             'faltas.*'        => 'required|integer',
 
-            // 👉 Los adjuntos siguen siendo opcionales
-            'evidencias'      => 'permit_empty',
+            'evidencias' => [
+                'permit_empty',
+                'max_size[evidencias,25600]',
+                'ext_in[evidencias,pdf,jpg,jpeg,png,heic,doc,docx,xlsx,xls,mp4,mov,avi,mkv,webm]',
+            ],
         ];
     }
 
@@ -76,6 +79,11 @@ class FurdRegistroRequest
                 'required' => 'Falta inválida.',
                 'integer'  => 'Falta inválida.',
             ],
+            'evidencias' => [
+                'max_size' => 'Cada archivo debe ser menor o igual a 25 MB.',
+                'ext_in'   => 'Formato de archivo no permitido. Use PDF, imágenes, Office o videos autorizados.',
+            ],
+
         ];
     }
 }

@@ -2,9 +2,9 @@
 
 <?= $this->section('styles'); ?>
 <!-- Reutilizamos los estilos que ya tienes -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <link rel="stylesheet" href="<?= base_url('assets/css/pages/furd.css') ?>">
 <link rel="stylesheet" href="<?= base_url('assets/css/pages/seguimiento.css'); ?>">
-<link rel="stylesheet" href="<?= base_url('assets/css/pages/timeline.css'); ?>">
 <link rel="stylesheet" href="<?= base_url('assets/css/pages/timeline.css'); ?>">
 
 <?= $this->endSection(); ?>
@@ -32,7 +32,7 @@ $consecutivoInicial = $consecutivoInicial ?? '';
         <div class="card-header main-header d-flex justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
             <i class="bi bi-people-fill me-1"></i>
-            <span class="fw-semibold">Portal del Cliente</span>
+            <span class="fw-semibold">Portal del Cliente - Registrar Proceso Disciplinario (FURD)</span>
           </div>
 
           <div class="d-flex align-items-center gap-3">
@@ -293,12 +293,12 @@ $consecutivoInicial = $consecutivoInicial ?? '';
                       </div>
                     <?php endif; ?>
                     <input
-                      id="evidencias"
-                      type="file"
-                      class="form-control"
-                      name="evidencias[]"
-                      multiple
-                      accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xlsx,.xls">
+                    id="evidencias"
+                    type="file"
+                    class="form-control"
+                    name="evidencias[]"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,.xlsx,.xls,.mp4,.mov,.avi,.mkv,.webm">
                     <div class="form-text">
                       Puedes adjuntar capturas, correos o documentos relacionados.
                     </div>
