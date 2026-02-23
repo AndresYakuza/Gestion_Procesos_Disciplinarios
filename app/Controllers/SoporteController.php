@@ -368,7 +368,7 @@ class SoporteController extends BaseController
         $errors = [];
 
         if (!in_array($post['cliente_estado'], ['aprobado', 'rechazado'], true)) {
-            $errors['cliente_estado'] = 'Debes indicar si apruebas o rechazas la decisión propuesta.';
+            $errors['cliente_estado'] = 'Debes indicar si estás de acuerdo con la decisión propuesta o en desacuerdo con esta.';
         }
 
         // ¿La decisión propuesta es suspensión disciplinaria?
@@ -377,7 +377,7 @@ class SoporteController extends BaseController
         // Si rechaza, exigir algo de texto
         if ($post['cliente_estado'] === 'rechazado') {
             if ($post['cliente_decision'] === '' && $post['cliente_justificacion'] === '') {
-                $errors['cliente_decision'] = 'Si rechazas la decisión, describe qué cambio propones o una justificación.';
+                $errors['cliente_decision'] = 'Si estas en desacuerdo con la decisión, describe qué cambio propones o una justificación.';
             }
         }
 

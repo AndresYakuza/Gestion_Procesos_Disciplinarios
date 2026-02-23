@@ -25,7 +25,7 @@ class DecisionController extends BaseController
     public function store()
     {
         // 0) Normalizar fecha_evento antes de validar
-        $rawFecha = trim((string)$this->request->getPost('fecha_evento'));
+        $rawFecha = trim((string) $this->request->getPost('fecha_evento'));
 
         if ($rawFecha === '') {
             $errors = ['fecha_evento' => 'La fecha de la decisión es obligatoria.'];
@@ -44,11 +44,8 @@ class DecisionController extends BaseController
         // Pasar a minúsculas y quitar tildes
         $fechaTexto = mb_strtolower($rawFecha, 'UTF-8');
         $fechaTexto = strtr($fechaTexto, [
-            'á' => 'a',
-            'é' => 'e',
-            'í' => 'i',
-            'ó' => 'o',
-            'ú' => 'u',
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+            'Á' => 'a', 'É' => 'e', 'Í' => 'i', 'Ó' => 'o', 'Ú' => 'u',
         ]);
         $fechaTexto = str_replace(',', ' ', $fechaTexto);
         $fechaTexto = preg_replace('/\s+/', ' ', trim($fechaTexto));
@@ -71,12 +68,12 @@ class DecisionController extends BaseController
 
         $timestamp = false;
 
-        // 14-11-2025 o 14/11/2025
+        // 14-11-2025 o 14/11/2025 (asume dd-mm-yyyy o dd/mm/yyyy)
         if (preg_match('~^\s*(\d{1,2})[-/](\d{1,2})[-/](\d{4})\s*$~', $fechaTexto, $m)) {
-            $timestamp = strtotime(sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]));
+            $timestamp = strtotime(sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]));
         }
 
-        // "14 noviembre 2025"
+        // "14 noviembre 2025" / "14 de noviembre de 2025" / etc.
         if ($timestamp === false) {
             $fechaIngles = str_ireplace(array_keys($map), array_values($map), $fechaTexto);
             $timestamp   = strtotime($fechaIngles);
@@ -98,7 +95,7 @@ class DecisionController extends BaseController
 
         $fechaConvertida = date('Y-m-d', $timestamp);
 
-        // 1) Validar con Request
+        // 1) Validar con Request (inyectando la fecha normalizada)
         $postData = $this->request->getPost();
         $postData['fecha_evento'] = $fechaConvertida;
 
@@ -119,9 +116,10 @@ class DecisionController extends BaseController
                 ->withInput();
         }
 
-        // 2) Buscar FURD por consecutivo (ya viene en formato PD-000123 del front)
-        $consec = (string)$postData['consecutivo'];
+        // 2) Buscar FURD por consecutivo (viene en formato PD-000123 desde el front)
+        $consec = (string) ($postData['consecutivo'] ?? '');
         $furd   = (new FurdModel())->findByConsecutivo($consec);
+
         if (!$furd) {
             $errors = ['FURD no encontrado'];
 
@@ -155,10 +153,45 @@ class DecisionController extends BaseController
                 ->withInput();
         }
 
+        // 4) Validación adicional para suspensión (si aplica)
+        $tipoDecision = (string) ($postData['decision'] ?? '');
+        $fechaIniSusp = trim((string) $this->request->getPost('fecha_inicio_suspension'));
+        $fechaFinSusp = trim((string) $this->request->getPost('fecha_fin_suspension'));
 
-        // 4) Evitar decisión duplicada para el mismo FURD
+        $isSuspensionFinal = strcasecmp($tipoDecision, 'Suspensión disciplinaria') === 0;
+
+        if ($isSuspensionFinal) {
+            $errors = [];
+
+            if ($fechaIniSusp === '') $errors['fecha_inicio_suspension'] = 'Debes indicar la fecha de inicio de la suspensión.';
+            if ($fechaFinSusp === '') $errors['fecha_fin_suspension'] = 'Debes indicar la fecha fin de la suspensión.';
+
+            if ($fechaIniSusp !== '' && $fechaFinSusp !== '') {
+                $ini = \DateTime::createFromFormat('Y-m-d', $fechaIniSusp);
+                $fin = \DateTime::createFromFormat('Y-m-d', $fechaFinSusp);
+
+                if (!$ini || !$fin) {
+                    $errors['fecha_fin_suspension'] = 'Las fechas de suspensión no tienen un formato válido (YYYY-MM-DD).';
+                } elseif ($fin < $ini) {
+                    $errors['fecha_fin_suspension'] = 'La fecha fin debe ser igual o posterior a la fecha inicio.';
+                }
+            }
+
+            if (!empty($errors)) {
+                if ($this->request->isAJAX()) {
+                    return $this->response->setStatusCode(422)->setJSON(['ok' => false, 'errors' => $errors]);
+                }
+
+                return redirect()->back()
+                    ->with('errors', $errors)
+                    ->withInput();
+            }
+        }
+
+        // 5) Evitar decisión duplicada para el mismo FURD
         $decisionModel = new FurdDecisionModel();
-        $existing      = $decisionModel->findByFurd((int)$furd['id'] ?? 0);
+        $existing      = $decisionModel->findByFurd((int) ($furd['id'] ?? 0));
+
         if ($existing) {
             $errors = ['Ya existe una decisión registrada para este proceso.'];
 
@@ -175,9 +208,9 @@ class DecisionController extends BaseController
         $db->transStart();
 
         try {
-            // 5) Construir texto final: tipo + detalle
-            $tipo    = (string)$postData['decision'];
-            $detalle = trim((string)($postData['decision_text'] ?? ''));
+            // 6) Construir texto final: tipo + detalle
+            $tipo    = (string) ($postData['decision'] ?? '');
+            $detalle = trim((string) ($postData['decision_text'] ?? ''));
 
             $decisionText = $tipo;
             if ($detalle !== '') {
@@ -185,17 +218,31 @@ class DecisionController extends BaseController
             }
 
             $payload = [
-                'furd_id'       => (int)$furd['id'],
+                'furd_id'       => (int) $furd['id'],
                 'fecha_evento'  => $fechaConvertida,
                 'decision_text' => $decisionText,
             ];
 
-            $id = (int)$decisionModel->insert($payload, true);
+            $id = (int) $decisionModel->insert($payload, true);
 
-            // 6) Adjuntos fase decision -> Google Drive (via HandlesAdjuntos)
+            // 7) Adjuntos fase decision -> Google Drive (via HandlesAdjuntos)
+            // Nota: getFiles() en CI4 retorna estructura, aquí mantenemos tu lógica
             $files = $this->request->getFiles()['adjuntos'] ?? [];
             if (!empty($files)) {
-                $this->saveAdjuntos((int)$furd['id'], 'decision', is_array($files) ? $files : [$files]);
+                $this->saveAdjuntos((int) $furd['id'], 'decision', is_array($files) ? $files : [$files]);
+            }
+
+            // 8) Si es suspensión, actualizar fechas en soporte
+            if ($isSuspensionFinal) {
+                $soporteModel = new FurdSoporteModel();
+                $soporteRow   = $soporteModel->findByFurd((int) $furd['id']);
+
+                if ($soporteRow) {
+                    $soporteModel->update((int) $soporteRow['id'], [
+                        'cliente_fecha_inicio_suspension' => $fechaIniSusp ?: null,
+                        'cliente_fecha_fin_suspension'    => $fechaFinSusp ?: null,
+                    ]);
+                }
             }
 
             // Estado lo maneja el trigger en BD
@@ -218,6 +265,7 @@ class DecisionController extends BaseController
                 ->to(site_url('seguimiento'))
                 ->with('ok', $mensajeOk)
                 ->with('consecutivo', $consec);
+
         } catch (\Throwable $e) {
             $db->transRollback();
 
@@ -234,6 +282,7 @@ class DecisionController extends BaseController
                 ->withInput();
         }
     }
+
 
 
     public function update(int $id)
@@ -343,6 +392,9 @@ class DecisionController extends BaseController
         $am   = new \App\Models\FurdAdjuntoModel();
         $fid  = (int) $furd['id'];
 
+        $soporte = (new FurdSoporteModel())->findByFurd($fid);
+
+
         // Traemos adjuntos por fase, igual que en soporte, pero agregando soporte/decisión
         $prev = [
             'registro' => $am->listByFase($fid, 'registro'),
@@ -355,6 +407,7 @@ class DecisionController extends BaseController
         return $this->response->setJSON([
             'ok'      => true,
             'furd'    => $furd,
+            'soporte' => $soporte, 
             'prevAdj' => $prev,
         ]);
     }

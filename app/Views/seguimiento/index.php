@@ -29,11 +29,12 @@ $registros = $registros ?? [];
 ?>
 
 <div class="card-header main-header d-flex justify-content-between align-items-center">
+  <span class="fw-semibold">📋 Seguimiento de Solicitudes</span>
+
   <span class="fw-semibold">
-    📋 Seguimiento de Solicitudes
-  </span>
-  <span class="fw-semibold">
-    Total: <strong id="countTotal"><?= count($registros) ?></strong>
+    Total sistema: <strong><?= esc($total ?? 0) ?></strong>
+    &nbsp;|&nbsp;
+    Mostrando: <strong id="countTotal"><?= count($registros) ?></strong>
   </span>
 </div>
 

@@ -41,7 +41,7 @@
 
             <p style="margin:0 0 12px 0; font-size:14px; line-height:1.7; color:#374151;">
               De acuerdo con el reglamento interno de trabajo, cuenta con un plazo total de
-              <strong>diez (10) días calendario</strong> para aprobar o rechazar formalmente la propuesta.
+              <strong>diez (10) días calendario</strong> para dar respuesta a la decisión propuesta formalmente.
             </p>
 
             <p style="margin:0 0 16px 0; font-size:14px; line-height:1.7; color:#374151;">
@@ -53,7 +53,7 @@
             <div style="margin:0 0 20px 0; padding:10px 14px; background-color:#eff6ff; border-radius:6px; border:1px solid #bfdbfe;">
               <p style="margin:0; font-size:13px; line-height:1.6; color:#1f2937;">
                 Para registrar su decisión, ingrese al enlace remitido previamente para la
-                aprobación o rechazo del proceso disciplinario.
+                aceptación o rechazo del proceso disciplinario.
               </p>
             </div>
 

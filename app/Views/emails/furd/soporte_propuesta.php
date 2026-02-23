@@ -30,7 +30,7 @@ $nombreCliente = trim($furd['empresa_usuaria'] ?? 'cliente');
 
   <p>Por favor revisa esta propuesta y dinos si:</p>
   <ul>
-    <li>La apruebas tal como está.</li>
+    <li>Estas de acuerdo tal como está.</li>
     <li>Deseas hacer ajustes.</li>
     <li>No estás de acuerdo con la decisión propuesta.</li>
   </ul>

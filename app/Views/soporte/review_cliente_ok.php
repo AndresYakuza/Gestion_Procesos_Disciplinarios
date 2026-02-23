@@ -15,7 +15,7 @@ $fechaInicioSusp = $soporte['cliente_fecha_inicio_suspension'] ?? null;
 $fechaFinSusp    = $soporte['cliente_fecha_fin_suspension']   ?? null;
 
 if ($estado === 'aprobado') {
-  $estadoTexto = 'Has aprobado la decisión propuesta.';
+  $estadoTexto = 'Has aceptado la decisión propuesta.';
   $badgeClass  = 'review-badge-success';
 } elseif ($estado === 'rechazado') {
   $estadoTexto = 'Has solicitado ajustes a la decisión propuesta.';

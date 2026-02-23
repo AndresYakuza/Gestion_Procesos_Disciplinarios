@@ -68,6 +68,8 @@ class SeguimientoController extends BaseController
 
         $pager = $f->pager;
 
+        $total = $pager->getTotal('seguimiento');
+
         $mapEstado = [
             'registro' => 'Abierto / Registro',
             'citacion' => 'En proceso / Citación',
@@ -108,6 +110,7 @@ class SeguimientoController extends BaseController
             'estado'    => $estado,
             'q'         => $q,
             'pager'     => $pager,
+            'total'     => $total
         ]);
     }
 

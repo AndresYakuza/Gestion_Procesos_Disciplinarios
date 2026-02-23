@@ -215,7 +215,7 @@ $yaRespondio  = $estadoActual !== 'pendiente';
                                                         value="aprobado"
                                                         required>
                                                     <div class="option-content">
-                                                        <div class="option-title">Aprobar la decisión propuesta</div>
+                                                        <div class="option-title">Estoy de acuerdo con la decisión propuesta</div>
                                                         <div class="option-help">Confirmas que estás de acuerdo con la decisión y su justificación.</div>
                                                     </div>
                                                 </label>

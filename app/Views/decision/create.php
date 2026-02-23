@@ -126,6 +126,33 @@ $msg    = session('msg') ?? null;
           </div>
         </div>
 
+        <!-- Fechas de suspensión (solo si la decisión final es Suspensión disciplinaria) -->
+        <div class="row g-3 mt-1 d-none" id="dec_wrapFechasSusp">
+          <div class="col-12">
+            <label class="form-label mb-1">
+              Rango de suspensión disciplinaria (final)
+            </label>
+            <div class="row g-2">
+              <div class="col-12 col-md-6">
+                <input
+                  type="date"
+                  id="dec_fecha_inicio_suspension"
+                  name="fecha_inicio_suspension"
+                  class="form-control">
+                <div class="form-text">Inicio de la suspensión.</div>
+              </div>
+              <div class="col-12 col-md-6">
+                <input
+                  type="date"
+                  id="dec_fecha_fin_suspension"
+                  name="fecha_fin_suspension"
+                  class="form-control">
+                <div class="form-text">Fin de la suspensión.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="row g-3 mt-1">
           <div class="col-12">
             <label class="form-label" for="decision_text">Detalle / fundamentación</label>
@@ -260,6 +287,12 @@ $msg    = session('msg') ?? null;
 
     const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
     const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
+
+    const decisionSelect = form?.querySelector('select[name="decision"]');
+    const wrapFechasSusp = document.getElementById('dec_wrapFechasSusp');
+    const fechaIniSusp   = document.getElementById('dec_fecha_inicio_suspension');
+    const fechaFinSusp   = document.getElementById('dec_fecha_fin_suspension');
+
 
 
     // 🧮 Contador de caracteres para Detalle / fundamentación
@@ -462,6 +495,22 @@ $msg    = session('msg') ?? null;
 
         renderAdjuntosExistentes(data.prevAdj || {});
         notify('Registro cargado correctamente.', 'success');
+
+        const soporte = data.soporte || {};
+        const ini = soporte.cliente_fecha_inicio_suspension || '';
+        const fin = soporte.cliente_fecha_fin_suspension || '';
+
+        if (fechaIniSusp) fechaIniSusp.value = ini; // vienen en Y-m-d si los guardas así
+        if (fechaFinSusp) fechaFinSusp.value = fin;
+
+        // si la propuesta fue suspensión, puedes auto-seleccionar "Suspensión disciplinaria" (opcional):
+        const propuesta = (soporte.decision_propuesta || '').trim();
+        if (decisionSelect && isSuspensionDecision(propuesta) && !decisionSelect.value) {
+          decisionSelect.value = 'J disciplinaria';
+        }
+
+        toggleFechasSusp();
+        
       } catch (e) {
         console.error(e);
         renderAdjuntosExistentes(null);
@@ -648,6 +697,33 @@ $msg    = session('msg') ?? null;
         bar.style.width = `${percent}%`;
       });
     };
+        
+    // Helper para mostrar/ocultar
+
+    function isSuspensionDecision(val) {
+      return (val || '').toLowerCase().trim() === 'suspensión disciplinaria'
+          || (val || '').toLowerCase().trim() === 'suspension disciplinaria';
+    }
+
+    function toggleFechasSusp() {
+      if (!decisionSelect || !wrapFechasSusp || !fechaIniSusp || !fechaFinSusp) return;
+
+      const isSusp = isSuspensionDecision(decisionSelect.value);
+      if (isSusp) {
+        wrapFechasSusp.classList.remove('d-none');
+        fechaIniSusp.required = true;
+        fechaFinSusp.required = true;
+      } else {
+        wrapFechasSusp.classList.add('d-none');
+        fechaIniSusp.required = false;
+        fechaFinSusp.required = false;
+        fechaIniSusp.value = '';
+        fechaFinSusp.value = '';
+      }
+    }
+
+    decisionSelect?.addEventListener('change', toggleFechasSusp);
+
 
     // ----- Envío AJAX con loader y manejo de errores sin perder adjuntos -----
     if (form && btnGuardar) {
