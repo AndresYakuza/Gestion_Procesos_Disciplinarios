@@ -8,6 +8,9 @@ use App\Models\FurdModel;
 use App\Models\FurdFaltaModel;
 use App\Models\FurdAdjuntoModel;
 use App\Requests\FurdRegistroRequest;
+use App\Services\FurdFormatoService;
+use CodeIgniter\Exceptions\PageNotFoundException;
+
 
 class FurdController extends BaseController
 {
@@ -276,6 +279,7 @@ class FurdController extends BaseController
                 return $this->response->setJSON([
                     'ok'         => true,
                     'redirectTo' => site_url('seguimiento'),
+                    'downloadUrl' => site_url('furd/' . $id . '/formato'), 
                 ]);
             }
 
@@ -327,8 +331,11 @@ class FurdController extends BaseController
 
         // Adjuntos de la fase de registro
         $adjuntos = (new \App\Models\FurdAdjuntoModel())->listByFase($furdId, 'registro');
-
         $consecutivo = $furd['consecutivo'] ?? sprintf('PD-%06d', $furdId);
+
+        // 💾 Generar archivo RH-FO23 en PDF
+        $formatoService = new FurdFormatoService();
+        $rutaFormato    = $formatoService->generar($furd, $faltas, $adjuntos);
 
         $correoTrabajador = trim((string)($furd['correo'] ?? $furd['correo_trabajador'] ?? ''));
         $correoCliente    = trim((string)($furd['correo_cliente'] ?? ''));
@@ -349,18 +356,22 @@ class FurdController extends BaseController
             'consecutivo' => $consecutivo,
         ]);
 
-        // 1) Correo al trabajador (SOLO al trabajador)
+        // 1) Correo al trabajador
         if ($correoTrabajador !== '') {
             $email->clear(true);
             $email->setTo($correoTrabajador);
-            // OJO: quitamos el BCC a procesos
             $email->setSubject("Registro de proceso disciplinario {$consecutivo}");
             $email->setMessage($html);
             $email->setMailType('html');
+
+            if (is_file($rutaFormato)) {
+                $email->attach($rutaFormato);   // 👉 ahora es el PDF
+            }
+
             $email->send();
         }
 
-        // 2) ÚNICO correo a procesos disciplinarios (y opcionalmente al cliente)
+        // 2) Correo a procesos disciplinarios
         if ($correoProcesos !== '') {
             $email->clear(true);
             $email->setTo($correoProcesos);
@@ -372,6 +383,11 @@ class FurdController extends BaseController
             $email->setSubject("Nuevo FURD registrado {$consecutivo}");
             $email->setMessage($html);
             $email->setMailType('html');
+
+            if (is_file($rutaFormato)) {
+                $email->attach($rutaFormato);   // 👉 mismo PDF
+            }
+
             $email->send();
         }
     }
@@ -468,5 +484,29 @@ class FurdController extends BaseController
             ->orderBy('rf.codigo', 'ASC')
             ->get()
             ->getResultArray();
+    }
+
+    public function descargarFormato(int $id)
+    {
+        $fm   = new FurdModel();
+        $furd = $fm->find($id);
+
+        if (!$furd) {
+            throw PageNotFoundException::forPageNotFound("FURD no encontrado");
+        }
+
+        $faltas   = $this->getFaltasByFurdId($id);
+        $adjuntos = (new FurdAdjuntoModel())->listByFase($id, 'registro');
+
+        $service     = new FurdFormatoService();
+        $rutaArchivo = $service->generar($furd, $faltas, $adjuntos); // 👉 PDF
+
+        if (!is_file($rutaArchivo)) {
+            throw PageNotFoundException::forPageNotFound("No se pudo generar el formato.");
+        }
+
+        return $this->response
+            ->download($rutaArchivo, null)
+            ->setFileName(basename($rutaArchivo));
     }
 }

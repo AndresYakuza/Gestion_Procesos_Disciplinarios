@@ -14,10 +14,10 @@ $routes->get('empleados/lookup/(:segment)', 'EmpleadoLookupController::getByCedu
 $routes->get('furd', 'FurdController::index');
 $routes->post('furd', 'FurdController::store');
 $routes->delete('furd/(:num)', 'FurdController::destroy/$1');    // elimina proceso entero
-$routes->get('furd/adjuntos', 'FurdController::adjuntos');
 $routes->post('furd/(:num)/faltas', 'FurdController::attachFalta/$1');              // AJAX opcional
 $routes->delete('furd/(:num)/faltas/(:num)', 'FurdController::detachFalta/$1/$2');  // AJAX opcional
 $routes->get('furd/adjuntos', 'FurdController::adjuntos');
+$routes->get('furd/(:num)/formato', 'FurdController::descargarFormato/$1');
 
 $routes->get('files/furd/(:segment)/(:any)', 'FileController::furd/$1/$2');
 

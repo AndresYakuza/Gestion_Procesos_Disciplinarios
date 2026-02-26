@@ -251,6 +251,21 @@
     setTimeout(() => toast.remove(), 4000);
   }
 
+  // 👉 Disparar descarga de archivo sin pelear con el bloqueador de popups
+  function triggerDownload(url) {
+    if (!url) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    // limpiar después de un rato
+    setTimeout(() => {
+      iframe.remove();
+    }, 60000);
+  }
+
   // 🔍 Buscar empleado manualmente (con spinner)
   async function buscarEmpleado() {
     const ced = cedula.value.trim();
@@ -421,9 +436,12 @@
 
   const iconByExt = (ext) => {
     if (ext === "pdf") return "bi-file-earmark-pdf-fill text-danger";
-    if (ext === "doc" || ext === "docx") return "bi-file-earmark-word-fill text-primary";
-    if (ext === "xls" || ext === "xlsx") return "bi-file-earmark-excel-fill text-success";
-    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext)) return "bi-file-earmark-play-fill text-purple";
+    if (ext === "doc" || ext === "docx")
+      return "bi-file-earmark-word-fill text-primary";
+    if (ext === "xls" || ext === "xlsx")
+      return "bi-file-earmark-excel-fill text-success";
+    if (["mp4", "mov", "avi", "mkv", "webm"].includes(ext))
+      return "bi-file-earmark-play-fill text-purple";
     if (isImg(ext)) return "bi-file-earmark-image-fill text-info";
     return "bi-paperclip";
   };
@@ -525,7 +543,7 @@
         } else {
           showToast(
             `El archivo "${file.name}" supera el límite permitido de 25 MB y no se cargará.`,
-            "warning"
+            "warning",
           );
         }
         return;
@@ -778,8 +796,27 @@
         }
 
         if (data) {
-          if (data.ok && data.redirectTo) {
-            window.location.href = data.redirectTo;
+          if (data.ok) {
+            // 📥 1) Descargar automáticamente el formato si viene la URL
+            if (data.downloadUrl) {
+              triggerDownload(data.downloadUrl);
+            }
+
+            // 🔁 2) Redirigir a seguimiento (comportamiento que ya tenías)
+            if (data.redirectTo) {
+              window.location.href = data.redirectTo;
+              return;
+            }
+
+            // Si por alguna razón no viene redirectTo, solo reseteamos el botón
+            showToast(
+              "Registro guardado, pero falta URL de redirección.",
+              "info",
+            );
+            sending = false;
+            btn.disabled = false;
+            if (spin) spin.classList.add("d-none");
+            if (txt) txt.textContent = "Guardar registro";
             return;
           }
 
@@ -833,6 +870,7 @@
       xhr.send(formData);
     });
   });
+
 
   // max palabra
   const hechoField = document.getElementById("hecho");

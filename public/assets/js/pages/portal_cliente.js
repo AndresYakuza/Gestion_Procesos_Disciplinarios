@@ -96,6 +96,21 @@
     toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
   }
 
+  // 👉 Disparar descarga de archivo sin pelear con el bloqueador de popups
+  function triggerDownload(url) {
+    if (!url) return;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+
+    // limpiar después de un rato
+    setTimeout(() => {
+      iframe.remove();
+    }, 60000);
+  }
+
   function setAlertFurd(msg, type = "danger") {
     if (!alertFurd) return;
     if (!msg) {
@@ -235,6 +250,12 @@
         // Esperamos JSON del backend
         if (data) {
           if (data.ok) {
+            // 📥 1) Descargar automáticamente el formato si viene la URL
+            if (data.downloadUrl) {
+              triggerDownload(data.downloadUrl);
+            }
+
+            // ✅ 2) Feedback y limpieza del formulario del portal
             showToast(
               data.message || "FURD registrado correctamente.",
               "success",
@@ -1892,23 +1913,23 @@
   };
 
   function esc(v) {
-  return String(v ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
+    return String(v ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-function renderCitacionNotificaciones(c, idx) {
-  if (!c?.ultima_notificacion) return '';
+  function renderCitacionNotificaciones(c, idx) {
+    if (!c?.ultima_notificacion) return "";
 
-  const u = c.ultima_notificacion;
-  const list = Array.isArray(c.notificaciones) ? c.notificaciones : [];
-  const hasHist = list.length > 1;
-  const collapseId = `histNotifCit_${c.numero || idx}_${idx}`;
+    const u = c.ultima_notificacion;
+    const list = Array.isArray(c.notificaciones) ? c.notificaciones : [];
+    const hasHist = list.length > 1;
+    const collapseId = `histNotifCit_${c.numero || idx}_${idx}`;
 
-  return `
+    return `
     <div class="tl-cit-row mt-2">
       <span class="tl-cit-label">Fecha de notificación</span>
       <span class="tl-cit-text">
@@ -1916,7 +1937,9 @@ function renderCitacionNotificaciones(c, idx) {
       </span>
     </div>
 
-    ${hasHist ? `
+    ${
+      hasHist
+        ? `
       <button
         class="btn btn-sm btn-outline-secondary mt-2"
         type="button"
@@ -1928,22 +1951,25 @@ function renderCitacionNotificaciones(c, idx) {
 
       <div class="collapse mt-2" id="${collapseId}">
         <div class="small">
-          ${list.map((n, i) => {
-            if (i === 0) return ''; // ya mostramos la última
-            return `
+          ${list
+            .map((n, i) => {
+              if (i === 0) return ""; // ya mostramos la última
+              return `
               <div class="border rounded p-2 mb-2">
                 <div><strong>Fecha:</strong> ${esc(n.fecha)}</div>
                 <div><strong>Estado:</strong> ${esc(n.estado)}</div>
                 <div><strong>Canal:</strong> ${esc(n.canal)}</div>
                 <div><strong>Destino:</strong> ${esc(n.destinatario)}</div>
-                ${n.error ? `<div><strong>Error:</strong> ${esc(n.error)}</div>` : ''}
+                ${n.error ? `<div><strong>Error:</strong> ${esc(n.error)}</div>` : ""}
               </div>
             `;
-          }).join('')}
+            })
+            .join("")}
         </div>
       </div>
-    ` : ''}
+    `
+        : ""
+    }
   `;
-}
-
+  }
 })();
