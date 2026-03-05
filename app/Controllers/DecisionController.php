@@ -411,4 +411,18 @@ class DecisionController extends BaseController
             'prevAdj' => $prev,
         ]);
     }
+
+    public function plantillaSuspension()
+    {
+        // Ajusta la ruta si tu Resources está en otro lado
+        $filePath = APPPATH . 'Resources/MODELO_SUSPENSION_COLOMBIA_SAS.docx';
+
+        if (!is_file($filePath)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Plantilla de suspensión no encontrada');
+        }
+
+        return $this->response
+            ->download($filePath, null)
+            ->setFileName('MODELO_SUSPENSION_COLOMBIA_SAS.docx'); 
+    }
 }

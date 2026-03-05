@@ -4,27 +4,46 @@
  * Archivo: app/Views/emails/furd/citacion_trabajador.php
  *
  * Variables esperadas:
- * - $furd (array): consecutivo, nombre, cedula, proyecto, empresa_usuaria, superior
+ * - $furd (array): consecutivo, nombre, cedula, proyecto, empresa_usuaria, superior, etc.
  * - $citacion (array): numero, fecha_evento, hora, medio, motivo, motivo_recitacion
  */
 
-$consecutivo = esc($furd['consecutivo'] ?? 'N/D');
-$nombre      = esc($furd['nombre'] ?? $furd['nombre_completo'] ?? 'Trabajador');
-$cedula      = esc($furd['cedula'] ?? 'N/D');
-$proyecto    = esc($furd['proyecto'] ?? 'N/D');
+$consecutivo    = esc($furd['consecutivo'] ?? 'N/D');
+$nombre         = esc($furd['nombre'] ?? $furd['nombre_completo'] ?? 'Trabajador');
+$cedula         = esc($furd['cedula'] ?? 'N/D');
+$empresa        = esc($furd['empresa_usuaria'] ?? $furd['empresa'] ?? '—');
+$superior       = esc($furd['superior'] ?? $furd['jefe_inmediato'] ?? '—');
 
 $numeroCit   = esc((string)($citacion['numero'] ?? '1'));
 $fechaEvento = !empty($citacion['fecha_evento'])
     ? esc(date('d/m/Y', strtotime((string)$citacion['fecha_evento'])))
     : 'N/D';
 $horaEvento  = esc($citacion['hora'] ?? 'N/D');
-$medio       = esc($citacion['medio'] ?? 'N/D');
+
+$medioRaw    = trim((string)($citacion['medio'] ?? ''));
+$medioKey    = strtolower($medioRaw);
+$medioLegible = 'N/D';
+
+switch ($medioKey) {
+    case 'virtual':
+        $medioLegible = 'Virtual (videollamada)';
+        break;
+    case 'presencial':
+        $medioLegible = 'Presencial';
+        break;
+    case 'escrito':
+        $medioLegible = 'Descargo escrito';
+        break;
+    default:
+        $medioLegible = $medioRaw !== '' ? ucfirst($medioRaw) : 'N/D';
+        break;
+}
 
 $motivo      = trim((string)($citacion['motivo'] ?? ''));
 $motivoRecit = trim((string)($citacion['motivo_recitacion'] ?? ''));
 
-// Opcional: si luego quieres link a portal de detalle
-$urlProceso = site_url('linea-tiempo/' . ($furd['consecutivo'] ?? ''));
+// Texto contextual según el tipo de medio
+$esEscrito   = ($medioKey === 'escrito');
 ?>
 <!doctype html>
 <html lang="es">
@@ -100,9 +119,16 @@ $urlProceso = site_url('linea-tiempo/' . ($furd['consecutivo'] ?? ''));
     }
 
     .intro {
-      margin:0 0 14px 0;
+      margin:0 0 12px 0;
       font-size:14px;
       line-height:1.6;
+    }
+
+    .intro-secondary {
+      margin:0 0 16px 0;
+      font-size:13px;
+      line-height:1.6;
+      color:#4b5563;
     }
 
     .card {
@@ -156,20 +182,20 @@ $urlProceso = site_url('linea-tiempo/' . ($furd['consecutivo'] ?? ''));
       color:#374151;
     }
 
-    .cta-wrap {
-      text-align:center;
-      margin:22px 0 8px;
+    .doc-summary {
+      margin-top:8px;
+      font-size:13px;
+      line-height:1.6;
+      color:#374151;
     }
 
-    .btn {
-      display:inline-block;
-      background:#0f766e;
-      color:#ffffff !important;
-      text-decoration:none;
-      font-size:14px;
-      font-weight:700;
-      padding:11px 18px;
-      border-radius:8px;
+    .doc-summary ul {
+      padding-left:18px;
+      margin:6px 0 0 0;
+    }
+
+    .doc-summary li {
+      margin:2px 0;
     }
 
     .note {
@@ -219,8 +245,15 @@ $urlProceso = site_url('linea-tiempo/' . ($furd['consecutivo'] ?? ''));
               <span class="badge">Acción requerida</span>
 
               <p class="intro">
-                Hola <strong><?= $nombre; ?></strong>, se ha registrado una citación dentro del proceso disciplinario
-                <strong><?= $consecutivo; ?></strong>.
+                Hola <strong><?= $nombre; ?></strong>, te informamos que se ha programado una citación dentro del
+                proceso disciplinario <strong><?= $consecutivo; ?></strong>.
+              </p>
+
+              <p class="intro-secondary">
+                A continuación encontrarás un resumen de los datos principales de la citación. 
+                El detalle completo se encuentra en el <strong>documento adjunto en formato Word</strong>, 
+                el cual hace parte integral de la comunicación formal de <strong>COLOMBIA S.A.S.</strong> 
+                respecto de este proceso.
               </p>
 
               <div class="card">
@@ -245,21 +278,25 @@ $urlProceso = site_url('linea-tiempo/' . ($furd['consecutivo'] ?? ''));
                   </tr>
                   <tr>
                     <td class="label">Medio</td>
-                    <td class="value"><?= $medio; ?></td>
+                    <td class="value"><?= esc($medioLegible); ?></td>
                   </tr>
                   <tr>
                     <td class="label">Trabajador</td>
                     <td class="value"><?= $nombre; ?> · CC <?= $cedula; ?></td>
                   </tr>
                   <tr>
-                    <td class="label">Proyecto</td>
-                    <td class="value"><?= $proyecto; ?></td>
+                    <td class="label">Empresa</td>
+                    <td class="value"><?= $empresa; ?></td>
+                  </tr>
+                  <tr>
+                    <td class="label">Jefe / superior inmediato</td>
+                    <td class="value"><?= $superior; ?></td>
                   </tr>
                 </table>
 
                 <?php if ($motivo !== ''): ?>
                   <div class="motivo">
-                    <strong>Motivo:</strong><br>
+                    <strong>Hecho o motivo objeto de análisis:</strong><br>
                     <?= nl2br(esc($motivo)); ?>
                   </div>
                 <?php endif; ?>
@@ -270,17 +307,40 @@ $urlProceso = site_url('linea-tiempo/' . ($furd['consecutivo'] ?? ''));
                     <?= nl2br(esc($motivoRecit)); ?>
                   </div>
                 <?php endif; ?>
-              </div>
 
-              <div class="cta-wrap">
-                <a href="<?= esc($urlProceso); ?>" class="btn" target="_blank" rel="noopener">
-                  Ver detalle del proceso
-                </a>
+                <div class="doc-summary">
+                  <?php if ($esEscrito): ?>
+                    <p>
+                      En el documento adjunto encontrarás el <strong>modelo para presentar tu descargo por escrito</strong>,
+                      junto con:
+                    </p>
+                  <?php else: ?>
+                    <p>
+                      En el documento adjunto encontrarás el <strong>texto completo de la citación</strong>, incluyendo:
+                    </p>
+                  <?php endif; ?>
+
+                  <ul>
+                    <li>La descripción detallada del hecho objeto de análisis disciplinario.</li>
+                    <li>Las indicaciones sobre la fecha, hora y forma de realizar tu intervención (<?=
+                      esc($medioLegible); ?>).</li>
+                    <li>Las instrucciones para la presentación de tus descargos y de los medios de prueba que estimes pertinentes.</li>
+                    <li>Información sobre tus derechos durante el proceso disciplinario.</li>
+                  </ul>
+                </div>
               </div>
 
               <p class="note">
-                Este correo es informativo y hace parte de la trazabilidad del proceso.
-                Si consideras que hay un error en la información, comunícate con Gestión de Procesos Disciplinarios.
+                Te invitamos a leer con atención todo el contenido del documento adjunto. 
+                Es importante que <strong>respetes la fecha y hora indicadas</strong> y, en caso de no poder asistir 
+                o diligenciar el descargo en los términos señalados, te comuniques previamente con 
+                <strong>Gestión de Procesos Disciplinarios</strong> o con tu superior inmediato para reportar la novedad.
+              </p>
+
+              <p class="note">
+                Este correo hace parte de la trazabilidad formal del proceso disciplinario y se envía 
+                al correo registrado en tu información laboral. Si consideras que hay un error en los datos 
+                o en la citación, por favor contacta al área de <strong>Gestión de Procesos Disciplinarios</strong>.
               </p>
             </td>
           </tr>
@@ -288,7 +348,7 @@ $urlProceso = site_url('linea-tiempo/' . ($furd['consecutivo'] ?? ''));
           <tr>
             <td class="footer">
               <strong>Gestión de Procesos Disciplinarios</strong><br>
-              Mensaje generado automáticamente.<br>
+              Mensaje generado automáticamente, por favor no respondas a este correo.<br>
               <span class="mono">Ref: <?= $consecutivo; ?> / CIT-<?= $numeroCit; ?></span>
             </td>
           </tr>

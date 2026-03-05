@@ -126,6 +126,34 @@ $msg    = session('msg') ?? null;
           </div>
         </div>
 
+        <!-- Plantilla sugerida (solo para Suspensión disciplinaria) -->
+        <div class="row g-3 mt-1 d-none" id="dec_plantillaSuspWrap">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Plantilla sugerida</label>
+            <div class="plantilla-card plantilla-empty" id="decPlantillaCard">
+              <div class="plantilla-card-main">
+                <div class="plantilla-card-icon">
+                  <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <div class="plantilla-card-text" id="decPlantillaText">
+                  Cuando la decisión sea <strong>Suspensión disciplinaria</strong>,
+                  aquí podrás descargar el modelo sugerido.
+                </div>
+              </div>
+              <div class="plantilla-card-action">
+                <a
+                  id="decPlantillaLink"
+                  href="<?= base_url('decision/plantilla/suspension'); ?>"
+                  class="btn btn-sm btn-outline-primary d-none"
+                  target="_blank"
+                  rel="noopener">
+                  <i class="bi bi-download me-1"></i> Descargar modelo de suspensión
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Fechas de suspensión (solo si la decisión final es Suspensión disciplinaria) -->
         <div class="row g-3 mt-1 d-none" id="dec_wrapFechasSusp">
           <div class="col-12">
@@ -290,9 +318,13 @@ $msg    = session('msg') ?? null;
 
     const decisionSelect = form?.querySelector('select[name="decision"]');
     const wrapFechasSusp = document.getElementById('dec_wrapFechasSusp');
-    const fechaIniSusp   = document.getElementById('dec_fecha_inicio_suspension');
-    const fechaFinSusp   = document.getElementById('dec_fecha_fin_suspension');
+    const fechaIniSusp = document.getElementById('dec_fecha_inicio_suspension');
+    const fechaFinSusp = document.getElementById('dec_fecha_fin_suspension');
 
+    const plantillaSuspWrap = document.getElementById('dec_plantillaSuspWrap');
+    const plantillaCard = document.getElementById('decPlantillaCard');
+    const plantillaText = document.getElementById('decPlantillaText');
+    const plantillaLink = document.getElementById('decPlantillaLink');
 
 
     // 🧮 Contador de caracteres para Detalle / fundamentación
@@ -510,7 +542,7 @@ $msg    = session('msg') ?? null;
         }
 
         toggleFechasSusp();
-        
+
       } catch (e) {
         console.error(e);
         renderAdjuntosExistentes(null);
@@ -697,12 +729,12 @@ $msg    = session('msg') ?? null;
         bar.style.width = `${percent}%`;
       });
     };
-        
+
     // Helper para mostrar/ocultar
 
     function isSuspensionDecision(val) {
-      return (val || '').toLowerCase().trim() === 'suspensión disciplinaria'
-          || (val || '').toLowerCase().trim() === 'suspension disciplinaria';
+      return (val || '').toLowerCase().trim() === 'suspensión disciplinaria' ||
+        (val || '').toLowerCase().trim() === 'suspension disciplinaria';
     }
 
     function toggleFechasSusp() {
@@ -722,7 +754,33 @@ $msg    = session('msg') ?? null;
       }
     }
 
-    decisionSelect?.addEventListener('change', toggleFechasSusp);
+    decisionSelect?.addEventListener('change', () => {
+      toggleFechasSusp();
+      updatePlantillaSusp();
+    });
+
+    // Estado inicial por si viene old('decision')
+    toggleFechasSusp();
+    updatePlantillaSusp();
+
+    function updatePlantillaSusp() {
+      if (!decisionSelect || !plantillaSuspWrap || !plantillaText || !plantillaLink) return;
+
+      const val = (decisionSelect.value || '').trim();
+      const isSusp = isSuspensionDecision(val);
+
+      if (isSusp) {
+        plantillaSuspWrap.classList.remove('d-none');
+        plantillaCard?.classList.remove('plantilla-empty');
+        plantillaText.textContent =
+          'Puedes descargar el modelo sugerido de suspensión disciplinaria.';
+        plantillaLink.classList.remove('d-none');
+      } else {
+        plantillaSuspWrap.classList.add('d-none');
+        plantillaCard?.classList.add('plantilla-empty');
+        plantillaLink.classList.add('d-none');
+      }
+    }
 
 
     // ----- Envío AJAX con loader y manejo de errores sin perder adjuntos -----

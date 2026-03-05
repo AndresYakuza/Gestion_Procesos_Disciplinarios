@@ -101,3 +101,8 @@ $routes->group('portal-cliente', ['namespace' => 'App\Controllers'], static func
     // AJAX: respuesta del cliente a la decisión (aprobar / solicitar ajuste)
     $routes->post('furd/(:segment)/respuesta', 'PortalClienteController::responderDecision/$1');
 });
+
+
+$routes->get('decision/plantilla/suspension', 'DecisionController::plantillaSuspension');
+
+$routes->get('citacion/docx/(:num)', 'CitacionController::downloadDocx/$1');

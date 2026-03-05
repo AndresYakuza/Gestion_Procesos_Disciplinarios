@@ -247,9 +247,9 @@ class FurdMailService
         return true;
     }
 
-    public function notifyCitacionTrabajador(array $furd, array $citacion): bool
+    public function notifyCitacionTrabajador(array $furd, array $citacion, ?string $docxPath = null): bool
     {
-        $to = trim((string)($furd['correo'] ?? '')); // correo del trabajador
+        $to = trim((string)($furd['correo'] ?? ''));
         if ($to === '') {
             log_message('warning', 'Sin correo de trabajador para citación. FURD ID: {id}', [
                 'id' => $furd['id'] ?? null,
@@ -276,24 +276,36 @@ class FurdMailService
         $this->email->setSubject($subject);
         $this->email->setMessage($body);
 
+        // 👇 Log de qué ruta llega y si existe
+        log_message('debug', '[CITACION] docxPath recibido en notify: {path}', ['path' => $docxPath]);
+
+        if ($docxPath && is_file($docxPath)) {
+            log_message('debug', '[CITACION] Adjuntando DOCX: {path}', ['path' => $docxPath]);
+            $this->email->attach($docxPath);
+        } else {
+            log_message('error', '[CITACION] No se adjunta DOCX porque el archivo no existe: {path}', [
+                'path' => $docxPath,
+            ]);
+        }
+
         $this->email->setAltMessage(
             "Tiene una nueva citación del proceso {$furd['consecutivo']}.\n" .
                 "Fecha: " . ($citacion['fecha_evento'] ?? 'N/D') . "\n" .
                 "Hora: " . ($citacion['hora'] ?? 'N/D') . "\n" .
-                "Medio: " . ($citacion['medio'] ?? 'N/D')
+                "Medio: " . ($citacion['medio'] ?? 'N/D') . "\n\n" .
+                "Se adjunta el documento formal de citación en formato RH-FO67."
         );
 
         $ok = $this->email->send();
 
-        // Registrar bitácora de notificación SIEMPRE (éxito o fallo)
         $notif = new FurdCitacionNotificacionModel();
         $notif->insert([
-            'citacion_id'  => (int)($citacion['id'] ?? 0),
-            'canal'        => 'email',
-            'destinatario' => $to,
-            'estado'       => $ok ? 'enviado' : 'fallido',
-            'mensaje_id'   => null,
-            'error'        => $ok ? null : substr((string)$this->email->printDebugger(['headers', 'subject']), 0, 500),
+            'citacion_id'   => (int)($citacion['id'] ?? 0),
+            'canal'         => 'email',
+            'destinatario'  => $to,
+            'estado'        => $ok ? 'enviado' : 'fallido',
+            'mensaje_id'    => null,
+            'error'         => $ok ? null : substr((string)$this->email->printDebugger(['headers', 'subject']), 0, 500),
             'notificado_at' => date('Y-m-d H:i:s'),
         ]);
 

@@ -288,13 +288,61 @@ class CitacionController extends BaseController
 
             $cit->insert($payload);
 
-            $citacionId = (int)$cit->getInsertID();
-            $citacionDb = $cit->find($citacionId);
+            $citacionId = (int) $cit->getInsertID();
+            $citacionDb = $cit->find($citacionId) ?? (['id' => $citacionId] + $payload);
 
-            // enviar correo al trabajador y registrar fecha de notificación
+            // 4.0 Crear evento de Calendar + Meet solo si es virtual
+            if ($medio === 'virtual') {
+                try {
+                    $tz    = new \DateTimeZone('America/Bogota');
+                    $hora  = (string) $payload['hora']; // "HH:MM"
+                    $start = new \DateTimeImmutable($fechaConvertida . ' ' . $hora, $tz);
+                    $end   = $start->modify('+1 hour'); // duración 1h (ajusta si quieres)
+
+                    $gcal = new \App\Libraries\GCalendar();
+
+                    $attendees = [
+                        $furd['correo']          ?? null,                     // trabajador
+                        // $furd['correo_cliente']  ?? null,                     // cliente (si aplica)
+                        env('email.fromEmail', '') ?: null,                   // área de procesos (CAMBIAR por correo específico LUCHO FUTURO)
+                    ];
+
+                    $meetLink = $gcal->crearEventoMeet($start, $end, [
+                        'summary'     => 'Contactamos de Colombia SAS - Reunión PROGRAMADA de Cargos y Descargos ' . ($furd['consecutivo'] ?? ''),
+                        'description' => 'Citación a descargos del colaborador ' . ($furd['nombre_completo'] ?? ''),
+                        'attendees'   => $attendees,
+                    ]);
+
+                    if ($meetLink) {
+                        log_message('debug', '[CITACION] Meet creado: {link}', ['link' => $meetLink]);
+
+                        $cit->update($citacionId, ['link_meet' => $meetLink]);
+                        $citacionDb['link_meet'] = $meetLink;
+                    } else {
+                        log_message('debug', '[CITACION] Evento creado sin link de Meet');
+                    }
+                    
+                } catch (\Throwable $e) {
+                    log_message('error', '[CITACION] Error creando evento Calendar: {msg}', [
+                        'msg' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // 4.1 Generar DOCX de citación (RH-FO67)
+            $docxPath = null;
+
+            try {
+                $docService = new \App\Services\CitacionDocxService();
+                $docxPath   = $docService->generate($furd, $citacionDb); // 👈 ahora lleva link_meet dentro
+            } catch (\Throwable $e) {
+                log_message('error', '[CITACION] Error generando DOCX: {msg}', ['msg' => $e->getMessage()]);
+            }
+
+            // 4.2 Enviar correo al trabajador y registrar fecha de notificación
             $mail = new \App\Services\FurdMailService();
-            $mail->notifyCitacionTrabajador($furd, $citacionDb ?? ['id' => $citacionId] + $payload);
-
+            $mail->notifyCitacionTrabajador($furd, $citacionDb, $docxPath);
+            // Adjuntos extras que cargues en citación (si los hay)
             $files = $this->request->getFiles()['adjuntos'] ?? [];
             if (!empty($files)) {
                 $this->saveAdjuntos((int) $furd['id'], 'citacion', is_array($files) ? $files : [$files]);
@@ -315,6 +363,7 @@ class CitacionController extends BaseController
                 return $this->response->setJSON([
                     'ok'         => true,
                     'redirectTo' => site_url('seguimiento'),
+                    'docUrl'     => site_url('citacion/docx/' . $citacionId),
                 ]);
             }
 
@@ -367,6 +416,31 @@ class CitacionController extends BaseController
         }
 
         return redirect()->back()->with('ok', 'Citación actualizada');
+    }
+
+    public function downloadDocx(int $citacionId)
+    {
+        $cit = new FurdCitacionModel();
+        $row = $cit->find($citacionId);
+        if (!$row) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Citación no encontrada');
+        }
+
+        $furd = (new FurdModel())->find((int)$row['furd_id']);
+        if (!$furd) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('FURD no encontrado');
+        }
+
+        $docService = new \App\Services\CitacionDocxService();
+        $path       = $docService->generate($furd, $row);
+
+        if (!$path || !is_file($path)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Documento de citación no disponible');
+        }
+
+        $fileName = basename($path);
+
+        return $this->response->download($path, null)->setFileName($fileName);
     }
 
     /**

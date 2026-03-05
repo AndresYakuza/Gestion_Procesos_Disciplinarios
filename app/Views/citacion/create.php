@@ -121,30 +121,10 @@ $plantillasDescargo = $plantillasDescargo ?? [];
           </select>
         </div>
 
-        <div class="col-12 col-md-6">
-          <label class="form-label">Plantilla sugerida</label>
-          <div id="plantillaDescargoBox" class="plantilla-card plantilla-empty">
-            <div class="plantilla-card-main">
-              <div class="plantilla-card-icon">
-                <i class="bi bi-file-earmark-text"></i>
-              </div>
-              <div class="plantilla-card-text" id="textoModeloDescargo">
-                Selecciona un modelo de descargo para ver aquí la plantilla descargable.
-              </div>
-            </div>
-            <div class="plantilla-card-action">
-              <a
-                id="linkModeloDescargo"
-                href="#"
-                class="btn btn-sm btn-outline-primary d-none"
-                target="_blank"
-                rel="noopener">
-                <i class="bi bi-download me-1"></i> Descargar modelo
-              </a>
-            </div>
-          </div>
+        <div class="form-text small text-muted mt-1">
+          Según el medio elegido, el sistema generará automáticamente el documento formal de citación
+          (formato RH-FO67) con los datos del proceso y lo enviará al correo del trabajador.
         </div>
-
 
         <div class="col-12">
           <label class="form-label" for="motivo">Hecho o motivo de la intervención</label>
@@ -206,7 +186,7 @@ $plantillasDescargo = $plantillasDescargo ?? [];
             class="form-control"
             rows="2"
             maxlength="1000
-            placeholder="Ej.: El trabajador no asistió a la citación anterior por incapacidad médica sin notificación previa…"><?= old('motivo_recitacion') ?></textarea>
+            placeholder=" Ej.: El trabajador no asistió a la citación anterior por incapacidad médica sin notificación previa…"><?= old('motivo_recitacion') ?></textarea>
         </div>
       </div>
 
@@ -253,7 +233,7 @@ $plantillasDescargo = $plantillasDescargo ?? [];
   <script>
     (() => {
       const baseFind = '<?= base_url('citacion/find'); ?>';
-      const PLANTILLAS_DESCARGO = <?= json_encode($plantillasDescargo ?? [], JSON_UNESCAPED_UNICODE); ?>;
+      // const PLANTILLAS_DESCARGO = <?= json_encode($plantillasDescargo ?? [], JSON_UNESCAPED_UNICODE); ?>;
 
 
       const enabledDates = <?= json_encode($fechasHabilitadas ?? []) ?>;
@@ -271,41 +251,41 @@ $plantillasDescargo = $plantillasDescargo ?? [];
       const showGlobalLoader = () => globalLoader?.classList.remove('d-none');
       const hideGlobalLoader = () => globalLoader?.classList.add('d-none');
 
-      const selectModelo = document.getElementById('selectModeloDescargo');
-      const boxPlantilla = document.getElementById('plantillaDescargoBox');
-      const textoPlantilla = document.getElementById('textoModeloDescargo');
-      const linkPlantilla = document.getElementById('linkModeloDescargo');
+      // const selectModelo = document.getElementById('selectModeloDescargo');
+      // const boxPlantilla = document.getElementById('plantillaDescargoBox');
+      // const textoPlantilla = document.getElementById('textoModeloDescargo');
+      // const linkPlantilla = document.getElementById('linkModeloDescargo');
 
       const citHistory = document.getElementById('citacionesHistory');
       const recitacionPanel = document.getElementById('recitacionPanel');
 
-      function updateModeloDescargoBox() {
-        if (!selectModelo || !boxPlantilla || !textoPlantilla || !linkPlantilla) return;
+      // function updateModeloDescargoBox() {
+      //   if (!selectModelo || !boxPlantilla || !textoPlantilla || !linkPlantilla) return;
 
-        const value = (selectModelo.value || '').toLowerCase();
-        const cfg = PLANTILLAS_DESCARGO[value];
+      //   const value = (selectModelo.value || '').toLowerCase();
+      //   const cfg = PLANTILLAS_DESCARGO[value];
 
-        if (!value || !cfg) {
-          textoPlantilla.textContent =
-            'Selecciona un modelo de descargo para ver aquí la plantilla descargable.';
-          linkPlantilla.classList.add('d-none');
-          linkPlantilla.removeAttribute('href');
-          boxPlantilla.classList.add('plantilla-empty');
-          return;
-        }
+      //   if (!value || !cfg) {
+      //     textoPlantilla.textContent =
+      //       'Selecciona un modelo de descargo para ver aquí la plantilla descargable.';
+      //     linkPlantilla.classList.add('d-none');
+      //     linkPlantilla.removeAttribute('href');
+      //     boxPlantilla.classList.add('plantilla-empty');
+      //     return;
+      //   }
 
-        textoPlantilla.textContent =
-          cfg.label || 'Plantilla sugerida para este modelo de descargo.';
-        linkPlantilla.href = cfg.url;
-        linkPlantilla.classList.remove('d-none');
-        boxPlantilla.classList.remove('plantilla-empty');
-      }
+      //   textoPlantilla.textContent =
+      //     cfg.label || 'Plantilla sugerida para este modelo de descargo.';
+      //   linkPlantilla.href = cfg.url;
+      //   linkPlantilla.classList.remove('d-none');
+      //   boxPlantilla.classList.remove('plantilla-empty');
+      // }
 
-      if (selectModelo) {
-        selectModelo.addEventListener('change', updateModeloDescargoBox);
-        // Para que se actualice si viene con old('medio')
-        updateModeloDescargoBox();
-      }
+      // if (selectModelo) {
+      //   selectModelo.addEventListener('change', updateModeloDescargoBox);
+      //   // Para que se actualice si viene con old('medio')
+      //   updateModeloDescargoBox();
+      // }
 
       // 🧮 Contador de caracteres para el motivo de citación
       const motivoCount = document.getElementById('motivoCount');
@@ -496,7 +476,7 @@ $plantillasDescargo = $plantillasDescargo ?? [];
               medioLabel = medioRaw ? medioRaw.charAt(0).toUpperCase() + medioRaw.slice(1) : 'N/D';
           }
 
-        return `
+          return `
           <div class="cit-item ${isLatest ? 'cit-item-latest' : ''}">
             <div class="cit-item-header">
               <div class="cit-item-title">
@@ -671,7 +651,16 @@ $plantillasDescargo = $plantillasDescargo ?? [];
 
             if (data) {
               if (data.ok && data.redirectTo) {
-                // Seguimiento (lleva flash con el mensaje)
+                if (data.docUrl) {
+                  // window.open(data.docUrl, '_blank'); // ❌ esto puede ser bloqueado
+                  const iframe = document.createElement('iframe');
+                  iframe.style.display = 'none';
+                  iframe.src = data.docUrl;
+                  document.body.appendChild(iframe);
+
+                  // opcional: limpiar el iframe luego de un rato
+                  setTimeout(() => iframe.remove(), 60000);
+                }
                 window.location.href = data.redirectTo;
                 return;
               }
@@ -763,40 +752,6 @@ $plantillasDescargo = $plantillasDescargo ?? [];
         }
       });
     });
-
-    // ==============================
-    //  Modelo de descargo → plantilla
-    // ==============================
-    const PLANTILLAS_DESCARGO = <?= json_encode($plantillasDescargo ?? [], JSON_UNESCAPED_UNICODE); ?>;
-
-    const selectModelo = document.getElementById('selectModeloDescargo');
-    const boxModelo = document.getElementById('boxModeloDescargo');
-    const txtModelo = document.getElementById('textoModeloDescargo');
-    const linkModelo = document.getElementById('linkModeloDescargo');
-
-    function updateModeloDescargoBox() {
-      if (!selectModelo || !boxModelo || !txtModelo || !linkModelo) return;
-
-      const val = (selectModelo.value || '').toLowerCase();
-      const cfg = PLANTILLAS_DESCARGO[val] || null;
-
-      if (!cfg || !cfg.url) {
-        txtModelo.textContent =
-          'Selecciona un modelo de descargo para ver aquí la plantilla descargable.';
-        linkModelo.classList.add('d-none');
-        linkModelo.href = '#';
-        return;
-      }
-
-      txtModelo.textContent = cfg.label || 'Plantilla sugerida para este modelo de descargo.';
-      linkModelo.href = cfg.url;
-      linkModelo.classList.remove('d-none');
-    }
-
-    selectModelo?.addEventListener('change', updateModeloDescargoBox);
-
-    // Estado inicial por si viene old('medio')
-    updateModeloDescargoBox();
   </script>
 
   <?= $this->endSection(); ?>

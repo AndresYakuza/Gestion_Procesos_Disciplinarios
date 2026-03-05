@@ -22,6 +22,7 @@ class FurdCitacionModel extends Model
         'motivo',
         'motivo_recitacion',
         'reprogramada_de_id',
+        'link_meet', 
     ];
 
     /**
