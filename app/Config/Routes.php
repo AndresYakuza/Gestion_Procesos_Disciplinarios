@@ -106,3 +106,31 @@ $routes->group('portal-cliente', ['namespace' => 'App\Controllers'], static func
 $routes->get('decision/plantilla/suspension', 'DecisionController::plantillaSuspension');
 
 $routes->get('citacion/docx/(:num)', 'CitacionController::downloadDocx/$1');
+
+$routes->match(['get', 'post'], 'preview-review-cliente-suspension', function () {
+    return view('soporte/review_cliente', [
+        'furd' => [
+            'consecutivo'     => '2026-00125',
+            'nombre_completo' => 'Juan David Pérez',
+            'empresa_usuaria' => 'Empresa Demo S.A.S.',
+        ],
+        'soporte' => [
+            'cliente_estado'      => 'pendiente',
+            'decision_propuesta'  => 'Suspensión disciplinaria',
+            'justificacion'       => "Se evidenciaron incumplimientos reiterados en los horarios de ingreso.\nDe acuerdo con la revisión realizada, se propone una suspensión disciplinaria.",
+            'cliente_respondido_at' => null,
+        ],
+        'adjuntosSoporte' => [
+            [
+                'nombre'        => 'Informe de novedades.pdf',
+                'url_open'      => 'https://example.com/adjuntos/informe-novedades',
+                'url_download'  => 'https://example.com/adjuntos/informe-novedades/download',
+            ],
+            [
+                'nombre'        => 'Soporte de marcaciones.xlsx',
+                'url_open'      => 'https://example.com/adjuntos/marcaciones',
+                'url_download'  => 'https://example.com/adjuntos/marcaciones/download',
+            ],
+        ],
+    ]);
+});
