@@ -353,14 +353,7 @@ $oldFaltas = old('faltas') ?? [];
                 <i class="bi bi-x-circle me-1"></i>
                 Cancelar
               </a>
-
-              <!-- NUEVO BOTÓN PARA PROBAR EL LOADER -->
-              <!--
-              <button type="button" id="btnTestLoader" class="btn btn-primary">
-                <i class="bi bi-hourglass-split me-1"></i>Probar loader
-              </button>
-              -->
-
+             
               <button id="btnGuardar" type="submit" class="btn btn-success">
                 <span
                   class="spinner-border spinner-border-sm me-2 d-none"
@@ -410,7 +403,7 @@ $oldFaltas = old('faltas') ?? [];
     <div class="loader-content">
       <lottie-player
         class="loader-lottie"
-        src="<?= base_url('assets/lottie/catloader.json') ?>"
+        src="<?= base_url('assets/lottie/sandy-loading.json') ?>"
         background="transparent"
         speed="1"
         style="width: 200px; height: 200px;"

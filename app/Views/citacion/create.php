@@ -210,7 +210,7 @@ $plantillasDescargo = $plantillasDescargo ?? [];
     <div class="loader-content">
       <lottie-player
         class="loader-lottie"
-        src="<?= base_url('assets/lottie/ChasquidoQik.json') ?>"
+        src="<?= base_url('assets/lottie/sandy-loading.json') ?>"
         background="transparent"
         speed="1"
         style="width: 220px; height: 220px;"
