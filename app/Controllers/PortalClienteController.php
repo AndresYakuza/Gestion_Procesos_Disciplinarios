@@ -57,6 +57,12 @@ class PortalClienteController extends BaseController
         }
 
         $consecutivo = trim((string) $this->request->getGet('consecutivo'));
+        $q           = trim((string) $this->request->getGet('q'));
+        $estado      = trim((string) $this->request->getGet('estado'));
+        $desde       = trim((string) $this->request->getGet('desde'));
+        $hasta       = trim((string) $this->request->getGet('hasta'));
+        $page        = max(1, (int) $this->request->getGet('page'));
+        $perPage     = max(1, min(10, (int) ($this->request->getGet('per_page') ?: 10)));
 
         $f = new FurdModel();
 
@@ -73,19 +79,17 @@ class PortalClienteController extends BaseController
             ->join('tbl_empleados e', 'e.id = tbl_furd.empleado_id', 'left')
             ->join(
                 "(SELECT empleado_id, MAX(id) AS max_id
-                  FROM tbl_empleado_contratos
-                  WHERE (activo = 1 OR fecha_retiro IS NULL)
-                  GROUP BY empleado_id) cmax",
+                FROM tbl_empleado_contratos
+                WHERE (activo = 1 OR fecha_retiro IS NULL)
+                GROUP BY empleado_id) cmax",
                 'cmax.empleado_id = e.id',
                 'left'
             )
             ->join('tbl_empleado_contratos c', 'c.id = cmax.max_id', 'left')
             ->join('tbl_proyectos p', 'p.id = c.proyecto_id', 'left')
-            ->where('tbl_furd.correo_cliente', $email)
-            ->orderBy('tbl_furd.created_at', 'DESC');
+            ->where('tbl_furd.correo_cliente', $email);
 
         if ($consecutivo !== '') {
-            // Permitimos tanto PD-000123 como solo el número
             $idFromConsec = $this->decodeConsecutivo($consecutivo);
             if ($idFromConsec) {
                 $f->where('tbl_furd.id', $idFromConsec);
@@ -94,7 +98,43 @@ class PortalClienteController extends BaseController
             }
         }
 
-        $rows = $f->findAll();
+        if ($estado !== '') {
+            $estadoMap = [
+                'abierto'    => ['registro'],
+                'en proceso' => ['citacion', 'descargos', 'soporte'],
+                'cerrado'    => ['decision'],
+                'archivado'  => ['archivado'],
+            ];
+
+            if (isset($estadoMap[$estado])) {
+                $f->whereIn('tbl_furd.estado', $estadoMap[$estado]);
+            }
+        }
+
+        if ($q !== '') {
+            $f->groupStart()
+                ->like('tbl_furd.consecutivo', $q)
+                ->orLike('e.numero_documento', $q)
+                ->orLike('e.nombre_completo', $q)
+                ->orLike('p.nombre', $q)
+            ->groupEnd();
+        }
+
+        if ($desde !== '') {
+            $f->where('DATE(tbl_furd.created_at) >=', $desde);
+        }
+
+        if ($hasta !== '') {
+            $f->where('DATE(tbl_furd.created_at) <=', $hasta);
+        }
+
+        $rows = $f->groupBy('tbl_furd.id')
+            ->orderBy('tbl_furd.created_at', 'DESC')
+            ->paginate($perPage, 'portal_cliente', $page);
+
+        $pager = $f->pager;
+        $total = $pager->getTotal('portal_cliente');
+        $lastPage = (int) ceil($total / $perPage);
 
         $mapEstado = [
             'registro'  => 'Abierto / Registro',
@@ -120,14 +160,22 @@ class PortalClienteController extends BaseController
                 'proyecto'       => (string) ($r['proyecto'] ?? ''),
                 'estado'         => $mapEstado[$r['estado']] ?? ucfirst((string) $r['estado']),
                 'estado_raw'     => (string) ($r['estado'] ?? ''),
-                'fecha'          => $created ? $created->format('d/m/Y')       : '',
-                'actualizado_en' => $updated ? $updated->format('d/m/Y H:i')   : '',
+                'fecha'          => $created ? $created->format('d/m/Y')     : '',
+                'actualizado_en' => $updated ? $updated->format('d/m/Y H:i') : '',
             ];
         }
 
         return $this->response->setJSON([
             'ok'       => true,
             'procesos' => $procesos,
+            'pager'    => [
+                'page'       => $page,
+                'per_page'   => $perPage,
+                'total'      => $total,
+                'last_page'  => $lastPage,
+                'has_prev'   => $page > 1,
+                'has_next'   => $page < $lastPage,
+            ],
         ]);
     }
 

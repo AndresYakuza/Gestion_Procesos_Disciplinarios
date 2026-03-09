@@ -12,12 +12,15 @@ class SeguimientoController extends BaseController
     {
         $f = new FurdModel();
 
-        $estado  = (string) $this->request->getGet('estado');
-        $q       = (string) $this->request->getGet('q');
+        $estado  = trim((string) $this->request->getGet('estado'));
+        $q       = trim((string) $this->request->getGet('q'));
+        $desde   = trim((string) $this->request->getGet('desde'));
+        $hasta   = trim((string) $this->request->getGet('hasta'));
         $perPage = 10;
 
         $f->select("
             tbl_furd.id,
+            tbl_furd.consecutivo,
             tbl_furd.hecho         AS hecho_registro,
             cit.motivo             AS motivo_citacion,
             tbl_furd.estado,
@@ -31,19 +34,18 @@ class SeguimientoController extends BaseController
             ->join('tbl_empleados e', 'e.id = tbl_furd.empleado_id', 'left')
             ->join(
                 "(SELECT empleado_id, MAX(id) AS max_id
-               FROM tbl_empleado_contratos
-               WHERE (activo = 1 OR fecha_retiro IS NULL)
-               GROUP BY empleado_id) cmax",
+              FROM tbl_empleado_contratos
+              WHERE (activo = 1 OR fecha_retiro IS NULL)
+              GROUP BY empleado_id) cmax",
                 'cmax.empleado_id = e.id',
                 'left'
             )
             ->join('tbl_empleado_contratos c', 'c.id = cmax.max_id', 'left')
             ->join('tbl_proyectos p', 'p.id = c.proyecto_id', 'left')
-            // 👇 último registro de citación por FURD
             ->join(
                 "(SELECT furd_id, MAX(id) AS max_id
-               FROM tbl_furd_citacion
-               GROUP BY furd_id) citmax",
+              FROM tbl_furd_citacion
+              GROUP BY furd_id) citmax",
                 'citmax.furd_id = tbl_furd.id',
                 'left'
             )
@@ -59,7 +61,17 @@ class SeguimientoController extends BaseController
                 ->orLike('e.numero_documento', $q)
                 ->orLike('e.nombre_completo', $q)
                 ->orLike('p.nombre', $q)
+                ->orLike('tbl_furd.hecho', $q)
+                ->orLike('cit.motivo', $q)
                 ->groupEnd();
+        }
+
+        if ($desde !== '') {
+            $f->where('DATE(tbl_furd.created_at) >=', $desde);
+        }
+
+        if ($hasta !== '') {
+            $f->where('DATE(tbl_furd.created_at) <=', $hasta);
         }
 
         $rows = $f->groupBy('tbl_furd.id')
@@ -67,15 +79,14 @@ class SeguimientoController extends BaseController
             ->paginate($perPage, 'seguimiento');
 
         $pager = $f->pager;
-
         $total = $pager->getTotal('seguimiento');
 
         $mapEstado = [
-            'registro' => 'Abierto / Registro',
-            'citacion' => 'En proceso / Citación',
+            'registro'  => 'Abierto / Registro',
+            'citacion'  => 'En proceso / Citación',
             'descargos' => 'En proceso / Descargos',
-            'soporte'  => 'En proceso / Soporte',
-            'decision' => 'Cerrado / Decisión',
+            'soporte'   => 'En proceso / Soporte',
+            'decision'  => 'Cerrado / Decisión',
             'archivado' => 'Archivado',
         ];
 
@@ -88,8 +99,6 @@ class SeguimientoController extends BaseController
 
             $hechoRegistro = (string)($r['hecho_registro'] ?? '');
             $hechoCitacion = (string)($r['motivo_citacion'] ?? '');
-
-            // 👉 si hay motivo en citación, usarlo; si no, el del registro
             $hechoMostrar  = $hechoCitacion !== '' ? $hechoCitacion : $hechoRegistro;
 
             $registros[] = [
@@ -99,7 +108,8 @@ class SeguimientoController extends BaseController
                 'proyecto'       => (string)($r['proyecto'] ?? ''),
                 'fecha'          => $created->format('d/m/Y'),
                 'creado_en_iso'  => $created->toDateString(),
-                'hecho'          => $hechoMostrar,          // 👈 aquí ya viene el correcto
+                'hecho'          => $hechoMostrar,
+                'estado_raw'     => (string)($r['estado'] ?? ''),
                 'estado'         => $mapEstado[$r['estado']] ?? ucfirst((string)$r['estado']),
                 'actualizado_en' => $updated->format('d/m/Y H:i'),
             ];
@@ -109,8 +119,10 @@ class SeguimientoController extends BaseController
             'registros' => $registros,
             'estado'    => $estado,
             'q'         => $q,
+            'desde'     => $desde,
+            'hasta'     => $hasta,
             'pager'     => $pager,
-            'total'     => $total
+            'total'     => $total,
         ]);
     }
 

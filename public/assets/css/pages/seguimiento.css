@@ -481,6 +481,63 @@ body.modal-open {
   }
 }
 
+/* ===== Loader y botón de búsqueda ===== */
+
+.btn-buscar-fixed {
+  min-width: 56px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.btn-buscar-fixed .btn-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seguimiento-loading {
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#resultadosWrapper {
+  transition: opacity 0.2s ease;
+}
+
+.opacity-50 {
+  opacity: 0.5 !important;
+  pointer-events: none;
+}
+
+#pagerMisProcesos .pagination {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+#pagerMisProcesos .page-link {
+  min-width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+#pagerMisProcesos .page-item.disabled .page-link {
+  opacity: 0.55;
+}
+
+#pagerMisProcesos .page-item.active .page-link {
+  transform: translateY(-1px);
+}
+
 
 
 

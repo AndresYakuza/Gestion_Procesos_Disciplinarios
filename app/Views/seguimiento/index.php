@@ -34,144 +34,165 @@ $registros = $registros ?? [];
   <span class="fw-semibold">
     Total sistema: <strong><?= esc($total ?? 0) ?></strong>
     &nbsp;|&nbsp;
-    Mostrando: <strong id="countTotal"><?= count($registros) ?></strong>
+    Mostrando: <strong><?= count($registros) ?></strong>
   </span>
 </div>
 
 <div class="card animate-in seguimiento-card">
   <div class="card-body">
-    <!-- Filtros -->
-    <div class="row g-2 align-items-end mb-3">
-      <div class="col-12 col-md-3">
-        <label class="form-label">Buscar</label>
-        <input
-          id="q"
-          type="search"
-          class="form-control"
-          placeholder="Consecutivo, cédula, nombre, proyecto...">
-      </div>
+    <form id="formFiltros" method="get" action="<?= current_url() ?>">
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Buscar</label>
+          <input
+            id="q"
+            name="q"
+            type="search"
+            class="form-control"
+            placeholder="Consecutivo, cédula, nombre, proyecto..."
+            value="<?= esc($q ?? '') ?>">
+        </div>
 
-      <div class="col-6 col-md-2">
-        <label class="form-label">Estado</label>
-        <select id="fEstado" class="form-select">
-          <option value="">Todos</option>
-          <option value="abierto">Abierto</option>
-          <option value="en proceso">En proceso</option>
-          <option value="cerrado">Cerrado</option>
-          <option value="archivado">Archivado</option>
-        </select>
-      </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Estado</label>
+          <select id="fEstado" name="estado" class="form-select">
+            <option value="">Todos</option>
+            <option value="registro" <?= (($estado ?? '') === 'registro') ? 'selected' : '' ?>>Abierto</option>
+            <option value="citacion" <?= (($estado ?? '') === 'citacion') ? 'selected' : '' ?>>En proceso / Citación</option>
+            <option value="descargos" <?= (($estado ?? '') === 'descargos') ? 'selected' : '' ?>>En proceso / Descargos</option>
+            <option value="soporte" <?= (($estado ?? '') === 'soporte') ? 'selected' : '' ?>>En proceso / Soporte</option>
+            <option value="decision" <?= (($estado ?? '') === 'decision') ? 'selected' : '' ?>>Cerrado</option>
+            <option value="archivado" <?= (($estado ?? '') === 'archivado') ? 'selected' : '' ?>>Archivado</option>
+          </select>
+        </div>
 
-      <div class="col-6 col-md-3">
-        <label class="form-label">Fecha (desde)</label>
-        <input
-          id="fDesde"
-          type="text"
-          class="form-control"
-          placeholder="Selecciona una fecha...">
-      </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Fecha (desde)</label>
+          <input
+            id="fDesde"
+            name="desde"
+            type="text"
+            class="form-control"
+            placeholder="Selecciona una fecha..."
+            value="<?= esc($desde ?? '') ?>">
+        </div>
 
-      <div class="col-6 col-md-3">
-        <label class="form-label">Fecha (hasta)</label>
-        <input
-          id="fHasta"
-          type="text"
-          class="form-control"
-          placeholder="Selecciona una fecha...">
-      </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label">Fecha (hasta)</label>
+          <input
+            id="fHasta"
+            name="hasta"
+            type="text"
+            class="form-control"
+            placeholder="Selecciona una fecha..."
+            value="<?= esc($hasta ?? '') ?>">
+        </div>
 
-      <div class="col-6 col-md-1 d-grid">
-        <button id="btnLimpiar" class="btn btn-outline-secondary" type="button">
-          <i class="bi bi-eraser"></i>
-        </button>
+        <div class="col-4 col-md-1 d-grid">
+          <label class="form-label invisible">Buscar</label>
+          <button id="btnBuscar" class="btn btn-success btn-buscar-fixed" type="submit" title="Buscar">
+            <span class="btn-text">
+              <i class="bi bi-search"></i>
+            </span>
+            <span class="btn-loading d-none">
+              <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            </span>
+          </button>
+        </div>
+
+        <div class="col-8 col-md-2 d-grid">
+          <label class="form-label invisible">Limpiar</label>
+          <a href="<?= current_url() ?>" class="btn btn-outline-secondary">
+            <i class="bi bi-eraser me-1"></i> Limpiar
+          </a>
+        </div>
       </div>
+    </form>
+
+    <div id="loadingOverlay" class="d-none seguimiento-loading">
+      <div class="spinner-border text-success" role="status"></div>
+      <div class="mt-2 fw-semibold text-muted">Cargando resultados...</div>
     </div>
 
-    <!-- Tabla -->
-    <div class="table-responsive">
-      <table class="table align-middle table-hover table-seg">
-        <thead>
-          <tr>
-            <th style="width:150px">Consecutivo</th>
-            <th style="width:150px">N° Cédula</th>
-            <th>Nombre</th>
-            <th>Proyecto</th>
-            <th style="width:130px">Fecha</th>
-            <th>Hecho</th>
-            <th style="width:135px">Estado</th>
-            <th style="width:170px">Actualizado</th>
-            <th style="width:160px" class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="tbodySeg">
-          <?php if (empty($registros)): ?>
+    <div id="resultadosWrapper">
+      <div class="table-responsive">
+        <table class="table align-middle table-hover table-seg">
+          <thead>
             <tr>
-              <td colspan="9" class="text-center text-muted py-4">Sin registros</td>
+              <th style="width:150px">Consecutivo</th>
+              <th style="width:150px">N° Cédula</th>
+              <th>Nombre</th>
+              <th>Proyecto</th>
+              <th style="width:130px">Fecha</th>
+              <th>Hecho</th>
+              <th style="width:135px">Estado</th>
+              <th style="width:170px">Actualizado</th>
+              <th style="width:160px" class="text-end">Acciones</th>
             </tr>
-          <?php else: ?>
-            <?php foreach ($registros as $r): ?>
-              <?php
-              $estadoTexto = $r['estado'] ?? '';
-
-              // toma lo que va antes de la barra: "Abierto / Registro" → "abierto"
-              $estadoBase = strtolower(trim(explode('/', $estadoTexto)[0]));
-
-              $badgeClass = match ($estadoBase) {
-                'abierto'    => 'badge bg-success-subtle text-success fw-semibold px-3 py-2',
-                'en proceso' => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
-                'cerrado'    => 'badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2',
-                'archivado'  => 'badge bg-danger-subtle text-danger fw-semibold px-3 py-2',
-                default      => 'badge bg-light text-dark fw-semibold px-3 py-2',
-              };
-              ?>
-              <tr data-row>
-                <td data-key="consecutivo"><?= esc($r['consecutivo']) ?></td>
-                <td data-key="cedula" class="text-mono"><?= esc($r['cedula']) ?></td>
-                <td data-key="nombre"><?= esc($r['nombre']) ?></td>
-                <td data-key="proyecto"><?= esc($r['proyecto']) ?></td>
-                <td
-                  data-key="fecha"
-                  data-fecha-creado="<?= esc($r['creado_en_iso'] ?? '') ?>">
-                  <?= esc($r['fecha']) ?>
-                </td>
-                <td data-key="hecho" class="text-center">
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-success btn-hecho-detalle"
-                    data-hecho="<?= esc($r['hecho']) ?>"
-                    data-nombre="<?= esc($r['nombre']) ?>"
-                    data-consecutivo="<?= esc($r['consecutivo']) ?>"
-                    title="Ver detalle del hecho">
-                    <i class="bi bi-eye me-1"></i> Ver detalle
-                  </button>
-                </td>
-                <td data-key="estado" data-estado="<?= esc($estadoBase) ?>">
-                  <span class="<?= $badgeClass ?>"><?= esc(strtoupper($r['estado'])) ?></span>
-                </td>
-                <td data-key="actualizado"><?= esc($r['actualizado_en']) ?></td>
-                <td class="text-end">
-                  <a href="<?= site_url('linea-tiempo/' . urlencode($r['consecutivo'])) ?>"
-                    class="btn btn-sm btn-outline-success btn-linea-tiempo"
-                    data-bs-toggle="tooltip"
-                    data-bs-placement="top"
-                    title="Ver la línea de tiempo del proceso">
-                    <i class="bi bi-activity me-1"></i> Línea temporal
-                  </a>
-                </td>
+          </thead>
+          <tbody id="tbodySeg">
+            <?php if (empty($registros)): ?>
+              <tr>
+                <td colspan="9" class="text-center text-muted py-4">Sin registros</td>
               </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
+            <?php else: ?>
+              <?php foreach ($registros as $r): ?>
+                <?php
+                $estadoRaw = strtolower(trim($r['estado_raw'] ?? ''));
 
-    <!-- Paginador -->
-    <?php if (isset($pager)): ?>
-      <div class="d-flex justify-content-end mt-3">
-        <?= $pager->links('seguimiento', 'bootstrap_full') ?>
+                $badgeClass = match ($estadoRaw) {
+                  'registro'  => 'badge bg-success-subtle text-success fw-semibold px-3 py-2',
+                  'citacion',
+                  'descargos',
+                  'soporte'   => 'badge bg-warning-subtle text-warning fw-semibold px-3 py-2',
+                  'decision'  => 'badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2',
+                  'archivado' => 'badge bg-danger-subtle text-danger fw-semibold px-3 py-2',
+                  default     => 'badge bg-light text-dark fw-semibold px-3 py-2',
+                };
+                ?>
+                <tr>
+                  <td><?= esc($r['consecutivo']) ?></td>
+                  <td class="text-mono"><?= esc($r['cedula']) ?></td>
+                  <td><?= esc($r['nombre']) ?></td>
+                  <td><?= esc($r['proyecto']) ?></td>
+                  <td><?= esc($r['fecha']) ?></td>
+                  <td class="text-center">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-success btn-hecho-detalle"
+                      data-hecho="<?= esc($r['hecho']) ?>"
+                      data-nombre="<?= esc($r['nombre']) ?>"
+                      data-consecutivo="<?= esc($r['consecutivo']) ?>"
+                      title="Ver detalle del hecho">
+                      <i class="bi bi-eye me-1"></i> Ver detalle
+                    </button>
+                  </td>
+                  <td>
+                    <span class="<?= $badgeClass ?>"><?= esc(strtoupper($r['estado'])) ?></span>
+                  </td>
+                  <td><?= esc($r['actualizado_en']) ?></td>
+                  <td class="text-end">
+                    <a href="<?= site_url('linea-tiempo/' . urlencode($r['consecutivo'])) ?>"
+                      class="btn btn-sm btn-outline-success btn-linea-tiempo"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Ver la línea de tiempo del proceso">
+                      <i class="bi bi-activity me-1"></i> Línea temporal
+                    </a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
       </div>
-    <?php endif; ?>
 
+      <?php if (isset($pager)): ?>
+        <div class="d-flex justify-content-end mt-3">
+          <?= $pager->only(['q', 'estado', 'desde', 'hasta'])->links('seguimiento', 'bootstrap_full') ?>
+        </div>
+      <?php endif; ?>
+    </div>
   </div>
 </div>
 
@@ -207,153 +228,109 @@ $registros = $registros ?? [];
 
 <?= $this->section('scripts'); ?>
 <script>
-  (() => {
-    const q = document.getElementById('q');
-    const fEstado = document.getElementById('fEstado');
-    const fDesde = document.getElementById('fDesde');
-    const fHasta = document.getElementById('fHasta');
-    const btnLimpiar = document.getElementById('btnLimpiar');
-    const rows = [...document.querySelectorAll('tr[data-row]')];
-    const countTotal = document.getElementById('countTotal');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      new bootstrap.Tooltip(el);
+    });
 
-    function matchDateRange(valueDate, d1, d2) {
-      // valueDate, d1, d2 vienen en formato YYYY-MM-DD
-      if (!valueDate) return true;
-      if (!d1 && !d2) return true;
+    const modalElement = document.getElementById('modalHecho');
+    const modal = modalElement ? new bootstrap.Modal(modalElement) : null;
+    let hechoActual = '';
 
-      const v = new Date(valueDate);
-      const v1 = d1 ? new Date(d1) : null;
-      const v2 = d2 ? new Date(d2) : null;
+    document.querySelectorAll('.btn-hecho-detalle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const hecho = btn.getAttribute('data-hecho') || '(Sin descripción)';
+        const nombre = btn.getAttribute('data-nombre') || '';
+        const consecutivo = btn.getAttribute('data-consecutivo') || '';
 
-      if (v1 && v < v1) return false;
-      if (v2 && v > v2) return false;
-      return true;
-    }
+        hechoActual = hecho;
+        document.getElementById('hechoTexto').textContent = hecho;
+        document.getElementById('hechoNombre').textContent = nombre;
+        document.getElementById('hechoConsecutivo').textContent = consecutivo;
 
-    function apply() {
-      const text = (q.value || '').toLowerCase().trim();
-      const est = (fEstado.value || '').toLowerCase().trim();
-      const d1 = fDesde.value || '';
-      const d2 = fHasta.value || '';
-
-      let visible = 0;
-
-      rows.forEach(tr => {
-        const fechaCell = tr.querySelector('[data-key="fecha"]');
-
-        const data = {
-          consecutivo: tr.querySelector('[data-key="consecutivo"]')?.textContent.toLowerCase() || '',
-          cedula: tr.querySelector('[data-key="cedula"]')?.textContent.toLowerCase() || '',
-          nombre: tr.querySelector('[data-key="nombre"]')?.textContent.toLowerCase() || '',
-          proyecto: tr.querySelector('[data-key="proyecto"]')?.textContent.toLowerCase() || '',
-          fecha: fechaCell?.dataset.fechaCreado || '',
-          hecho: tr.querySelector('[data-key="hecho"]')?.textContent.toLowerCase() || '',
-          estado: tr.querySelector('[data-key="estado"]')?.dataset.estado || '',
-        };
-
-        const textok = !text || Object.values(data).join(' ').includes(text);
-        const estok = !est || data.estado === est;
-        const dateok = matchDateRange(data.fecha, d1, d2);
-
-        const show = textok && estok && dateok;
-        tr.style.display = show ? '' : 'none';
-        if (show) visible++;
+        modal?.show();
       });
+    });
 
-      if (countTotal) countTotal.textContent = visible;
+    document.getElementById('btnCopiarHecho')?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(hechoActual);
+        const btn = document.getElementById('btnCopiarHecho');
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copiado!';
+        btn.classList.replace('btn-outline-primary', 'btn-success');
+
+        setTimeout(() => {
+          btn.innerHTML = original;
+          btn.classList.replace('btn-success', 'btn-outline-primary');
+        }, 2000);
+      } catch (err) {
+        alert('No se pudo copiar el texto.');
+      }
+    });
+
+    const form = document.getElementById('formFiltros');
+    const btnBuscar = document.getElementById('btnBuscar');
+    const selectEstado = document.getElementById('fEstado');
+    let enviando = false;
+
+    function showLoading() {
+      if (enviando) return;
+      enviando = true;
+
+      if (btnBuscar) {
+        btnBuscar.disabled = true;
+        btnBuscar.querySelector('.btn-text')?.classList.add('d-none');
+        btnBuscar.querySelector('.btn-loading')?.classList.remove('d-none');
+      }
+
+      document.getElementById('loadingOverlay')?.classList.remove('d-none');
+      document.getElementById('resultadosWrapper')?.classList.add('opacity-50');
     }
 
-    // 🔍 Búsqueda automática
-    q?.addEventListener('input', apply);
-
-    // Filtros de estado y fechas
-    fEstado?.addEventListener('change', apply);
-    fDesde?.addEventListener('change', apply);
-    fHasta?.addEventListener('change', apply);
-
-    // Botón limpiar → todo a estado inicial
-    btnLimpiar?.addEventListener('click', () => {
-      q.value = '';
-      fEstado.value = '';
-      if (fDesde._flatpickr) fDesde._flatpickr.clear();
-      if (fHasta._flatpickr) fHasta._flatpickr.clear();
-      apply();
-    });
-  })();
-
-  // Tooltips Bootstrap
-  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-    new bootstrap.Tooltip(el);
-  });
-
-  // === Modal detalle hecho ===
-  const modalElement = document.getElementById('modalHecho');
-  const modal = new bootstrap.Modal(modalElement);
-  let hechoActual = '';
-
-  document.querySelectorAll('.btn-hecho-detalle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const hecho = btn.getAttribute('data-hecho') || '(Sin descripción)';
-      const nombre = btn.getAttribute('data-nombre') || '';
-      const consecutivo = btn.getAttribute('data-consecutivo') || '';
-
-      hechoActual = hecho;
-      document.getElementById('hechoTexto').textContent = hecho;
-      document.getElementById('hechoNombre').textContent = nombre;
-      document.getElementById('hechoConsecutivo').textContent = consecutivo;
-
-      modal.show();
-    });
-  });
-
-  // Copiar texto del hecho
-  document.getElementById('btnCopiarHecho').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(hechoActual);
-      const btn = document.getElementById('btnCopiarHecho');
-      const original = btn.innerHTML;
-      btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copiado!';
-      btn.classList.replace('btn-outline-primary', 'btn-success');
-      setTimeout(() => {
-        btn.innerHTML = original;
-        btn.classList.replace('btn-success', 'btn-outline-primary');
-      }, 2000);
-    } catch (err) {
-      alert('No se pudo copiar el texto.');
-    }
-  });
-
-  // === Flatpickr fechas (usamos formato interno Y-m-d para filtrar bien) ===
-  document.addEventListener("DOMContentLoaded", function() {
     const baseConfig = {
-      locale: "es",
-      dateFormat: "Y-m-d", // valor real del input → fácil de parsear
+      locale: 'es',
+      dateFormat: 'Y-m-d',
       altInput: true,
-      altFormat: "d/m/Y", // lo que ve el usuario
+      altFormat: 'd/m/Y',
       allowInput: false,
       disableMobile: true,
-      monthSelectorType: "static",
-      yearSelectorType: "dropdown",
+      monthSelectorType: 'static',
     };
 
-    flatpickr("#fDesde", {
+    flatpickr('#fDesde', {
       ...baseConfig,
-      onChange: function(selectedDates, dateStr) {
-        const hasta = document.querySelector("#fHasta")._flatpickr;
+      defaultDate: document.getElementById('fDesde')?.value || null,
+      onChange: function(selectedDates) {
+        const hasta = document.querySelector('#fHasta')?._flatpickr;
         if (hasta && selectedDates[0]) {
-          hasta.set("minDate", selectedDates[0]);
+          hasta.set('minDate', selectedDates[0]);
         }
+        showLoading();
+        form?.submit();
       }
     });
 
-    flatpickr("#fHasta", {
+    flatpickr('#fHasta', {
       ...baseConfig,
-      onChange: function(selectedDates, dateStr) {
-        const desde = document.querySelector("#fDesde")._flatpickr;
+      defaultDate: document.getElementById('fHasta')?.value || null,
+      onChange: function(selectedDates) {
+        const desde = document.querySelector('#fDesde')?._flatpickr;
         if (desde && selectedDates[0]) {
-          desde.set("maxDate", selectedDates[0]);
+          desde.set('maxDate', selectedDates[0]);
         }
+        showLoading();
+        form?.submit();
       }
+    });
+
+    selectEstado?.addEventListener('change', function () {
+      showLoading();
+      form?.submit();
+    });
+
+    form?.addEventListener('submit', function () {
+      showLoading();
     });
   });
 </script>

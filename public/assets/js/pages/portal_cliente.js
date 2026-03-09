@@ -39,10 +39,10 @@
   let ultimoConsecutivoSeleccionado = consecInicial || null;
 
   // Datos en memoria para filtros/paginación
-  let procesosData = [];
-  let filteredProcesos = [];
   let currentPageMis = 1;
   const pageSizeMis = 10;
+  let totalPagesMis = 1;
+  let totalItemsMis = 0;
 
   // -----------------------
   // Helpers generales
@@ -309,46 +309,13 @@
   // TAB 2: Mis procesos (data + filtros + paginador)
   // -----------------------
 
-  function aplicarFiltrosMisProcesos() {
-    if (!Array.isArray(procesosData) || !tbodyProcesos) return;
 
-    const text = (qMis?.value || "").toLowerCase().trim();
-    const est = (fEstadoMis?.value || "").toLowerCase().trim();
-    const d1 = fDesdeMis?.value || "";
-    const d2 = fHastaMis?.value || "";
-
-    filteredProcesos = procesosData.filter((p) => {
-      const estadoTexto = p.estado || "";
-      const estadoBase = estadoTexto.split("/")[0].toLowerCase().trim();
-
-      const fechaRaw = p.creado_en_iso || p.fecha_iso || p.fecha || "";
-      const fechaCreadoIso = toIsoDate(fechaRaw);
-
-      const blobs = [
-        p.consecutivo || "",
-        p.cedula || "",
-        p.nombre || "",
-        p.proyecto || "",
-        estadoTexto || "",
-      ].map((s) => (s || "").toString().toLowerCase());
-
-      const textok = !text || blobs.join(" ").includes(text);
-      const estok = !est || estadoBase === est;
-      const dateok = matchDateRange(fechaCreadoIso, d1, d2);
-
-      return textok && estok && dateok;
-    });
-
-    currentPageMis = 1;
-    renderTablaMisProcesos();
-  }
-
-  function renderTablaMisProcesos() {
+  function renderTablaMisProcesos(items = []) {
     if (!tbodyProcesos) return;
 
     tbodyProcesos.innerHTML = "";
 
-    if (!filteredProcesos.length) {
+    if (!items.length) {
       tbodyProcesos.innerHTML = `
         <tr>
           <td colspan="7" class="text-center text-muted py-4">
@@ -356,66 +323,44 @@
           </td>
         </tr>
       `;
-      if (countTotalMis) countTotalMis.textContent = "0";
-      if (pagerMis) pagerMis.innerHTML = "";
       return;
     }
 
-    const total = filteredProcesos.length;
-    const totalPages = Math.ceil(total / pageSizeMis) || 1;
-    if (currentPageMis > totalPages) currentPageMis = totalPages;
-
-    const start = (currentPageMis - 1) * pageSizeMis;
-    const end = start + pageSizeMis;
-    const pageItems = filteredProcesos.slice(start, end);
-
-    pageItems.forEach((p) => {
+    items.forEach((p) => {
       const tr = document.createElement("tr");
       tr.classList.add("cursor-pointer");
       tr.dataset.consecutivo = p.consecutivo;
       tr.tabIndex = 0;
       tr.setAttribute("role", "button");
 
-      const estadoTexto = p.estado || "";
-      const estadoBase = estadoTexto.split("/")[0].toLowerCase().trim();
+      const estadoRaw = (p.estado_raw || "").toLowerCase().trim();
 
       let badgeClass = "badge bg-light text-dark fw-semibold px-3 py-2";
-      switch (estadoBase) {
-        case "abierto":
-          badgeClass =
-            "badge bg-success-subtle text-success fw-semibold px-3 py-2";
+      switch (estadoRaw) {
+        case "registro":
+          badgeClass = "badge bg-success-subtle text-success fw-semibold px-3 py-2";
           break;
-        case "en proceso":
-          badgeClass =
-            "badge bg-warning-subtle text-warning fw-semibold px-3 py-2";
+        case "citacion":
+        case "descargos":
+        case "soporte":
+          badgeClass = "badge bg-warning-subtle text-warning fw-semibold px-3 py-2";
           break;
-        case "cerrado":
-          badgeClass =
-            "badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2";
+        case "decision":
+          badgeClass = "badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2";
           break;
         case "archivado":
-          badgeClass =
-            "badge bg-danger-subtle text-danger fw-semibold px-3 py-2";
+          badgeClass = "badge bg-danger-subtle text-danger fw-semibold px-3 py-2";
           break;
       }
-
-      const fechaCreadoIso = (p.creado_en_iso || p.fecha_iso || "").substring(
-        0,
-        10,
-      );
 
       tr.innerHTML = `
         <td data-key="consecutivo">${p.consecutivo}</td>
         <td data-key="cedula" class="text-mono">${p.cedula || ""}</td>
         <td data-key="nombre">${p.nombre || ""}</td>
         <td data-key="proyecto">${p.proyecto || ""}</td>
-        <td data-key="fecha" data-fecha-creado="${fechaCreadoIso}">
-          ${p.fecha || ""}
-        </td>
-        <td data-key="estado" data-estado="${estadoBase}">
-          <span class="${badgeClass}">${(
-            estadoTexto || ""
-          ).toUpperCase()}</span>
+        <td data-key="fecha">${p.fecha || ""}</td>
+        <td data-key="estado">
+          <span class="${badgeClass}">${(p.estado || "").toUpperCase()}</span>
         </td>
         <td data-key="actualizado">${p.actualizado_en || ""}</td>
       `;
@@ -440,54 +385,134 @@
 
       tbodyProcesos.appendChild(tr);
     });
-
-    if (countTotalMis) countTotalMis.textContent = String(total);
-    renderPagerMisProcesos(totalPages);
   }
 
-  function renderPagerMisProcesos(totalPages) {
+  function renderPagerMisProcesos() {
     if (!pagerMis) return;
 
     pagerMis.innerHTML = "";
-    if (totalPages <= 1) return;
+    if (totalPagesMis <= 1) return;
 
     const nav = document.createElement("nav");
+    nav.setAttribute("aria-label", "Paginación de mis procesos");
+
     const ul = document.createElement("ul");
     ul.className = "pagination pagination-sm mb-0";
 
-    const addItem = (label, page, disabled, active) => {
+    const createPageItem = ({
+      label,
+      page = null,
+      disabled = false,
+      active = false,
+      isDots = false,
+      ariaLabel = "",
+    }) => {
       const li = document.createElement("li");
       li.className = "page-item";
+
       if (disabled) li.classList.add("disabled");
       if (active) li.classList.add("active");
+
+      if (isDots) {
+        const span = document.createElement("span");
+        span.className = "page-link";
+        span.innerHTML = label;
+        li.appendChild(span);
+        return li;
+      }
 
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "page-link";
-      btn.textContent = label;
+      btn.innerHTML = label;
 
-      if (!disabled) {
+      if (ariaLabel) {
+        btn.setAttribute("aria-label", ariaLabel);
+      }
+
+      if (active) {
+        btn.setAttribute("aria-current", "page");
+      }
+
+      if (!disabled && page !== null) {
         btn.addEventListener("click", () => {
+          if (page === currentPageMis) return;
           currentPageMis = page;
-          renderTablaMisProcesos();
+          loadMisProcesos(page);
         });
       }
 
       li.appendChild(btn);
-      ul.appendChild(li);
+      return li;
     };
 
-    addItem("«", Math.max(1, currentPageMis - 1), currentPageMis === 1, false);
+    const append = (item) => ul.appendChild(item);
 
-    for (let p = 1; p <= totalPages; p++) {
-      addItem(String(p), p, false, p === currentPageMis);
+    const addPage = (page) => {
+      append(
+        createPageItem({
+          label: String(page),
+          page,
+          active: page === currentPageMis,
+          ariaLabel: `Ir a la página ${page}`,
+        }),
+      );
+    };
+
+    const addDots = () => {
+      append(
+        createPageItem({
+          label: "…",
+          disabled: true,
+          isDots: true,
+        }),
+      );
+    };
+
+    // Anterior
+    append(
+      createPageItem({
+        label: "&laquo;",
+        page: currentPageMis - 1,
+        disabled: currentPageMis === 1,
+        ariaLabel: "Página anterior",
+      }),
+    );
+
+    const visiblePages = new Set();
+
+    // Siempre primera y última
+    visiblePages.add(1);
+    visiblePages.add(totalPagesMis);
+
+    // Dos páginas antes y dos después de la actual
+    for (let p = currentPageMis - 2; p <= currentPageMis + 2; p++) {
+      if (p >= 1 && p <= totalPagesMis) {
+        visiblePages.add(p);
+      }
     }
 
-    addItem(
-      "»",
-      Math.min(totalPages, currentPageMis + 1),
-      currentPageMis === totalPages,
-      false,
+    const orderedPages = [...visiblePages].sort((a, b) => a - b);
+
+    for (let i = 0; i < orderedPages.length; i++) {
+      const page = orderedPages[i];
+      const prev = orderedPages[i - 1];
+
+      if (i > 0 && page - prev > 1) {
+        addDots();
+      }
+
+      addPage(page);
+    }
+
+    // Siguiente
+    append(
+      createPageItem({
+        label: "&raquo;",
+        page: currentPageMis + 1,
+        disabled: currentPageMis === totalPagesMis,
+        ariaLabel: "Página siguiente",
+      }),
     );
 
     nav.appendChild(ul);
@@ -495,7 +520,7 @@
   }
 
   // Carga AJAX de procesos + enganche de filtros
-  async function loadMisProcesos() {
+  async function loadMisProcesos(page = 1) {
     if (!tbodyProcesos) return;
 
     if (!emailPortal) {
@@ -514,14 +539,28 @@
       </td></tr>
     `;
 
+    const q = (qMis?.value || "").trim();
+    const estado = (fEstadoMis?.value || "").trim().toLowerCase();
+    const desde = fDesdeMis?.value || "";
+    const hasta = fHastaMis?.value || "";
+
     try {
-      const url = `${PORTAL_BASE_URL}/mis-procesos?email=${encodeURIComponent(
-        emailPortal,
-      )}`;
+      const params = new URLSearchParams({
+        email: emailPortal,
+        page: String(page),
+        per_page: String(pageSizeMis),
+        q,
+        estado,
+        desde,
+        hasta,
+      });
+
+      const url = `${PORTAL_BASE_URL}/mis-procesos?${params.toString()}`;
 
       const resp = await fetch(url, {
         headers: { "X-Requested-With": "XMLHttpRequest" },
       });
+
       const data = await resp.json();
 
       if (!data.ok) {
@@ -530,30 +569,27 @@
             ${data.msg || "No fue posible obtener los procesos."}
           </td></tr>
         `;
-        procesosData = [];
-        filteredProcesos = [];
+        totalItemsMis = 0;
+        totalPagesMis = 1;
+        currentPageMis = 1;
         if (countTotalMis) countTotalMis.textContent = "0";
         if (pagerMis) pagerMis.innerHTML = "";
         return;
       }
 
       const procesos = data.procesos || [];
+      const pager = data.pager || {};
 
-      if (!procesos.length) {
-        tbodyProcesos.innerHTML = `
-          <tr><td colspan="7" class="text-center py-4 text-muted">
-            No se encontraron procesos asociados a este correo.
-          </td></tr>
-        `;
-        procesosData = [];
-        filteredProcesos = [];
-        if (countTotalMis) countTotalMis.textContent = "0";
-        if (pagerMis) pagerMis.innerHTML = "";
-        return;
+      currentPageMis = Number(pager.page || page || 1);
+      totalItemsMis = Number(pager.total || 0);
+      totalPagesMis = Number(pager.last_page || 1);
+
+      renderTablaMisProcesos(procesos);
+      renderPagerMisProcesos();
+
+      if (countTotalMis) {
+        countTotalMis.textContent = String(totalItemsMis);
       }
-
-      procesosData = procesos;
-      aplicarFiltrosMisProcesos();
 
       if (msgProcesos) {
         msgProcesos.className = "small text-muted mt-2";
@@ -570,8 +606,9 @@
           Error al consultar los procesos.
         </td></tr>
       `;
-      procesosData = [];
-      filteredProcesos = [];
+      totalItemsMis = 0;
+      totalPagesMis = 1;
+      currentPageMis = 1;
       if (countTotalMis) countTotalMis.textContent = "0";
       if (pagerMis) pagerMis.innerHTML = "";
     }
@@ -581,10 +618,20 @@
   (function initMisProcesosFiltros() {
     if (!tbodyProcesos) return;
 
-    qMis?.addEventListener("input", aplicarFiltrosMisProcesos);
-    fEstadoMis?.addEventListener("change", aplicarFiltrosMisProcesos);
-    fDesdeMis?.addEventListener("change", aplicarFiltrosMisProcesos);
-    fHastaMis?.addEventListener("change", aplicarFiltrosMisProcesos);
+    let timerBusqueda = null;
+
+    qMis?.addEventListener("input", () => {
+      clearTimeout(timerBusqueda);
+      timerBusqueda = setTimeout(() => {
+        currentPageMis = 1;
+        loadMisProcesos(1);
+      }, 400);
+    });
+
+    fEstadoMis?.addEventListener("change", () => {
+      currentPageMis = 1;
+      loadMisProcesos(1);
+    });
 
     btnLimpiarMis?.addEventListener("click", () => {
       if (qMis) qMis.value = "";
@@ -597,10 +644,11 @@
         if (fHastaMis._flatpickr) fHastaMis._flatpickr.clear();
         fHastaMis.value = "";
       }
-      aplicarFiltrosMisProcesos();
+
+      currentPageMis = 1;
+      loadMisProcesos(1);
     });
 
-    // Flatpickr (igual estilo que en seguimiento administrativo)
     if (typeof flatpickr !== "undefined") {
       const baseConfig = {
         locale: flatpickr.l10ns.es || "es",
@@ -614,12 +662,15 @@
       };
 
       let fpHasta;
+
       const fpDesde = flatpickr("#fDesdeMisProcesos", {
         ...baseConfig,
         onChange(selectedDates) {
           if (fpHasta && selectedDates[0]) {
             fpHasta.set("minDate", selectedDates[0]);
           }
+          currentPageMis = 1;
+          loadMisProcesos(1);
         },
       });
 
@@ -627,9 +678,10 @@
         ...baseConfig,
         onChange(selectedDates) {
           if (fpDesde && selectedDates[0]) {
-            fpDesde.setDate(selectedDates[0], false);
             fpDesde.set("maxDate", selectedDates[0]);
           }
+          currentPageMis = 1;
+          loadMisProcesos(1);
         },
       });
     }
