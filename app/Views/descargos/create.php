@@ -190,7 +190,6 @@
       }
     }
 
-    // ---------- Helpers para consecutivo PD-000000 ----------
     const onlyDigits = (str) => (str || '').replace(/\D/g, '');
 
     function normalizeConsecutivoSixDigits(value) {
@@ -199,7 +198,6 @@
       return PREFIX + digits.padStart(6, '0');
     }
 
-    // Al hacer foco, autocompletar PD-
     consecutivo?.addEventListener('focus', () => {
       if (!consecutivo.value.trim()) {
         consecutivo.value = PREFIX;
@@ -210,13 +208,11 @@
       }
     });
 
-    // Mientras escribe, mantenemos el prefijo y solo números
     consecutivo?.addEventListener('input', () => {
       const digits = onlyDigits(consecutivo.value);
       consecutivo.value = PREFIX + digits;
     });
 
-    // ---------- Buscar consecutivo (click o Enter) ----------
     async function buscar() {
       if (!consecutivo) return;
 
@@ -250,7 +246,6 @@
 
     btnBuscar?.addEventListener('click', buscar);
 
-    // Importante: prevenir el submit cuando se presiona Enter en el campo
     consecutivo?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -258,7 +253,6 @@
       }
     });
 
-    // ---------- Envío con loader global ----------
     if (form && btnGenerar) {
       let sending = false;
       const spin = btnGenerar.querySelector('.spinner-border');
@@ -274,7 +268,6 @@
       form.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        // Normalizar consecutivo antes de enviar
         if (consecutivo) {
           const normalized = normalizeConsecutivoSixDigits(consecutivo.value);
           if (!normalized) {
@@ -293,6 +286,9 @@
         if (txt) txt.textContent = 'Generando…';
 
         showGlobalLoader();
+
+        // Abrir pestaña desde el gesto del usuario para evitar bloqueo
+        const docTab = window.open('', '_blank');
 
         const formData = new FormData(form);
         const xhr = new XMLHttpRequest();
@@ -313,20 +309,31 @@
             }
           }
 
-          // Caso JSON (éxito vía AJAX)
           if (data) {
-            if (data.ok && data.redirectTo) {
-              window.location.href = data.redirectTo;
-              return;
+            if (data.ok) {
+              if (data.openUrl) {
+                if (docTab) {
+                  docTab.location.href = data.openUrl;
+                } else {
+                  window.open(data.openUrl, '_blank');
+                }
+              } else if (docTab) {
+                docTab.close();
+              }
+
+              if (data.redirectTo) {
+                window.location.href = data.redirectTo;
+                return;
+              }
+            }
+
+            if (docTab) {
+              docTab.close();
             }
 
             if (data.ok === false && data.errors) {
-              const allErrors = Array.isArray(data.errors) ?
-                data.errors :
-                Object.values(data.errors);
-              const firstError = allErrors.length ?
-                allErrors[0] :
-                'Revisa los campos obligatorios.';
+              const allErrors = Array.isArray(data.errors) ? data.errors : Object.values(data.errors);
+              const firstError = allErrors.length ? allErrors[0] : 'Revisa los campos obligatorios.';
 
               notify(firstError, 'warning');
               resetButton();
@@ -338,7 +345,10 @@
             return;
           }
 
-          // Fallback: respuesta HTML (redirect normal)
+          if (docTab) {
+            docTab.close();
+          }
+
           if (xhr.status >= 200 && xhr.status < 400) {
             const finalURL = xhr.responseURL || form.action;
             window.location.href = finalURL;
@@ -350,6 +360,9 @@
 
         xhr.onerror = () => {
           hideGlobalLoader();
+          if (docTab) {
+            docTab.close();
+          }
           notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
           resetButton();
         };

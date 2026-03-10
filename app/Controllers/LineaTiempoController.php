@@ -225,6 +225,9 @@ class LineaTiempoController extends BaseController
             $descDetalle = '— Sin audiencia de cargos y descargos registrada —';
         }
 
+        $adjuntosDescargos = $this->getAdjuntos($furd['id'], 'descargos');
+        $actaDescargos     = !empty($adjuntosDescargos) ? end($adjuntosDescargos) : null;
+
         $etapas[] = [
             'clave'        => 'descargos',
             'titulo'       => 'Cargos y Descargos',
@@ -234,7 +237,10 @@ class LineaTiempoController extends BaseController
             'detalle'      => $descDetalle,
             'detalle_full' => $descDetalle,
             'meta'         => $metaDesc,
-            'adjuntos'     => $this->getAdjuntos($furd['id'], 'descargos'),
+            'adjuntos'     => $adjuntosDescargos,
+            'accion_editar_url' => $actaDescargos
+                ? site_url('adjuntos/' . $actaDescargos['id'] . '/open')
+                : null,
         ];
 
         // 4️⃣ Soporte (decisión propuesta + respuesta cliente)

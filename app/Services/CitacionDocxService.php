@@ -96,7 +96,10 @@ class CitacionDocxService
         $cedula      = (string) ($furd['cedula'] ?? '');
         $proyecto    = (string) ($furd['proyecto'] ?? '');
         $empresa     = (string) ($furd['empresa_usuaria'] ?? '');
-        $hechos      = (string) ($furd['hecho'] ?? '');
+        $hechos = trim((string) ($citacion['motivo'] ?? ''));
+        if ($hechos === '') {
+            $hechos = trim((string) ($furd['hecho'] ?? ''));
+        }
 
         $fechaEventoRaw = (string) ($citacion['fecha_evento'] ?? '');
         $horaRaw        = (string) ($citacion['hora'] ?? '');

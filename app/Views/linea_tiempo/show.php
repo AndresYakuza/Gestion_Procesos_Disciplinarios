@@ -97,13 +97,27 @@ $etapas = array_map(function ($e) {
               </div>
 
               <?php
-              $isSoporte   = ($e['clave'] ?? '') === 'soporte';
-              $hasDetalle  = !empty($e['detalle']);
-              $hasFaltas   = !empty($e['faltas']);
-              $hasMeta     = !empty($e['meta']);
-              $hasAdjuntos = !empty($e['adjuntos']);
-              $isCitacion  = ($e['clave'] ?? '') === 'citacion';
+              $isSoporte      = ($e['clave'] ?? '') === 'soporte';
+              $hasDetalle     = !empty($e['detalle']);
+              $hasFaltas      = !empty($e['faltas']);
+              $hasMeta        = !empty($e['meta']);
+              $hasAdjuntos    = !empty($e['adjuntos']);
+              $isCitacion     = ($e['clave'] ?? '') === 'citacion';
+              $isDescargos    = ($e['clave'] ?? '') === 'descargos';
+              $editarActaUrl  = $e['accion_editar_url'] ?? null;
               ?>
+
+              <?php if ($isDescargos && !empty($editarActaUrl)): ?>
+                <div class="mb-3">
+                  <a href="<?= esc($editarActaUrl) ?>"
+                    target="_blank"
+                    rel="noopener"
+                    class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-pencil-square me-1"></i>
+                    Editar acta
+                  </a>
+                </div>
+              <?php endif; ?>
 
               <?php if ($isCitacion && !empty($e['citaciones'])): ?>
                 <?php
