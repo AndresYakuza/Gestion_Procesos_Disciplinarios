@@ -4,10 +4,10 @@ use CodeIgniter\Model;
 
 class ProyectoAliasModel extends Model
 {
-    protected $table      = 'proyecto_aliases';
+    protected $table      = 'tbl_proyecto_alias';
     protected $primaryKey = 'id';
 
-    protected $returnType = 'array';
+    protected $returnType    = 'array';
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';

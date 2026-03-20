@@ -4,40 +4,34 @@ namespace App\Services;
 
 use PhpOffice\PhpWord\TemplateProcessor;
 use App\Models\FurdAdjuntoModel;
+use App\Libraries\GDrive;
 
 class CitacionDocxService
 {
     /**
-     * Genera el DOCX de citación (RH-FO67) según el medio.
+     * Genera el DOCX de citación desde Google Drive/Docs,
+     * lo sube a la unidad compartida y devuelve metadata del archivo en Drive.
      *
-     * @param array $furd       Datos del FURD.
-     * @param array $citacion   Datos de la citación recién creada.
-     * @param array $faltas     Faltas seleccionadas (como en FurdFormatoService).
-     * @param array $adjuntos   Adjuntos/evidencias del FURD.
-     * @return string|null      Ruta absoluta del archivo generado o null en caso de fallo.
+     * @return array|null
      */
     public function generate(
         array $furd,
         array $citacion,
         array $faltas = [],
         array $adjuntos = []
-    ): ?string {
-        $medio  = strtolower((string) ($citacion['medio'] ?? ''));
+    ): ?array {
+        $medio  = strtolower((string)($citacion['medio'] ?? ''));
         $furdId = (int)($furd['id'] ?? 0);
 
-        // Log inicial
         log_message('debug', '[CITACION] generate() inicio - furd_id={id} faltas={cf} adjuntos={ca}', [
             'id' => $furdId,
             'cf' => is_array($faltas) ? count($faltas) : -1,
             'ca' => is_array($adjuntos) ? count($adjuntos) : -1,
         ]);
 
-        /* =====================================================
-         * 0) Fallbacks: si no me pasan faltas/adjuntos, los cargo
-         *     directo desde BD (como en FurdFormatoService).
-         * ===================================================== */
-
-        // 0.1 Faltas
+        // =====================================================
+        // 0) Fallbacks BD
+        // =====================================================
         if (empty($faltas) && $furdId > 0) {
             $faltas = $this->getFaltasByFurdId($furdId);
             log_message('debug', '[CITACION] Faltas cargadas desde BD: {n}', [
@@ -45,155 +39,197 @@ class CitacionDocxService
             ]);
         }
 
-        // 0.2 Adjuntos
         if (empty($adjuntos) && $furdId > 0) {
-            // Para la citación, normalmente quieres trasladar las pruebas del registro
             $adjuntos = (new FurdAdjuntoModel())->listByFase($furdId, 'registro');
             log_message('debug', '[CITACION] Adjuntos cargados desde BD (fase=registro): {n}', [
                 'n' => is_array($adjuntos) ? count($adjuntos) : 0,
             ]);
         }
 
-        /* =======================
-         * 1) Selección de plantilla
-         * ======================= */
+        // =====================================================
+        // 1) Selección de plantilla desde Drive
+        // =====================================================
         switch ($medio) {
             case 'virtual':
-                $template = APPPATH . 'Resources/RH-FO67_CITACION_VIRTUAL.docx';
+                $templateId = (string) env('GOOGLE_DOC_TEMPLATE_CITACION_VIRTUAL', '');
                 break;
             case 'presencial':
-                $template = APPPATH . 'Resources/RH-FO67_CITACION_PRESENCIAL.docx';
+                $templateId = (string) env('GOOGLE_DOC_TEMPLATE_CITACION_PRESENCIAL', '');
                 break;
             case 'escrito':
-                $template = APPPATH . 'Resources/RH-FO67_CITACION_ESCRITO.docx';
+                $templateId = (string) env('GOOGLE_DOC_TEMPLATE_CITACION_ESCRITO', '');
                 break;
             default:
                 log_message('error', '[CITACION] Medio no soportado: {medio}', ['medio' => $medio]);
                 return null;
         }
 
-        log_message('debug', '[CITACION] Usando plantilla: {tpl}', ['tpl' => $template]);
-
-        if (!is_file($template)) {
-            log_message('error', '[CITACION] Plantilla DOCX no encontrada: {tpl}', ['tpl' => $template]);
+        if ($templateId === '') {
+            log_message('error', '[CITACION] No hay templateId configurado para medio: {medio}', [
+                'medio' => $medio,
+            ]);
             return null;
         }
 
+        $g = new GDrive();
+
+        $tmpDir = WRITEPATH . 'tmp/citacion';
+        if (!is_dir($tmpDir) && !@mkdir($tmpDir, 0775, true) && !is_dir($tmpDir)) {
+            log_message('error', '[CITACION] No se pudo crear carpeta temporal: {dir}', ['dir' => $tmpDir]);
+            return null;
+        }
+
+        $tmpTemplatePath = null;
+        $tmpOutputPath   = null;
+
         try {
-            $processor = new TemplateProcessor($template);
+            $templateMeta = $g->getFileMeta($templateId);
+            $templateMime = (string)($templateMeta['mimeType'] ?? '');
+
+            log_message('debug', '[CITACION] Plantilla detectada. mime={mime} name={name}', [
+                'mime' => $templateMime,
+                'name' => $templateMeta['name'] ?? '',
+            ]);
+
+            if ($templateMime === 'application/vnd.google-apps.document') {
+                $templateBinary = $g->exportGoogleFile(
+                    $templateId,
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
+            } else {
+                $templateBinary = $g->downloadFile($templateId);
+            }
+
+            $tmpTemplatePath = $tmpDir . DIRECTORY_SEPARATOR . 'tpl_' . uniqid('', true) . '.docx';
+            file_put_contents($tmpTemplatePath, $templateBinary);
+
+            if (!is_file($tmpTemplatePath) || filesize($tmpTemplatePath) <= 0) {
+                throw new \RuntimeException('No se pudo materializar la plantilla DOCX temporal.');
+            }
+
+            $processor = new TemplateProcessor($tmpTemplatePath);
+
+            // =====================================================
+            // 2) Datos base del FURD
+            // =====================================================
+            $consecutivo = (string)($furd['consecutivo'] ?? '');
+            $nombre      = (string)($furd['nombre'] ?? $furd['nombre_completo'] ?? '');
+            $cedula      = (string)($furd['cedula'] ?? '');
+            $proyecto    = (string)($furd['proyecto'] ?? '');
+            $empresa     = (string)($furd['empresa_usuaria'] ?? '');
+
+            $hechos = trim((string)($citacion['motivo'] ?? ''));
+            if ($hechos === '') {
+                $hechos = trim((string)($furd['hecho'] ?? ''));
+            }
+
+            $fechaEventoRaw = (string)($citacion['fecha_evento'] ?? '');
+            $horaRaw        = (string)($citacion['hora'] ?? '');
+
+            $nowBogota  = new \DateTimeImmutable('now', new \DateTimeZone('America/Bogota'));
+            $fechaCarta = $this->formatFechaLargaEs($nowBogota);
+
+            $fechaDesc = '';
+            if ($fechaEventoRaw !== '') {
+                try {
+                    $dtDesc    = new \DateTimeImmutable($fechaEventoRaw, new \DateTimeZone('America/Bogota'));
+                    $fechaDesc = $this->formatFechaLargaEs($dtDesc);
+                } catch (\Throwable $e) {
+                    $fechaDesc = $fechaEventoRaw;
+                }
+            }
+
+            $horaDesc = $this->formatHoraAmPm($horaRaw);
+
+            // =====================================================
+            // 3) Texto de faltas y pruebas
+            // =====================================================
+            $textoFaltas  = $this->buildFaltasTexto($faltas, $furd['faltas'] ?? null);
+            $textoPruebas = $this->buildPruebasTexto($adjuntos, $furd['pruebas'] ?? null);
+            $enlaceMeet   = $this->buildMeetLink($furd, $citacion);
+
+            // =====================================================
+            // 4) Reemplazo marcadores
+            // =====================================================
+            $processor->setValue('FECHA_CARTA',       $fechaCarta);
+            $processor->setValue('NOMBRE_TRABAJADOR', $nombre);
+            $processor->setValue('CEDULA',            $cedula);
+            $processor->setValue('EMPRESA_USUARIA',   $empresa);
+            $processor->setValue('PROCESO_RAD',       $consecutivo);
+            $processor->setValue('PROYECTO',          $proyecto);
+
+            $processor->setValue('HECHOS',            $hechos);
+            $processor->setValue('FALTAS',            $textoFaltas);
+
+            $processor->setValue('FECHA_DESCARGOS',   $fechaDesc);
+            $processor->setValue('HORA_DESCARGOS',    $horaDesc);
+            $processor->setValue('MEDIO_DESCARGOS',   ucfirst($medio));
+            $processor->setValue('LUGAR_DESCARGOS',   $this->buildLugar($medio));
+
+            $processor->setValue('PRUEBAS_TRASLADO',  $textoPruebas);
+            $processor->setValue('EVIDENCIAS',        $textoPruebas);
+            $processor->setValue('ENLANCE',           $enlaceMeet);
+
+            // =====================================================
+            // 5) Guardar temporal y subir a Drive
+            // =====================================================
+            $safeConsec = preg_replace('/\W+/', '_', $consecutivo ?: 'PD-000000');
+            $numero     = (int)($citacion['numero'] ?? 1);
+            $fileName   = sprintf('RH-FO67_CITACION_%s_N%02d.docx', $safeConsec, $numero);
+
+            $tmpOutputPath = $tmpDir . DIRECTORY_SEPARATOR . $fileName;
+            $processor->saveAs($tmpOutputPath);
+
+            if (!is_file($tmpOutputPath)) {
+                throw new \RuntimeException('No se generó el DOCX temporal de salida.');
+            }
+
+            $year         = date('Y');
+            $root         = trim((string)env('GDRIVE_ROOT', 'FURD'), '/');
+            $procesoPath  = "{$root}/{$year}/{$consecutivo}";
+            $citacionPath = "{$procesoPath}/Citacion";
+            $parentId     = $g->ensurePath($citacionPath);
+
+            $up = $g->upload(
+                $tmpOutputPath,
+                $fileName,
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                $parentId
+            );
+
+            log_message('debug', '[CITACION] DOCX generado y subido a Drive: {id}', [
+                'id' => $up['id'] ?? null,
+            ]);
+
+            return [
+                'consecutivo_folder_path' => $procesoPath,
+                'citacion_folder_path'    => $citacionPath,
+                'citacion_folder_id'      => $parentId,
+                'docx_file_id'            => $up['id'] ?? null,
+                'docx_name'               => $up['name'] ?? $fileName,
+                'docx_mime'               => $up['mimeType'] ?? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'docx_web_view_link'      => $up['webViewLink'] ?? null,
+                'docx_web_content_link'   => $up['webContentLink'] ?? null,
+            ];
         } catch (\Throwable $e) {
-            log_message('error', '[CITACION] Error creando TemplateProcessor: {msg}', [
+            log_message('error', '[CITACION] Error generando DOCX desde Drive: {msg}', [
                 'msg' => $e->getMessage(),
             ]);
             return null;
-        }
-
-        /* =====================
-         * 2) Datos base del FURD
-         * ===================== */
-        $consecutivo = (string) ($furd['consecutivo'] ?? '');
-        $nombre      = (string) ($furd['nombre'] ?? $furd['nombre_completo'] ?? '');
-        $cedula      = (string) ($furd['cedula'] ?? '');
-        $proyecto    = (string) ($furd['proyecto'] ?? '');
-        $empresa     = (string) ($furd['empresa_usuaria'] ?? '');
-        $hechos = trim((string) ($citacion['motivo'] ?? ''));
-        if ($hechos === '') {
-            $hechos = trim((string) ($furd['hecho'] ?? ''));
-        }
-
-        $fechaEventoRaw = (string) ($citacion['fecha_evento'] ?? '');
-        $horaRaw        = (string) ($citacion['hora'] ?? '');
-
-        // 2.1 FECHA_CARTA = fecha actual (Bogotá) en español
-        $nowBogota  = new \DateTimeImmutable('now', new \DateTimeZone('America/Bogota'));
-        $fechaCarta = $this->formatFechaLargaEs($nowBogota);        // ej. "02 de marzo del 2026"
-
-        // 2.2 FECHA_DESCARGOS = fecha del evento, con mismo formato largo
-        $fechaDesc = '';
-        if ($fechaEventoRaw !== '') {
-            try {
-                $dtDesc    = new \DateTimeImmutable($fechaEventoRaw, new \DateTimeZone('America/Bogota'));
-                $fechaDesc = $this->formatFechaLargaEs($dtDesc);      // ej. "09 de marzo del 2026"
-            } catch (\Throwable $e) {
-                $fechaDesc = $fechaEventoRaw; // fallback crudo
+        } finally {
+            if ($tmpTemplatePath && is_file($tmpTemplatePath)) {
+                @unlink($tmpTemplatePath);
+            }
+            if ($tmpOutputPath && is_file($tmpOutputPath)) {
+                @unlink($tmpOutputPath);
             }
         }
-
-        // 2.3 HORA_DESCARGOS = hora abreviada tipo 9:30 AM / 2:00 PM
-        $horaDesc = $this->formatHoraAmPm($horaRaw);
-
-        /* =====================
-         * 3) Texto de faltas y pruebas
-         * ===================== */
-        $textoFaltas  = $this->buildFaltasTexto($faltas, $furd['faltas'] ?? null);
-        $textoPruebas = $this->buildPruebasTexto($adjuntos, $furd['pruebas'] ?? null);
-
-        // Enlace Meet
-        $enlaceMeet = $this->buildMeetLink($furd, $citacion);
-
-        /* =============================
-         * 4) Sustitución en la plantilla
-         * ============================= */
-        $processor->setValue('FECHA_CARTA',       $fechaCarta);
-        $processor->setValue('NOMBRE_TRABAJADOR', $nombre);
-        $processor->setValue('CEDULA',            $cedula);
-        $processor->setValue('EMPRESA_USUARIA',   $empresa);
-        $processor->setValue('PROCESO_RAD',       $consecutivo);
-        $processor->setValue('PROYECTO',          $proyecto);
-
-        $processor->setValue('HECHOS',            $hechos);
-        $processor->setValue('FALTAS',            $textoFaltas);
-
-        $processor->setValue('FECHA_DESCARGOS',   $fechaDesc);
-        $processor->setValue('HORA_DESCARGOS',    $horaDesc);
-        $processor->setValue('MEDIO_DESCARGOS',   ucfirst($medio));
-        $processor->setValue('LUGAR_DESCARGOS',   $this->buildLugar($medio));
-
-        // Marcadores de pruebas/evidencias
-        $processor->setValue('PRUEBAS_TRASLADO',  $textoPruebas);
-        $processor->setValue('EVIDENCIAS',        $textoPruebas);
-        $processor->setValue('ENLANCE',           $enlaceMeet);
-
-        /* ========================
-         * 5) Guardar archivo DOCX
-         * ======================== */
-        $safeConsec = preg_replace('/\W+/', '_', $consecutivo ?: 'PD-000000');
-        $numero     = (int) ($citacion['numero'] ?? 1);
-
-        $fileName = sprintf('CITACION_%s_N%02d.docx', $safeConsec, $numero);
-        $folder   = WRITEPATH . 'citaciones';
-
-        if (!is_dir($folder)) {
-            if (!@mkdir($folder, 0775, true) && !is_dir($folder)) {
-                log_message('error', '[CITACION] No se pudo crear carpeta: {dir}', ['dir' => $folder]);
-                return null;
-            }
-        }
-
-        $path = $folder . DIRECTORY_SEPARATOR . $fileName;
-
-        try {
-            $processor->saveAs($path);
-        } catch (\Throwable $e) {
-            log_message('error', '[CITACION] Error guardando DOCX en {path}: {msg}', [
-                'path' => $path,
-                'msg'  => $e->getMessage(),
-            ]);
-            return null;
-        }
-
-        log_message('debug', '[CITACION] DOCX generado correctamente: {path}', ['path' => $path]);
-
-        return $path;
     }
 
-    /**
-     * Fecha larga en español: "02 de marzo del 2026".
-     */
     private function formatFechaLargaEs(\DateTimeInterface $dt): string
     {
-        $dia  = (int) $dt->format('d');
-        $anio = (int) $dt->format('Y');
+        $dia  = (int)$dt->format('d');
+        $anio = (int)$dt->format('Y');
         $mesN = $dt->format('m');
 
         $meses = [
@@ -216,9 +252,6 @@ class CitacionDocxService
         return sprintf('%02d de %s del %d', $dia, $mes, $anio);
     }
 
-    /**
-     * Hora en formato 12h: "9:30 AM", "2:00 PM".
-     */
     private function formatHoraAmPm(string $horaRaw): string
     {
         $horaRaw = trim($horaRaw);
@@ -226,22 +259,16 @@ class CitacionDocxService
             return '';
         }
 
-        $patterns = ['H:i:s', 'H:i']; // 24h con o sin segundos
-
-        foreach ($patterns as $pat) {
+        foreach (['H:i:s', 'H:i'] as $pat) {
             $dt = \DateTime::createFromFormat($pat, $horaRaw);
             if ($dt instanceof \DateTime) {
                 return $dt->format('g:i A');
             }
         }
 
-        // Si viene en otro formato, lo devolvemos tal cual
         return $horaRaw;
     }
 
-    /**
-     * Texto de lugar según el medio.
-     */
     private function buildLugar(string $medio): string
     {
         $medio = strtolower($medio);
@@ -254,45 +281,32 @@ class CitacionDocxService
             return 'Oficinas administrativas de Contactamos de Colombia S.A.S.';
         }
 
-        // escrito
         return 'Presentación de descargos por escrito dentro del término señalado.';
     }
 
-    /**
-     * Construye el texto de faltas:
-     * - Si viene un arreglo de faltas, arma lista tipo "C01 (GRAVE): descripción".
-     * - Si el arreglo está vacío, usa el texto plano de fallback.
-     */
     private function buildFaltasTexto(array $faltas, ?string $fallback): string
     {
         $items = [];
 
         foreach ($faltas as $f) {
             if (!is_array($f)) {
-                $line = trim((string) $f);
+                $line = trim((string)$f);
                 if ($line !== '') {
                     $items[] = $line;
                 }
                 continue;
             }
 
-            $codigo      = trim((string) ($f['codigo'] ?? ''));
-            $gravedad    = trim((string) ($f['gravedad'] ?? ''));
-            $descripcion = trim((string) (
-                $f['descripcion'] ??
-                $f['descripcion_falta'] ??
-                ''
-            ));
+            $codigo      = trim((string)($f['codigo'] ?? ''));
+            $gravedad    = trim((string)($f['gravedad'] ?? ''));
+            $descripcion = trim((string)($f['descripcion'] ?? $f['descripcion_falta'] ?? ''));
 
             $prefix = $codigo;
             if ($gravedad !== '') {
                 $prefix .= $prefix !== '' ? " ({$gravedad})" : $gravedad;
             }
 
-            $line = trim(
-                ($prefix !== '' ? $prefix . ': ' : '') .
-                $descripcion
-            );
+            $line = trim(($prefix !== '' ? $prefix . ': ' : '') . $descripcion);
 
             if ($line !== '') {
                 $items[] = $line;
@@ -300,17 +314,13 @@ class CitacionDocxService
         }
 
         if (!empty($items)) {
-            // Igual que en FurdFormato: doble salto para separarlas visualmente
             return implode("\n\n", $items);
         }
 
-        $fallback = trim((string) $fallback);
+        $fallback = trim((string)$fallback);
         return $fallback !== '' ? $fallback : '';
     }
 
-    /**
-     * Construye el texto de pruebas trasladadas a partir de los adjuntos.
-     */
     private function buildPruebasTexto(array $adjuntos, ?string $fallback): string
     {
         log_message('debug', '[CITACION] Adjuntos recibidos en buildPruebasTexto: {dump}', [
@@ -321,14 +331,9 @@ class CitacionDocxService
 
         foreach ($adjuntos as $a) {
             if (!is_array($a)) {
-                $name = trim((string) $a);
+                $name = trim((string)$a);
             } else {
-                $name = trim((string) (
-                    $a['nombre_original'] ??
-                    $a['nombre'] ??
-                    $a['filename'] ??
-                    ''
-                ));
+                $name = trim((string)($a['nombre_original'] ?? $a['nombre'] ?? $a['filename'] ?? ''));
             }
 
             if ($name !== '') {
@@ -342,40 +347,27 @@ class CitacionDocxService
                 $lines[] = sprintf('%d. %s', $i + 1, $name);
             }
 
-            log_message('debug', '[CITACION] Pruebas/evidencias usadas en DOCX: {lista}', [
-                'lista' => implode(' | ', $nombres),
-            ]);
-
             return implode("\n", $lines);
         }
 
-        $fallback = trim((string) $fallback);
+        $fallback = trim((string)$fallback);
         return $fallback !== '' ? $fallback : '';
     }
 
-    /**
-     * Enlace Meet:
-     * aquí no generamos códigos "inventados".
-     * Se espera que el enlace venga desde BD o .env.
-     */
     private function buildMeetLink(array $furd, array $citacion): string
     {
         if (!empty($citacion['link_meet'])) {
-            return (string) $citacion['link_meet'];
+            return (string)$citacion['link_meet'];
         }
 
         if (!empty($furd['link_meet'])) {
-            return (string) $furd['link_meet'];
+            return (string)$furd['link_meet'];
         }
 
         $envLink = getenv('FURD_MEET_BASE_URL') ?: env('FURD_MEET_BASE_URL', '');
         return $envLink ?: '';
     }
 
-    /**
-     * Replica de getFaltasByFurdId() del FurdController,
-     * para no depender de que nos pasen las faltas desde afuera.
-     */
     private function getFaltasByFurdId(int $furdId): array
     {
         if ($furdId <= 0) {

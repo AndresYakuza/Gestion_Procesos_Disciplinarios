@@ -8,7 +8,6 @@ use App\Models\FurdModel;
 use App\Models\FurdFaltaModel;
 use App\Models\FurdAdjuntoModel;
 use App\Requests\FurdRegistroRequest;
-use App\Services\FurdFormatoService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 
@@ -22,20 +21,6 @@ class FurdController extends BaseController
         // $faltas debe venir del catálogo (tbl_rit_faltas). Si ya lo cargas en otro lado, ajusta aquí.
         $faltas = model('RitFaltaModel')->orderBy('codigo')->findAll();
         return view('furd/create', compact('faltas'));
-    }
-
-    /** (opcional) detalle de un FURD por consecutivo */
-    public function show(string $consecutivo)
-    {
-        $fm = new FurdModel();
-        $furd = $fm->findByConsecutivo($consecutivo);
-        if (!$furd) {
-            return redirect()->to(site_url('/'))->with('errors', ['FURD no encontrado']);
-        }
-
-        $faltas = (new FurdFaltaModel())->listByFurd((int)$furd['id']);
-        $adj    = (new FurdAdjuntoModel())->listAllByFurd((int)$furd['id']);
-        return view('furd/show', compact('furd', 'faltas', 'adj'));
     }
 
     /** Crea FURD, genera consecutivo, guarda faltas (M:N) y adjuntos (fase=registro) */
@@ -215,12 +200,14 @@ class FurdController extends BaseController
             // 4) Adjuntos -> Google Drive
             $meta = session('temp_evidencias_meta') ?? [];
             if ($meta) {
-                $root = (string) env('GDRIVE_ROOT', 'FURD');
+                $root = trim((string) env('GDRIVE_ROOT', 'FURD'), '/');
                 $g    = new \App\Libraries\GDrive();
 
-                // Carpeta: FURD/AAAA/{id}
-                $folderPath = rtrim($root, '/') . '/' . date('Y') . '/' . $id;
-                $parentId   = $g->ensurePath($folderPath);
+                $basePath      = $root . '/' . date('Y') . '/' . $consecutivo;
+                $furdPath      = $basePath . '/FURD';
+                $adjuntosPath  = $furdPath . '/Adjuntos';
+
+                $parentId = $g->ensurePath($adjuntosPath);
 
                 $am = new \App\Models\FurdAdjuntoModel();
 
@@ -241,7 +228,7 @@ class FurdController extends BaseController
                         'origen_id'             => $id,
                         'fase'                  => 'registro',
                         'nombre_original'       => $m['original'],
-                        'ruta'                  => $folderPath . '/' . $m['original'], // ruta "lógica"
+                        'ruta'                  => $adjuntosPath . '/' . $m['original'],
                         'mime'                  => $m['mime'],
                         'tamano_bytes'          => (int)$m['size'],
                         'sha1'                  => $sha1,
@@ -257,11 +244,46 @@ class FurdController extends BaseController
                 session()->remove('temp_evidencias_meta');
             }
 
+            $faltasRows = $this->getFaltasByFurdId($id);
+            $adjuntosRows = (new \App\Models\FurdAdjuntoModel())->listByFase($id, 'registro');
+
+            $formatoMeta = null;
+            try {
+                $googleFormat = new \App\Services\FurdGoogleFormatService();
+                $formatoMeta = $googleFormat->generar(
+                    array_merge($payload, [
+                        'id' => $id,
+                        'consecutivo' => $consecutivo,
+                    ]),
+                    $faltasRows,
+                    $adjuntosRows
+                );
+
+                // opcional: guardar metadata del PDF en tbl_furd_adjuntos
+                (new \App\Models\FurdAdjuntoModel())->insert([
+                    'origen'                 => 'furd',
+                    'origen_id'              => $id,
+                    'fase'                   => 'formato',
+                    'nombre_original'        => $formatoMeta['pdf_name'],
+                    'ruta'                   => ($formatoMeta['consecutivo_folder_path'] ?? '') . '/FURD/Formato del reporte disciplinario/' . $formatoMeta['pdf_name'],
+                    'mime'                   => 'application/pdf',
+                    'tamano_bytes'           => null,
+                    'sha1'                   => null,
+                    'storage_provider'       => 'gdrive',
+                    'drive_file_id'          => $formatoMeta['pdf_file_id'],
+                    'drive_web_view_link'    => $formatoMeta['pdf_web_view_link'] ?? null,
+                    'drive_web_content_link' => $formatoMeta['pdf_web_content_link'] ?? null,
+                    'created_at'             => date('Y-m-d H:i:s'),
+                ]);
+            } catch (\Throwable $e) {
+                log_message('error', 'Error generando formato FURD en Google: ' . $e->getMessage());
+            }
+
             $db->transComplete();
 
             // 🔔 Enviar correos de notificación (trabajador + procesos disciplinarios)
             try {
-                $this->enviarCorreosRegistroFurd($id);
+                $this->enviarCorreosRegistroFurd($id, $formatoMeta);
             } catch (\Throwable $mailEx) {
                 // No romper el flujo si el correo falla; solo se deja log
                 log_message('error', 'Error enviando correos de FURD creado (ID: ' . $id . '): ' . $mailEx->getMessage());
@@ -277,9 +299,10 @@ class FurdController extends BaseController
                 session()->setFlashdata('consecutivo', $consecutivo);
 
                 return $this->response->setJSON([
-                    'ok'         => true,
-                    'redirectTo' => site_url('seguimiento'),
-                    'downloadUrl' => site_url('furd/' . $id . '/formato'), 
+                    'ok'            => true,
+                    'redirectTo'    => site_url('seguimiento'),
+                    'drivePdfUrl'   => $formatoMeta['pdf_web_view_link'] ?? null,
+                    'consecutivo'   => $consecutivo,
                 ]);
             }
 
@@ -300,7 +323,7 @@ class FurdController extends BaseController
      *  - Al trabajador (si hay correo)
      *  - Al área de procesos disciplinarios
      */
-    private function enviarCorreosRegistroFurd(int $furdId): void
+    private function enviarCorreosRegistroFurd(int $furdId, ?array $formatoMeta = null): void
     {
         $db = db_connect();
 
@@ -320,8 +343,6 @@ class FurdController extends BaseController
             ->get()
             ->getRowArray();
 
-
-
         if (!$furd) {
             return;
         }
@@ -331,24 +352,62 @@ class FurdController extends BaseController
 
         // Adjuntos de la fase de registro
         $adjuntos = (new \App\Models\FurdAdjuntoModel())->listByFase($furdId, 'registro');
-        $consecutivo = $furd['consecutivo'] ?? sprintf('PD-%06d', $furdId);
 
-        // 💾 Generar archivo RH-FO23 en PDF
-        $formatoService = new FurdFormatoService();
-        $rutaFormato    = $formatoService->generar($furd, $faltas, $adjuntos);
+        $consecutivo = $furd['consecutivo'] ?? sprintf('PD-%06d', $furdId);
 
         $correoTrabajador = trim((string)($furd['correo'] ?? $furd['correo_trabajador'] ?? ''));
         $correoCliente    = trim((string)($furd['correo_cliente'] ?? ''));
         $correoProcesos   = trim((string)env('email.fromEmail', ''));
 
-        // Si no hay ningún destinatario útil, no hacemos nada.
+        // Si no hay destinatarios útiles, no hacemos nada
         if ($correoTrabajador === '' && $correoProcesos === '') {
             return;
         }
 
+        // Preparar PDF adjunto del formato recién generado
+        $tmpPdfPath = null;
+
+        if (!empty($formatoMeta['pdf_file_id'])) {
+            try {
+                $g = new \App\Libraries\GDrive();
+                $binary = $g->downloadFile((string)$formatoMeta['pdf_file_id']);
+
+                $tmpDir = WRITEPATH . 'tmp';
+                if (!is_dir($tmpDir)) {
+                    @mkdir($tmpDir, 0775, true);
+                }
+
+                $safeName = trim((string)($formatoMeta['pdf_name'] ?? ''));
+                if ($safeName === '') {
+                    $safeName = 'RH-FO23_' . preg_replace('/[^\w\-]+/', '_', $consecutivo) . '.pdf';
+                }
+
+                $tmpPdfPath = $tmpDir . DIRECTORY_SEPARATOR . $safeName;
+
+                if (file_put_contents($tmpPdfPath, $binary) === false) {
+                    throw new \RuntimeException('No se pudo escribir el PDF temporal en disco.');
+                }
+
+                log_message('debug', 'PDF temporal preparado para correo FURD {id}: {path}', [
+                    'id'   => $furdId,
+                    'path' => $tmpPdfPath,
+                ]);
+            } catch (\Throwable $e) {
+                log_message(
+                    'error',
+                    'No se pudo preparar PDF adjunto para correo FURD ID ' . $furdId . ': ' . $e->getMessage()
+                );
+                $tmpPdfPath = null;
+            }
+        } else {
+            log_message('error', 'FURD ID {id} sin pdf_file_id en formatoMeta; el correo saldrá sin adjunto.', [
+                'id' => $furdId,
+            ]);
+        }
+
         $email = \Config\Services::email();
 
-        // ====== cuerpo HTML común ======
+        // Cuerpo HTML común
         $html = view('emails/furd/furd_registro_resumen', [
             'furd'        => $furd,
             'faltas'      => $faltas,
@@ -356,39 +415,79 @@ class FurdController extends BaseController
             'consecutivo' => $consecutivo,
         ]);
 
-        // 1) Correo al trabajador
-        if ($correoTrabajador !== '') {
-            $email->clear(true);
-            $email->setTo($correoTrabajador);
-            $email->setSubject("Registro de proceso disciplinario {$consecutivo}");
-            $email->setMessage($html);
-            $email->setMailType('html');
+        try {
+            // 1) Correo al trabajador
+            if ($correoTrabajador !== '') {
+                $email->clear(true);
+                $email->setTo($correoTrabajador);
+                $email->setSubject("Registro de proceso disciplinario {$consecutivo}");
+                $email->setMessage($html);
+                $email->setMailType('html');
 
-            if (is_file($rutaFormato)) {
-                $email->attach($rutaFormato);   // 👉 ahora es el PDF
+                if ($tmpPdfPath && is_file($tmpPdfPath)) {
+                    log_message('debug', 'Adjuntando PDF a correo trabajador FURD {id}: {path}', [
+                        'id'   => $furdId,
+                        'path' => $tmpPdfPath,
+                    ]);
+                    $email->attach($tmpPdfPath);
+                } else {
+                    log_message('error', 'No se adjunta PDF en correo FURD {id} porque no existe archivo temporal.', [
+                        'id' => $furdId,
+                    ]);
+                }
+
+                if (!$email->send()) {
+                    log_message(
+                        'error',
+                        'Error enviando correo al trabajador para FURD ' . $consecutivo . '. Debug: ' .
+                            $email->printDebugger(['headers', 'subject'])
+                    );
+                }
             }
 
-            $email->send();
-        }
+            // 2) Correo a procesos disciplinarios
+            if ($correoProcesos !== '') {
+                $email->clear(true);
+                $email->setTo($correoProcesos);
 
-        // 2) Correo a procesos disciplinarios
-        if ($correoProcesos !== '') {
-            $email->clear(true);
-            $email->setTo($correoProcesos);
+                if ($correoCliente !== '') {
+                    $email->setCC($correoCliente);
+                }
 
-            if ($correoCliente !== '') {
-                $email->setCC($correoCliente);
+                $email->setSubject("Nuevo FURD registrado {$consecutivo}");
+                $email->setMessage($html);
+                $email->setMailType('html');
+
+                if ($tmpPdfPath && is_file($tmpPdfPath)) {
+                    log_message('debug', 'Adjuntando PDF a correo procesos FURD {id}: {path}', [
+                        'id'   => $furdId,
+                        'path' => $tmpPdfPath,
+                    ]);
+                    $email->attach($tmpPdfPath);
+                } else {
+                    log_message('error', 'No se adjunta PDF en correo FURD {id} porque no existe archivo temporal.', [
+                        'id' => $furdId,
+                    ]);
+                }
+
+                if (!$email->send()) {
+                    log_message(
+                        'error',
+                        'Error enviando correo a procesos disciplinarios para FURD ' . $consecutivo . '. Debug: ' .
+                            $email->printDebugger(['headers', 'subject'])
+                    );
+                }
             }
-
-            $email->setSubject("Nuevo FURD registrado {$consecutivo}");
-            $email->setMessage($html);
-            $email->setMailType('html');
-
-            if (is_file($rutaFormato)) {
-                $email->attach($rutaFormato);   // 👉 mismo PDF
+        } catch (\Throwable $e) {
+            log_message(
+                'error',
+                'Error general enviando correos del FURD ' . $consecutivo . ': ' . $e->getMessage()
+            );
+        } finally {
+            // Limpiar archivo temporal del servidor
+            if ($tmpPdfPath && is_file($tmpPdfPath)) {
+                @unlink($tmpPdfPath);
             }
-
-            $email->send();
         }
     }
 
@@ -488,25 +587,23 @@ class FurdController extends BaseController
 
     public function descargarFormato(int $id)
     {
-        $fm   = new FurdModel();
-        $furd = $fm->find($id);
+        $row = (new \App\Models\FurdAdjuntoModel())
+            ->where('origen', 'furd')
+            ->where('origen_id', $id)
+            ->where('fase', 'formato')
+            ->orderBy('id', 'DESC')
+            ->first();
 
-        if (!$furd) {
-            throw PageNotFoundException::forPageNotFound("FURD no encontrado");
+        if (!$row || empty($row['drive_file_id'])) {
+            throw PageNotFoundException::forPageNotFound('No se encontró el formato en Drive.');
         }
 
-        $faltas   = $this->getFaltasByFurdId($id);
-        $adjuntos = (new FurdAdjuntoModel())->listByFase($id, 'registro');
-
-        $service     = new FurdFormatoService();
-        $rutaArchivo = $service->generar($furd, $faltas, $adjuntos); // 👉 PDF
-
-        if (!is_file($rutaArchivo)) {
-            throw PageNotFoundException::forPageNotFound("No se pudo generar el formato.");
-        }
+        $g = new \App\Libraries\GDrive();
+        $binary = $g->downloadFile($row['drive_file_id']);
 
         return $this->response
-            ->download($rutaArchivo, null)
-            ->setFileName(basename($rutaArchivo));
+            ->setHeader('Content-Type', 'application/pdf')
+            ->setHeader('Content-Disposition', 'attachment; filename="' . ($row['nombre_original'] ?? 'furd.pdf') . '"')
+            ->setBody($binary);
     }
 }

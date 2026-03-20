@@ -144,7 +144,10 @@ class FurdMailService
 
         // Ajusta esto a tu config real
         $emailConfig = config('Email');
-        $correoGestion = config('Gpd')->correoGestionProcesos ?? null;
+        $gpdConfig   = config('Gpd');
+        $correoGestion = !empty($gpdConfig->correoGestionProcesos)
+            ? trim((string) $gpdConfig->correoGestionProcesos)
+            : null;
 
         $subject = 'Recordatorio de respuesta – Proceso disciplinario ' . ($furd['consecutivo'] ?? '');
         $body    = view('emails/furd/soporte_recordatorio', [
@@ -192,9 +195,12 @@ class FurdMailService
             return false;
         }
 
-        $emailConfig   = config('Email');
-        $correoGestion = config('Gpd')->correoGestionProcesos
-            ?? $emailConfig->fromEmail; // fallback al emisor
+        $emailConfig = config('Email');
+        $gpdConfig   = config('Gpd');
+
+        $correoGestion = !empty($gpdConfig->correoGestionProcesos)
+            ? trim((string) $gpdConfig->correoGestionProcesos)
+            : trim((string) $emailConfig->fromEmail);
 
         $subject = 'Archivo automático – Proceso disciplinario ' . ($furd['consecutivo'] ?? '');
         $body    = view('emails/furd/soporte_auto_archivado', [
@@ -221,12 +227,13 @@ class FurdMailService
                 . "por vencimiento del plazo de respuesta del cliente."
         );
 
-        if (!$this->email->send()) {
+        $ok = $this->email->send();
+
+        if (!$ok) {
             log_message('error', 'Error enviando auto-archivo FURD {id}. Debug: {debug}', [
                 'id'    => $furd['id'] ?? null,
                 'debug' => $this->email->printDebugger(['headers', 'subject']),
             ]);
-            return false;
         }
 
         $now = date('Y-m-d H:i:s');
@@ -244,10 +251,10 @@ class FurdMailService
             'updated_at' => $now,
         ]);
 
-        return true;
+        return $ok;
     }
 
-    public function notifyCitacionTrabajador(array $furd, array $citacion, ?string $docxPath = null): bool
+    public function notifyCitacionTrabajador(array $furd, array $citacion, ?array $docxMeta = null): bool
     {
         $to = trim((string)($furd['correo'] ?? ''));
         if ($to === '') {
@@ -276,16 +283,49 @@ class FurdMailService
         $this->email->setSubject($subject);
         $this->email->setMessage($body);
 
-        // 👇 Log de qué ruta llega y si existe
-        log_message('debug', '[CITACION] docxPath recibido en notify: {path}', ['path' => $docxPath]);
+        $tmpDocxPath = null;
 
-        if ($docxPath && is_file($docxPath)) {
-            log_message('debug', '[CITACION] Adjuntando DOCX: {path}', ['path' => $docxPath]);
-            $this->email->attach($docxPath);
+        log_message('debug', '[CITACION] docxMeta recibido en notify: {meta}', [
+            'meta' => json_encode($docxMeta),
+        ]);
+
+        if (!empty($docxMeta['docx_file_id'])) {
+            try {
+                $g = new \App\Libraries\GDrive();
+                $binary = $g->downloadFile((string)$docxMeta['docx_file_id']);
+
+                $tmpDir = WRITEPATH . 'tmp';
+                if (!is_dir($tmpDir)) {
+                    @mkdir($tmpDir, 0775, true);
+                }
+
+                $safeName = trim((string)($docxMeta['docx_name'] ?? ''));
+                if ($safeName === '') {
+                    $safeName = 'CITACION_' . preg_replace('/[^\w\-]+/', '_', (string)($furd['consecutivo'] ?? 'PD')) . '.docx';
+                }
+
+                $tmpDocxPath = $tmpDir . DIRECTORY_SEPARATOR . $safeName;
+
+                if (file_put_contents($tmpDocxPath, $binary) === false) {
+                    throw new \RuntimeException('No se pudo escribir el DOCX temporal en disco.');
+                }
+
+                log_message('debug', '[CITACION] DOCX temporal preparado para correo: {path}', [
+                    'path' => $tmpDocxPath,
+                ]);
+            } catch (\Throwable $e) {
+                log_message('error', '[CITACION] No se pudo preparar DOCX adjunto para correo: {msg}', [
+                    'msg' => $e->getMessage(),
+                ]);
+                $tmpDocxPath = null;
+            }
+        }
+
+        if ($tmpDocxPath && is_file($tmpDocxPath)) {
+            log_message('debug', '[CITACION] Adjuntando DOCX: {path}', ['path' => $tmpDocxPath]);
+            $this->email->attach($tmpDocxPath);
         } else {
-            log_message('error', '[CITACION] No se adjunta DOCX porque el archivo no existe: {path}', [
-                'path' => $docxPath,
-            ]);
+            log_message('error', '[CITACION] No se adjunta DOCX porque no existe archivo temporal.');
         }
 
         $this->email->setAltMessage(
@@ -308,6 +348,10 @@ class FurdMailService
             'error'         => $ok ? null : substr((string)$this->email->printDebugger(['headers', 'subject']), 0, 500),
             'notificado_at' => date('Y-m-d H:i:s'),
         ]);
+
+        if ($tmpDocxPath && is_file($tmpDocxPath)) {
+            @unlink($tmpDocxPath);
+        }
 
         if (!$ok) {
             log_message('error', 'Error enviando citación FURD {id}. Debug: {debug}', [

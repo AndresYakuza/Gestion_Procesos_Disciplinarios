@@ -281,14 +281,205 @@
         if (sending) return;
         sending = true;
 
+        let docTab = null;
+
+        try {
+          docTab = window.open('', '_blank');
+
+          if (docTab) {
+            docTab.document.write(`
+      <!doctype html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Generando acta de cargos y descargos</title>
+        <style>
+          :root{
+            --brand:#198754;
+            --brand-soft:#e9f7ef;
+            --text:#1f2937;
+            --muted:#6b7280;
+            --border:#dfe7e3;
+            --bg:#f4f7f6;
+            --card:#ffffff;
+            --shadow:0 24px 70px rgba(16,24,40,.12);
+          }
+          *{ box-sizing:border-box; }
+          body{
+            margin:0;
+            min-height:100vh;
+            font-family:Arial, Helvetica, sans-serif;
+            color:var(--text);
+            background:
+              radial-gradient(circle at top left, #eef8f2 0%, #f4f7f6 38%, #edf3f0 100%);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+          }
+          .shell{ width:100%; max-width:620px; }
+          .card{
+            width:100%;
+            background:#fff;
+            border:1px solid var(--border);
+            border-radius:28px;
+            box-shadow:var(--shadow);
+            overflow:hidden;
+          }
+          .top{
+            padding:22px 24px;
+            background:linear-gradient(135deg, #f7fcf9 0%, #eef8f2 100%);
+            border-bottom:1px solid var(--border);
+          }
+          .badge{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            padding:8px 14px;
+            border-radius:999px;
+            background:var(--brand-soft);
+            border:1px solid #cfe8d8;
+            color:var(--brand);
+            font-size:13px;
+            font-weight:700;
+          }
+          .dot{
+            width:8px;
+            height:8px;
+            border-radius:50%;
+            background:var(--brand);
+            box-shadow:0 0 0 6px rgba(25,135,84,.10);
+            animation:pulse 1.8s ease-in-out infinite;
+          }
+          .content{
+            padding:34px 30px 26px;
+            text-align:center;
+          }
+          .spinner{
+            width:72px;
+            height:72px;
+            margin:0 auto 22px;
+            border-radius:50%;
+            border:6px solid #dff0e5;
+            border-top-color:var(--brand);
+            animation:spin .95s linear infinite;
+          }
+          @keyframes spin { to { transform:rotate(360deg); } }
+          @keyframes pulse {
+            0%,100% { transform:scale(1); opacity:1; }
+            50% { transform:scale(1.15); opacity:.85; }
+          }
+          h1{
+            margin:0 0 10px;
+            font-size:30px;
+            line-height:1.12;
+          }
+          p{
+            margin:0 auto;
+            max-width:470px;
+            color:var(--muted);
+            font-size:15px;
+            line-height:1.65;
+          }
+          .steps{
+            display:grid;
+            gap:12px;
+            margin:26px 0 0;
+            text-align:left;
+          }
+          .step{
+            display:flex;
+            gap:12px;
+            align-items:flex-start;
+            background:#fafcfb;
+            border:1px solid #e9f1ec;
+            border-radius:18px;
+            padding:14px 15px;
+          }
+          .step-num{
+            width:28px;
+            height:28px;
+            min-width:28px;
+            border-radius:50%;
+            background:linear-gradient(180deg, #1f9b61 0%, #198754 100%);
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            font-weight:700;
+          }
+          .step b{ display:block; margin:0 0 3px; font-size:14px; }
+          .step span{ display:block; color:var(--muted); font-size:13px; line-height:1.5; }
+          .footer{
+            padding:0 30px 28px;
+            text-align:center;
+            color:#7b8794;
+            font-size:12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="shell">
+          <div class="card">
+            <div class="top">
+              <div class="badge">
+                <span class="dot"></span>
+                <span>CONTACTAMOS · ACTA EN PROCESO</span>
+              </div>
+            </div>
+            <div class="content">
+              <div class="spinner"></div>
+              <h1>Generando acta de cargos y descargos</h1>
+              <p>
+                Estamos preparando el documento formal y organizándolo en Google Drive
+                dentro del proceso disciplinario.
+              </p>
+
+              <div class="steps">
+                <div class="step">
+                  <div class="step-num">1</div>
+                  <div>
+                    <b>Tomando la plantilla</b>
+                    <span>Se obtiene el formato base desde Google Drive.</span>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">2</div>
+                  <div>
+                    <b>Generando el acta</b>
+                    <span>Se reemplazan los datos del trabajador, medio, fecha y hechos del proceso.</span>
+                  </div>
+                </div>
+                <div class="step">
+                  <div class="step-num">3</div>
+                  <div>
+                    <b>Guardando en Drive</b>
+                    <span>El archivo final se sube y se organiza en la carpeta de Descargos.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="footer">
+              Esta pestaña se actualizará automáticamente cuando el acta esté lista.
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+            docTab.document.close();
+          }
+        } catch (err) {
+          docTab = null;
+        }
+
         btnGenerar.disabled = true;
         if (spin) spin.classList.remove('d-none');
         if (txt) txt.textContent = 'Generando…';
 
         showGlobalLoader();
-
-        // Abrir pestaña desde el gesto del usuario para evitar bloqueo
-        const docTab = window.open('', '_blank');
 
         const formData = new FormData(form);
         const xhr = new XMLHttpRequest();
@@ -317,8 +508,17 @@
                 } else {
                   window.open(data.openUrl, '_blank');
                 }
-              } else if (docTab) {
-                docTab.close();
+              } else if (docTab && !docTab.closed) {
+                docTab.document.body.innerHTML = `
+    <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+      <div style="max-width:520px;background:#fff;border:1px solid #dfe7e3;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+        <h2 style="margin:0 0 10px;color:#1f2937;">Acta generada correctamente</h2>
+        <p style="margin:0;color:#6b7280;line-height:1.6;">
+          El proceso fue registrado, pero no se recibió la URL del documento.
+        </p>
+      </div>
+    </div>
+  `;
               }
 
               if (data.redirectTo) {
@@ -327,17 +527,44 @@
               }
             }
 
-            if (docTab) {
-              docTab.close();
-            }
-
             if (data.ok === false && data.errors) {
-              const allErrors = Array.isArray(data.errors) ? data.errors : Object.values(data.errors);
-              const firstError = allErrors.length ? allErrors[0] : 'Revisa los campos obligatorios.';
+              const allErrors = Array.isArray(data.errors) ?
+                data.errors :
+                Object.values(data.errors);
+
+              const firstError = allErrors.length ?
+                allErrors[0] :
+                'Revisa los campos obligatorios.';
+
+              if (docTab && !docTab.closed) {
+                docTab.document.body.innerHTML = `
+      <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+        <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+          <h2 style="margin:0 0 10px;color:#b42318;">No se pudo generar el acta</h2>
+          <p style="margin:0;color:#6b7280;line-height:1.6;">
+            ${firstError}
+          </p>
+        </div>
+      </div>
+    `;
+              }
 
               notify(firstError, 'warning');
               resetButton();
               return;
+            }
+
+            if (docTab && !docTab.closed) {
+              docTab.document.body.innerHTML = `
+    <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+      <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+        <h2 style="margin:0 0 10px;color:#b42318;">Error inesperado</h2>
+        <p style="margin:0;color:#6b7280;line-height:1.6;">
+          Ocurrió un error inesperado al registrar el acta de cargos y descargos.
+        </p>
+      </div>
+    </div>
+  `;
             }
 
             notify('Error inesperado al registrar el acta de descargos.', 'error');
@@ -345,14 +572,23 @@
             return;
           }
 
-          if (docTab) {
-            docTab.close();
-          }
-
           if (xhr.status >= 200 && xhr.status < 400) {
             const finalURL = xhr.responseURL || form.action;
             window.location.href = finalURL;
           } else {
+            if (docTab && !docTab.closed) {
+              docTab.document.body.innerHTML = `
+    <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+      <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+        <h2 style="margin:0 0 10px;color:#b42318;">No se pudo registrar el acta</h2>
+        <p style="margin:0;color:#6b7280;line-height:1.6;">
+          El servidor devolvió una respuesta no válida. Intenta nuevamente.
+        </p>
+      </div>
+    </div>
+  `;
+            }
+
             notify('Ocurrió un error al registrar el acta de descargos.', 'error');
             resetButton();
           }
@@ -360,9 +596,20 @@
 
         xhr.onerror = () => {
           hideGlobalLoader();
-          if (docTab) {
-            docTab.close();
+
+          if (docTab && !docTab.closed) {
+            docTab.document.body.innerHTML = `
+      <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+        <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+          <h2 style="margin:0 0 10px;color:#b42318;">No se pudo generar el acta</h2>
+          <p style="margin:0;color:#6b7280;line-height:1.6;">
+            Ocurrió un problema de conexión con el servidor. Puedes cerrar esta pestaña e intentar nuevamente.
+          </p>
+        </div>
+      </div>
+    `;
           }
+
           notify('No se pudo conectar con el servidor. Revisa tu conexión.', 'error');
           resetButton();
         };

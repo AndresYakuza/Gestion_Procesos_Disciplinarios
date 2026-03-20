@@ -21,7 +21,6 @@ $consecutivoInicial = $consecutivoInicial ?? '';
   id="portalClienteRoot"
   data-portal-email="<?= esc($clienteEmail) ?>"
   data-portal-consecutivo="<?= esc($consecutivoInicial) ?>"
-  data-timeline-url="<?= base_url('portal-cliente/timeline-json'); ?>"
   data-lookup-url="<?= base_url('empleados/lookup') ?>">
 
   <div class="row g-4">

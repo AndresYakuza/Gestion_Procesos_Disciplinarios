@@ -62,8 +62,13 @@ class FurdSoporteRecordatorios extends BaseCommand
             // y los datos del soporte tal cual
             $soporte = $row;
 
-            $mailService->notifySoporteRecordatorio($furd, $soporte);
-            CLI::write("Recordatorio enviado FURD #{$furd['id']}", 'green');
+            $ok = $mailService->notifySoporteRecordatorio($furd, $soporte);
+
+            if ($ok) {
+                CLI::write("Recordatorio enviado FURD #{$furd['id']}", 'green');
+            } else {
+                CLI::write("No se pudo enviar recordatorio FURD #{$furd['id']}", 'red');
+            }
         }
 
         // ---------- 2) Auto-archivo a los 10 días ----------
@@ -101,8 +106,13 @@ class FurdSoporteRecordatorios extends BaseCommand
 
             $soporte = $row;
 
-            $mailService->notifySoporteAutoArchivado($furd, $soporte);
-            CLI::write("Proceso archivado FURD #{$furd['id']}", 'yellow');
+            $ok = $mailService->notifySoporteAutoArchivado($furd, $soporte);
+
+            if ($ok) {
+                CLI::write("Auto-archivo notificado FURD #{$furd['id']}", 'yellow');
+            } else {
+                CLI::write("Auto-archivo aplicado con fallo de correo FURD #{$furd['id']}", 'red');
+            }
         }
     }
 }

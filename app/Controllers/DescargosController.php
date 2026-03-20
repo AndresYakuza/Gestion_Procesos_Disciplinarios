@@ -37,8 +37,9 @@ class DescargosController extends BaseController
         }
 
         return $this->response->setJSON([
-            'ok'   => true,
-            'furd' => $furd,
+            'ok'         => true,
+            'redirectTo' => site_url('seguimiento'),
+            'openUrl'    => $docx['view_link'] ?? null,
         ]);
     }
 

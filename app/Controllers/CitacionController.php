@@ -360,9 +360,17 @@ class CitacionController extends BaseController
                 session()->setFlashdata('ok', $mensajeOk);
                 session()->setFlashdata('consecutivo', $consec);
 
+                $driveDocUrl = null;
+                if (is_array($docxPath)) {
+                    $driveDocUrl = $docxPath['docx_web_view_link']
+                        ?? $docxPath['docx_web_content_link']
+                        ?? null;
+                }
+
                 return $this->response->setJSON([
                     'ok'         => true,
                     'redirectTo' => site_url('seguimiento'),
+                    'driveDocUrl'=> $driveDocUrl,
                     'docUrl'     => site_url('citacion/docx/' . $citacionId),
                 ]);
             }
@@ -432,13 +440,46 @@ class CitacionController extends BaseController
         }
 
         $docService = new \App\Services\CitacionDocxService();
-        $path       = $docService->generate($furd, $row);
+        $docx       = $docService->generate($furd, $row);
+        $path       = $docx;
+        $fileName   = null;
 
-        if (!$path || !is_file($path)) {
+        if (is_array($docx) && !empty($docx['docx_file_id'])) {
+            try {
+                $binary = (new \App\Libraries\GDrive())->downloadFile((string) $docx['docx_file_id']);
+                $tmpDir = WRITEPATH . 'tmp/citacion';
+
+                if (!is_dir($tmpDir) && !@mkdir($tmpDir, 0775, true) && !is_dir($tmpDir)) {
+                    throw new \RuntimeException('No se pudo crear carpeta temporal para descargar citacion.');
+                }
+
+                $fileName = trim((string) ($docx['docx_name'] ?? ''));
+                if ($fileName === '') {
+                    $consec = preg_replace('/\W+/', '_', (string) ($furd['consecutivo'] ?? 'PD-000000'));
+                    $fileName = 'RH-FO67_CITACION_' . $consec . '.docx';
+                }
+
+                $path = $tmpDir . DIRECTORY_SEPARATOR . uniqid('cit_', true) . '_' . $fileName;
+                file_put_contents($path, $binary);
+
+                register_shutdown_function(static function () use ($path): void {
+                    if (is_string($path) && is_file($path)) {
+                        @unlink($path);
+                    }
+                });
+            } catch (\Throwable $e) {
+                log_message('error', '[CITACION] Error descargando DOCX desde Drive: {msg}', [
+                    'msg' => $e->getMessage(),
+                ]);
+                $path = null;
+            }
+        }
+
+        if (!$path || !is_string($path) || !is_file($path)) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Documento de citación no disponible');
         }
 
-        $fileName = basename($path);
+        $fileName = $fileName ?: basename($path);
 
         return $this->response->download($path, null)->setFileName($fileName);
     }

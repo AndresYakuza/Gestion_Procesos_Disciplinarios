@@ -486,7 +486,7 @@ $msg    = session('msg') ?? null;
             <div class="small text-muted">${mime || 'archivo'}</div>
             <div class="mt-auto">
               <a class="btn btn-sm btn-outline-primary" href="${url}" target="_blank" rel="noopener">
-                <i class="bi bi-box-arrow-up-right me-1"></i>Ver / Descargar
+                <i class="bi bi-box-arrow-up-right me-1 text-primary"></i>Ver / Descargar
               </a>
             </div>
           </div>`;
@@ -537,11 +537,13 @@ $msg    = session('msg') ?? null;
 
         // si la propuesta fue suspensión, puedes auto-seleccionar "Suspensión disciplinaria" (opcional):
         const propuesta = (soporte.decision_propuesta || '').trim();
-        if (decisionSelect && isSuspensionDecision(propuesta) && !decisionSelect.value) {
-          decisionSelect.value = 'J disciplinaria';
+
+        if (decisionSelect && isSuspensionDecision(propuesta)) {
+          decisionSelect.value = 'Suspensión disciplinaria';
         }
 
         toggleFechasSusp();
+        updatePlantillaSusp();
 
       } catch (e) {
         console.error(e);
@@ -741,6 +743,7 @@ $msg    = session('msg') ?? null;
       if (!decisionSelect || !wrapFechasSusp || !fechaIniSusp || !fechaFinSusp) return;
 
       const isSusp = isSuspensionDecision(decisionSelect.value);
+
       if (isSusp) {
         wrapFechasSusp.classList.remove('d-none');
         fechaIniSusp.required = true;
@@ -749,8 +752,6 @@ $msg    = session('msg') ?? null;
         wrapFechasSusp.classList.add('d-none');
         fechaIniSusp.required = false;
         fechaFinSusp.required = false;
-        fechaIniSusp.value = '';
-        fechaFinSusp.value = '';
       }
     }
 
@@ -804,6 +805,12 @@ $msg    = session('msg') ?? null;
         }
 
         if (sending) return;
+
+        if (!adjuntos || !adjuntos.files || !adjuntos.files.length) {
+          notify('Debes adjuntar al menos un soporte de decisión.', 'warning');
+          return;
+        }
+        
         sending = true;
 
         btnGuardar.disabled = true;

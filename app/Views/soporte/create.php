@@ -425,7 +425,7 @@ $decisiones  = $decisiones ?? [
             <div class="small text-muted">${mime || 'archivo'}</div>
             <div class="mt-auto">
               <a class="btn btn-sm btn-outline-primary" href="${url}" target="_blank" rel="noopener">
-                <i class="bi bi-box-arrow-up-right me-1"></i>Ver / Descargar
+                <i class="bi bi-box-arrow-up-right me-1 text-primary"></i>Ver / Descargar
               </a>
             </div>
           </div>`;
@@ -691,6 +691,12 @@ $decisiones  = $decisiones ?? [
         }
 
         if (sending) return;
+
+        if (!adjuntos || !adjuntos.files || !adjuntos.files.length) {
+          notify('Debes adjuntar al menos un soporte.', 'warning');
+          return;
+        }
+
         sending = true;
 
         btnGuardar.disabled = true;

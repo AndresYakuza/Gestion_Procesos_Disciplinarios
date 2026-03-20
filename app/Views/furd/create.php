@@ -118,7 +118,8 @@ $oldFaltas = old('faltas') ?? [];
                   type="text"
                   class="form-control"
                   value="<?= old('expedida_en') ?>"
-                  readonly>
+                  readonly
+                  required>
               </div>
 
               <div class="col-12 col-md-4">
@@ -129,7 +130,8 @@ $oldFaltas = old('faltas') ?? [];
                   type="text"
                   class="form-control"
                   value="<?= old('empresa_usuaria') ?>"
-                  readonly>
+                  readonly
+                  required>
               </div>
 
               <div class="col-12">
@@ -140,7 +142,8 @@ $oldFaltas = old('faltas') ?? [];
                   type="text"
                   class="form-control"
                   value="<?= old('nombre_completo') ?>"
-                  readonly>
+                  readonly
+                  required>
               </div>
 
               <div class="col-12 col-md-6">
@@ -224,7 +227,8 @@ $oldFaltas = old('faltas') ?? [];
                   name="superior"
                   placeholder="Nombre del superior"
                   value="<?= old('superior') ?>"
-                  maxlength="60">
+                  maxlength="60"
+                  required>
                 <div class="form-text text-end small">
                   <span id="superiorCount">0</span> caracteres
                 </div>

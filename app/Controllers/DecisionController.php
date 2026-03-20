@@ -44,8 +44,16 @@ class DecisionController extends BaseController
         // Pasar a minúsculas y quitar tildes
         $fechaTexto = mb_strtolower($rawFecha, 'UTF-8');
         $fechaTexto = strtr($fechaTexto, [
-            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
-            'Á' => 'a', 'É' => 'e', 'Í' => 'i', 'Ó' => 'o', 'Ú' => 'u',
+            'á' => 'a',
+            'é' => 'e',
+            'í' => 'i',
+            'ó' => 'o',
+            'ú' => 'u',
+            'Á' => 'a',
+            'É' => 'e',
+            'Í' => 'i',
+            'Ó' => 'o',
+            'Ú' => 'u',
         ]);
         $fechaTexto = str_replace(',', ' ', $fechaTexto);
         $fechaTexto = preg_replace('/\s+/', ' ', trim($fechaTexto));
@@ -265,7 +273,6 @@ class DecisionController extends BaseController
                 ->to(site_url('seguimiento'))
                 ->with('ok', $mensajeOk)
                 ->with('consecutivo', $consec);
-
         } catch (\Throwable $e) {
             $db->transRollback();
 
@@ -399,7 +406,7 @@ class DecisionController extends BaseController
         $prev = [
             'registro' => $am->listByFase($fid, 'registro'),
             'citacion' => $am->listByFase($fid, 'citacion'),
-            'descargos'=> $am->listByFase($fid, 'descargos'),
+            'descargos' => $am->listByFase($fid, 'descargos'),
             'soporte'  => $am->listByFase($fid, 'soporte'),
             'decision' => $am->listByFase($fid, 'decision'),
         ];
@@ -407,22 +414,52 @@ class DecisionController extends BaseController
         return $this->response->setJSON([
             'ok'      => true,
             'furd'    => $furd,
-            'soporte' => $soporte, 
+            'soporte' => $soporte,
             'prevAdj' => $prev,
         ]);
     }
 
     public function plantillaSuspension()
     {
-        // Ajusta la ruta si tu Resources está en otro lado
-        $filePath = APPPATH . 'Resources/MODELO_SUSPENSION_COLOMBIA_SAS.docx';
+        $fileId = trim((string) env('GOOGLE_DOC_TEMPLATE_DECISION', ''));
 
-        if (!is_file($filePath)) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Plantilla de suspensión no encontrada');
+        if ($fileId === '') {
+            throw new \RuntimeException('No está configurado GOOGLE_DOC_TEMPLATE_DECISION en .env');
         }
 
-        return $this->response
-            ->download($filePath, null)
-            ->setFileName('MODELO_SUSPENSION_COLOMBIA_SAS.docx'); 
+        $g = new \App\Libraries\GDrive();
+
+        try {
+            // Detectar tipo de archivo
+            $meta = $g->getFileMeta($fileId);
+            $mime = (string)($meta['mimeType'] ?? '');
+            $name = (string)($meta['name'] ?? 'Plantilla_Decision.docx');
+
+            // Si es Google Docs → exportar a DOCX
+            if ($mime === 'application/vnd.google-apps.document') {
+                $binary = $g->exportGoogleFile(
+                    $fileId,
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
+                $fileName = 'PLANTILLA_DECISION.docx';
+            } else {
+                // Si ya es DOCX normal
+                $binary = $g->downloadFile($fileId);
+                $fileName = $name ?: 'PLANTILLA_DECISION.docx';
+            }
+
+            return $this->response
+                ->setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+                ->setHeader('Content-Disposition', 'attachment; filename="' . $fileName . '"')
+                ->setBody($binary);
+        } catch (\Throwable $e) {
+            log_message('error', '[DECISION] Error descargando plantilla desde Drive: {msg}', [
+                'msg' => $e->getMessage(),
+            ]);
+
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound(
+                'No se pudo descargar la plantilla de decisión'
+            );
+        }
     }
 }

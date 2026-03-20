@@ -226,10 +226,9 @@ class SyncWorkers extends BaseCommand
                         $exists = $aliasModel->where('alias_norm', $aliasNorm)->first();
                         if (!$exists) {
                             $aliasModel->insert([
-                                'proyecto_id'      => $matchId,
-                                'alias'            => $nominaRaw,
-                                'alias_norm'       => $aliasNorm,
-                                'audit_created_by' => 'sync_workers',
+                                'proyecto_id' => $matchId,
+                                'alias'       => $nominaRaw,
+                                'alias_norm'  => $aliasNorm,
                             ]);
                         }
                         $aliasCache[$aliasNorm] = $matchId;

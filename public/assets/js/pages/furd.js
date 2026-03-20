@@ -8,8 +8,24 @@
   const iconoBuscar = btnBuscar?.querySelector("i");
 
   const globalLoader = document.getElementById("globalLoader");
-  const showGlobalLoader = () => globalLoader?.classList.remove("d-none");
-  const hideGlobalLoader = () => globalLoader?.classList.add("d-none");
+  const loaderText = globalLoader?.querySelector(".loader-text");
+  const loaderDefaultText =
+    loaderText?.textContent ||
+    "Guardando Proceso Disciplinario, por favor espera...";
+
+  const showGlobalLoader = (message = "") => {
+    if (loaderText) {
+      loaderText.textContent = message || loaderDefaultText;
+    }
+    globalLoader?.classList.remove("d-none");
+  };
+
+  const hideGlobalLoader = () => {
+    if (loaderText) {
+      loaderText.textContent = loaderDefaultText;
+    }
+    globalLoader?.classList.add("d-none");
+  };
 
   const evidenciasInput = document.getElementById("evidencias");
   const evidenciasPreview = document.getElementById("evidenciasPreview");
@@ -251,21 +267,6 @@
     setTimeout(() => toast.remove(), 4000);
   }
 
-  // 👉 Disparar descarga de archivo sin pelear con el bloqueador de popups
-  function triggerDownload(url) {
-    if (!url) return;
-
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
-
-    // limpiar después de un rato
-    setTimeout(() => {
-      iframe.remove();
-    }, 60000);
-  }
-
   // 🔍 Buscar empleado manualmente (con spinner)
   async function buscarEmpleado() {
     const ced = cedula.value.trim();
@@ -382,45 +383,6 @@
       }
     });
   }
-
-  // 👉 Renderizar lista de archivos + barras de progreso
-  // const renderEvidenciasPreview = () => {
-  //   if (!evidenciasPreview || !evidenciasInput) return;
-  //   evidenciasPreview.innerHTML = "";
-
-  //   const files = Array.from(evidenciasInput.files || []);
-  //   if (!files.length) return;
-
-  //   files.forEach((file, idx) => {
-  //     const row = document.createElement("div");
-  //     row.className = "evidencia-row mb-1";
-  //     const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-
-  //     row.innerHTML = `
-  //       <div class="d-flex w-100 align-items-center justify-content-between">
-  //         <div class="me-2">
-  //           <i class="bi bi-paperclip me-1"></i>
-  //           <span class="file-name">${file.name}</span>
-  //           <span class="text-muted ms-1">(${sizeMb} MB)</span>
-  //         </div>
-  //         <button type="button"
-  //                 class="btn btn-sm btn-link text-danger p-0 js-remove-file"
-  //                 data-file-idx="${idx}"
-  //                 title="Quitar archivo">
-  //           <i class="bi bi-x-lg"></i>
-  //         </button>
-  //       </div>
-  //       <div class="progress mt-1" style="height: 4px;">
-  //         <div class="progress-bar"
-  //              role="progressbar"
-  //              data-file-idx="${idx}"
-  //              style="width: 0%;"></div>
-  //       </div>
-  //     `;
-
-  //     evidenciasPreview.appendChild(row);
-  //   });
-  // };
 
   /* =========================================================
    📎 Evidencias PREMIUM (icono + contador + tamaño + quitar todo + thumbs + modal)
@@ -557,26 +519,6 @@
   };
 
   evidenciasInput?.addEventListener("change", handleEvidenciasChange);
-
-  // evidenciasPreview?.addEventListener("click", (e) => {
-  //   const btn = e.target.closest(".js-remove-file");
-  //   if (!btn || !evidenciasInput) return;
-
-  //   const idx = parseInt(btn.dataset.fileIdx, 10);
-  //   if (Number.isNaN(idx)) return;
-
-  //   const dt = new DataTransfer();
-  //   Array.from(evidenciasInput.files || []).forEach((file, i) => {
-  //     if (i !== idx) dt.items.add(file);
-  //   });
-
-  //   evidenciasInput.files = dt.files;
-  //   renderEvidenciasPreview();
-
-  //   if (!dt.files.length) {
-  //     showToast("Se han quitado todas las evidencias seleccionadas.", "info");
-  //   }
-  // });
 
   evidenciasPreview?.addEventListener("click", (e) => {
     // Quitar todo
@@ -764,10 +706,220 @@
       if (sending) return;
       sending = true;
 
+      let pdfWindow = null;
+
+      try {
+        pdfWindow = window.open("", "_blank");
+
+        if (pdfWindow) {
+          pdfWindow.document.write(`
+            <!doctype html>
+            <html lang="es">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>Generando formato FURD</title>
+              <style>
+                :root{
+                  --brand:#198754;
+                  --brand-soft:#e9f7ef;
+                  --text:#1f2937;
+                  --muted:#6b7280;
+                  --border:#dfe7e3;
+                  --bg:#f4f7f6;
+                  --card:#ffffff;
+                }
+
+                *{ box-sizing:border-box; }
+
+                body{
+                  margin:0;
+                  min-height:100vh;
+                  font-family:Arial, Helvetica, sans-serif;
+                  background:
+                    radial-gradient(circle at top left, #eef8f2 0%, #f4f7f6 38%, #edf3f0 100%);
+                  color:var(--text);
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  padding:24px;
+                }
+
+                .card{
+                  width:100%;
+                  max-width:540px;
+                  background:var(--card);
+                  border:1px solid var(--border);
+                  border-radius:22px;
+                  box-shadow:0 22px 60px rgba(16,24,40,.10);
+                  overflow:hidden;
+                }
+
+                .top{
+                  padding:22px 24px;
+                  background:linear-gradient(135deg, #f7fcf9 0%, #eef8f2 100%);
+                  border-bottom:1px solid var(--border);
+                }
+
+                .badge{
+                  display:inline-flex;
+                  align-items:center;
+                  gap:8px;
+                  background:var(--brand-soft);
+                  color:var(--brand);
+                  border:1px solid #cfe8d8;
+                  border-radius:999px;
+                  padding:8px 14px;
+                  font-size:13px;
+                  font-weight:700;
+                  letter-spacing:.2px;
+                }
+
+                .content{
+                  padding:30px 28px 26px;
+                  text-align:center;
+                }
+
+                .spinner{
+                  width:62px;
+                  height:62px;
+                  margin:0 auto 20px;
+                  border:5px solid #dfeee4;
+                  border-top-color:var(--brand);
+                  border-radius:50%;
+                  animation:spin 0.9s linear infinite;
+                }
+
+                @keyframes spin {
+                  to { transform:rotate(360deg); }
+                }
+
+                h1{
+                  margin:0 0 12px;
+                  font-size:28px;
+                  line-height:1.15;
+                }
+
+                p{
+                  margin:0;
+                  color:var(--muted);
+                  font-size:15px;
+                  line-height:1.6;
+                }
+
+                .steps{
+                  margin:24px 0 0;
+                  padding:0;
+                  list-style:none;
+                  text-align:left;
+                  display:grid;
+                  gap:10px;
+                }
+
+                .step{
+                  display:flex;
+                  align-items:flex-start;
+                  gap:12px;
+                  background:#fafcfb;
+                  border:1px solid #e8efeb;
+                  border-radius:14px;
+                  padding:12px 14px;
+                }
+
+                .dot{
+                  width:24px;
+                  height:24px;
+                  min-width:24px;
+                  border-radius:50%;
+                  background:var(--brand);
+                  color:#fff;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  font-size:13px;
+                  font-weight:700;
+                  margin-top:1px;
+                }
+
+                .step b{
+                  display:block;
+                  font-size:14px;
+                  margin-bottom:2px;
+                }
+
+                .step span{
+                  color:var(--muted);
+                  font-size:13px;
+                  line-height:1.45;
+                }
+
+                .footer{
+                  padding:16px 24px 24px;
+                  text-align:center;
+                  color:var(--muted);
+                  font-size:12px;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="card">
+                <div class="top">
+                  <div class="badge">
+                    <span>●</span>
+                    <span>CONTACTAMOS DE COLOMBIA S.A.S.</span>
+                  </div>
+                </div>
+
+                <div class="content">
+                  <div class="spinner"></div>
+                  <h1>Generando formato FURD</h1>
+                  <p>
+                    Estamos preparando el documento en PDF y cargándolo en Google Drive.
+                    Esta ventana se actualizará automáticamente cuando el formato esté listo.
+                  </p>
+
+                  <ul class="steps">
+                    <li class="step">
+                      <div class="dot">1</div>
+                      <div>
+                        <b>Guardando información</b>
+                        <span>Se registra el proceso disciplinario y su consecutivo.</span>
+                      </div>
+                    </li>
+                    <li class="step">
+                      <div class="dot">2</div>
+                      <div>
+                        <b>Subiendo evidencias</b>
+                        <span>Se cargan adjuntos y soportes asociados al proceso.</span>
+                      </div>
+                    </li>
+                    <li class="step">
+                      <div class="dot">3</div>
+                      <div>
+                        <b>Generando PDF</b>
+                        <span>Se construye el formato final para su visualización.</span>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+
+                <div class="footer">
+                  Puedes dejar esta pestaña abierta mientras termina el proceso.
+                </div>
+              </div>
+            </body>
+            </html>
+          `);
+          pdfWindow.document.close();
+        }
+      } catch (err) {
+        pdfWindow = null;
+      }
+
       btn.disabled = true;
       if (spin) spin.classList.remove("d-none");
       if (txt) txt.textContent = "Guardando...";
-      showGlobalLoader();
+      showGlobalLoader("Guardando Proceso Disciplinario, por favor espera...");
 
       const formData = new FormData(form);
       buildUploadMeta();
@@ -781,9 +933,7 @@
         updateUploadProgressBars(evt.loaded);
       };
 
-      xhr.onload = () => {
-        hideGlobalLoader();
-
+      xhr.onload = async () => {
         const contentType = xhr.getResponseHeader("Content-Type") || "";
         let data = null;
 
@@ -797,22 +947,35 @@
 
         if (data) {
           if (data.ok) {
-            // 📥 1) Descargar automáticamente el formato si viene la URL
-            if (data.downloadUrl) {
-              triggerDownload(data.downloadUrl);
+            hideGlobalLoader();
+            showToast("Registro guardado correctamente.", "success");
+
+            if (data.drivePdfUrl) {
+              if (pdfWindow && !pdfWindow.closed) {
+                pdfWindow.location.href = data.drivePdfUrl;
+              } else {
+                window.open(data.drivePdfUrl, "_blank");
+              }
+            } else if (pdfWindow && !pdfWindow.closed) {
+              pdfWindow.document.body.innerHTML = `
+                <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+                  <div style="max-width:520px;background:#fff;border:1px solid #dfe7e3;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+                    <h2 style="margin:0 0 10px;color:#1f2937;">Proceso guardado correctamente</h2>
+                    <p style="margin:0;color:#6b7280;line-height:1.6;">
+                      El registro fue creado, pero no fue posible obtener la URL del PDF en este momento.
+                    </p>
+                  </div>
+                </div>
+              `;
             }
 
-            // 🔁 2) Redirigir a seguimiento (comportamiento que ya tenías)
             if (data.redirectTo) {
-              window.location.href = data.redirectTo;
+              setTimeout(() => {
+                window.location.href = data.redirectTo;
+              }, 700);
               return;
             }
 
-            // Si por alguna razón no viene redirectTo, solo reseteamos el botón
-            showToast(
-              "Registro guardado, pero falta URL de redirección.",
-              "info",
-            );
             sending = false;
             btn.disabled = false;
             if (spin) spin.classList.add("d-none");
@@ -821,11 +984,27 @@
           }
 
           if (data.ok === false && data.errors) {
+            hideGlobalLoader();
+
             const allErrors = Object.values(data.errors);
             const firstError =
               allErrors.length > 0
                 ? allErrors[0]
                 : "Revisa los campos obligatorios.";
+
+            if (pdfWindow && !pdfWindow.closed) {
+              pdfWindow.document.body.innerHTML = `
+      <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+        <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+          <h2 style="margin:0 0 10px;color:#b42318;">No se pudo completar el proceso</h2>
+          <p style="margin:0;color:#6b7280;line-height:1.6;">
+            ${firstError}
+          </p>
+        </div>
+      </div>
+    `;
+            }
+
             showToast(firstError, "warning");
 
             sending = false;
@@ -835,6 +1014,7 @@
             return;
           }
 
+          hideGlobalLoader();
           showToast("Error inesperado al guardar el FURD.", "error");
           sending = false;
           btn.disabled = false;
@@ -842,6 +1022,8 @@
           if (txt) txt.textContent = "Guardar registro";
           return;
         }
+
+        hideGlobalLoader();
 
         if (xhr.status >= 200 && xhr.status < 400) {
           const finalURL = xhr.responseURL || form.action;
@@ -857,10 +1039,25 @@
 
       xhr.onerror = () => {
         hideGlobalLoader();
+
+        if (pdfWindow && !pdfWindow.closed) {
+          pdfWindow.document.body.innerHTML = `
+          <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+            <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+              <h2 style="margin:0 0 10px;color:#b42318;">No se pudo generar el formato</h2>
+              <p style="margin:0;color:#6b7280;line-height:1.6;">
+                Ocurrió un problema de conexión con el servidor. Puedes cerrar esta pestaña e intentar nuevamente.
+              </p>
+            </div>
+          </div>
+        `;
+        }
+
         showToast(
           "No se pudo conectar con el servidor. Revisa tu conexión.",
           "error",
         );
+
         sending = false;
         btn.disabled = false;
         if (spin) spin.classList.add("d-none");
@@ -870,7 +1067,6 @@
       xhr.send(formData);
     });
   });
-
 
   // max palabra
   const hechoField = document.getElementById("hecho");

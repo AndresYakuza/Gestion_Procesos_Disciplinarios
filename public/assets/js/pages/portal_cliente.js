@@ -22,9 +22,6 @@
 
   const timelineHeader = document.getElementById("timelineHeader");
   const timelineContent = document.getElementById("timelineContent");
-  const respuestaWrap = document.getElementById("respuestaClienteWrap");
-  const respuestaForm = document.getElementById("respuestaClienteForm");
-  const respuestaCorreo = document.getElementById("respuestaCorreoCliente");
 
   // Filtros / paginador de MIS PROCESOS
   const qMis = document.getElementById("qMisProcesos");
@@ -97,18 +94,49 @@
   }
 
   // 👉 Disparar descarga de archivo sin pelear con el bloqueador de popups
-  function triggerDownload(url) {
-    if (!url) return;
+  async function triggerDownloadWhenReady(url, filename = "") {
+    if (!url) return false;
 
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.src = url;
-    document.body.appendChild(iframe);
+    const resp = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    });
 
-    // limpiar después de un rato
+    if (!resp.ok) {
+      throw new Error("No se pudo preparar la descarga.");
+    }
+
+    const blob = await resp.blob();
+
+    let finalName = filename;
+    const disposition = resp.headers.get("Content-Disposition") || "";
+
+    if (!finalName && disposition) {
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^"]+)"?/i);
+      if (match && match[1]) {
+        finalName = decodeURIComponent(match[1].replace(/"/g, "").trim());
+      }
+    }
+
+    if (!finalName) {
+      finalName = "documento.pdf";
+    }
+
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = finalName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
     setTimeout(() => {
-      iframe.remove();
+      window.URL.revokeObjectURL(blobUrl);
     }, 60000);
+
+    return true;
   }
 
   function setAlertFurd(msg, type = "danger") {
@@ -167,9 +195,6 @@
   if (correoClienteInput && emailPortal && !correoClienteInput.value) {
     correoClienteInput.value = emailPortal;
   }
-  if (respuestaCorreo && emailPortal && !respuestaCorreo.value) {
-    respuestaCorreo.value = emailPortal;
-  }
 
   // Contadores de texto (superior / hecho)
   (function initCounters() {
@@ -191,6 +216,8 @@
     }
   })();
 
+  let sendingPortalFurd = false;
+
   // Envío AJAX del FURD con progreso y barras por archivo
   if (formFurd) {
     formFurd.addEventListener("submit", (ev) => {
@@ -208,9 +235,218 @@
       const spinner = btn?.querySelector(".spinner-border");
       const btnText = btn?.querySelector(".btn-text");
 
-      let sending = false;
-      if (sending) return;
-      sending = true;
+      if (sendingPortalFurd) return;
+      sendingPortalFurd = true;
+
+      let pdfWindow = null;
+
+      try {
+        pdfWindow = window.open("", "_blank");
+
+        if (pdfWindow) {
+          pdfWindow.document.write(`
+      <!doctype html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Generando formato FURD</title>
+        <style>
+          :root{
+            --brand:#198754;
+            --brand-soft:#e9f7ef;
+            --text:#1f2937;
+            --muted:#6b7280;
+            --border:#dfe7e3;
+            --bg:#f4f7f6;
+            --card:#ffffff;
+          }
+
+          *{ box-sizing:border-box; }
+
+          body{
+            margin:0;
+            min-height:100vh;
+            font-family:Arial, Helvetica, sans-serif;
+            background:
+              radial-gradient(circle at top left, #eef8f2 0%, #f4f7f6 38%, #edf3f0 100%);
+            color:var(--text);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+          }
+
+          .card{
+            width:100%;
+            max-width:540px;
+            background:var(--card);
+            border:1px solid var(--border);
+            border-radius:22px;
+            box-shadow:0 22px 60px rgba(16,24,40,.10);
+            overflow:hidden;
+          }
+
+          .top{
+            padding:22px 24px;
+            background:linear-gradient(135deg, #f7fcf9 0%, #eef8f2 100%);
+            border-bottom:1px solid var(--border);
+          }
+
+          .badge{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            background:var(--brand-soft);
+            color:var(--brand);
+            border:1px solid #cfe8d8;
+            border-radius:999px;
+            padding:8px 14px;
+            font-size:13px;
+            font-weight:700;
+            letter-spacing:.2px;
+          }
+
+          .content{
+            padding:30px 28px 26px;
+            text-align:center;
+          }
+
+          .spinner{
+            width:62px;
+            height:62px;
+            margin:0 auto 20px;
+            border:5px solid #dfeee4;
+            border-top-color:var(--brand);
+            border-radius:50%;
+            animation:spin 0.9s linear infinite;
+          }
+
+          @keyframes spin {
+            to { transform:rotate(360deg); }
+          }
+
+          h1{
+            margin:0 0 12px;
+            font-size:28px;
+            line-height:1.15;
+          }
+
+          p{
+            margin:0;
+            color:var(--muted);
+            font-size:15px;
+            line-height:1.6;
+          }
+
+          .steps{
+            margin:24px 0 0;
+            padding:0;
+            list-style:none;
+            text-align:left;
+            display:grid;
+            gap:10px;
+          }
+
+          .step{
+            display:flex;
+            align-items:flex-start;
+            gap:12px;
+            background:#fafcfb;
+            border:1px solid #e8efeb;
+            border-radius:14px;
+            padding:12px 14px;
+          }
+
+          .dot{
+            width:24px;
+            height:24px;
+            min-width:24px;
+            border-radius:50%;
+            background:var(--brand);
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            font-weight:700;
+            margin-top:1px;
+          }
+
+          .step b{
+            display:block;
+            font-size:14px;
+            margin-bottom:2px;
+          }
+
+          .step span{
+            color:var(--muted);
+            font-size:13px;
+            line-height:1.45;
+          }
+
+          .footer{
+            padding:16px 24px 24px;
+            text-align:center;
+            color:var(--muted);
+            font-size:12px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="top">
+            <div class="badge">
+              <span>●</span>
+              <span>CONTACTAMOS DE COLOMBIA S.A.S.</span>
+            </div>
+          </div>
+
+          <div class="content">
+            <div class="spinner"></div>
+            <h1>Generando formato FURD</h1>
+            <p>
+              Estamos preparando el documento en PDF y cargándolo para su visualización.
+              Esta ventana se actualizará automáticamente cuando el formato esté listo.
+            </p>
+
+            <ul class="steps">
+              <li class="step">
+                <div class="dot">1</div>
+                <div>
+                  <b>Guardando información</b>
+                  <span>Se registra el proceso disciplinario y se genera el consecutivo.</span>
+                </div>
+              </li>
+              <li class="step">
+                <div class="dot">2</div>
+                <div>
+                  <b>Subiendo evidencias</b>
+                  <span>Se asocian los adjuntos y soportes del registro.</span>
+                </div>
+              </li>
+              <li class="step">
+                <div class="dot">3</div>
+                <div>
+                  <b>Generando PDF</b>
+                  <span>Se construye el formato final para consulta del cliente.</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="footer">
+            Puedes dejar esta pestaña abierta mientras termina el proceso.
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+          pdfWindow.document.close();
+        }
+      } catch (err) {
+        pdfWindow = null;
+      }
 
       showLoader("Enviando FURD, por favor espera...");
 
@@ -233,9 +469,7 @@
         updateUploadProgressBars(evt.loaded);
       };
 
-      xhr.onload = () => {
-        hideLoader();
-
+      xhr.onload = async () => {
         let data = null;
         const contentType = xhr.getResponseHeader("Content-Type") || "";
 
@@ -247,43 +481,129 @@
           }
         }
 
-        // Esperamos JSON del backend
         if (data) {
           if (data.ok) {
-            // 📥 1) Descargar automáticamente el formato si viene la URL
-            if (data.downloadUrl) {
-              triggerDownload(data.downloadUrl);
+            try {
+              const pdfUrl = data.drivePdfUrl || data.downloadUrl || null;
+
+              if (pdfUrl) {
+                if (pdfWindow && !pdfWindow.closed) {
+                  pdfWindow.location.href = pdfUrl;
+                } else {
+                  window.open(pdfUrl, "_blank");
+                }
+              } else if (pdfWindow && !pdfWindow.closed) {
+                pdfWindow.document.body.innerHTML = `
+          <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+            <div style="max-width:520px;background:#fff;border:1px solid #dfe7e3;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+              <h2 style="margin:0 0 10px;color:#1f2937;">Proceso guardado correctamente</h2>
+              <p style="margin:0;color:#6b7280;line-height:1.6;">
+                El registro fue creado, pero no fue posible obtener la URL del PDF en este momento.
+              </p>
+            </div>
+          </div>
+        `;
+              }
+
+              hideLoader();
+
+              showToast(
+                data.message || "FURD registrado correctamente.",
+                "success",
+              );
+
+              formFurd.reset();
+              setAlertFurd("");
+
+              if (evidenciasPreview) evidenciasPreview.innerHTML = "";
+              uploadFilesMeta = [];
+
+              procesosCargados = false;
+              loadMisProcesos().catch(() => {});
+            } catch (openError) {
+              hideLoader();
+              console.error(openError);
+
+              if (pdfWindow && !pdfWindow.closed) {
+                pdfWindow.document.body.innerHTML = `
+          <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+            <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+              <h2 style="margin:0 0 10px;color:#b42318;">No se pudo abrir el formato</h2>
+              <p style="margin:0;color:#6b7280;line-height:1.6;">
+                El registro fue creado, pero ocurrió un problema al abrir el PDF automáticamente.
+              </p>
+            </div>
+          </div>
+        `;
+              }
+
+              showToast(
+                "El FURD se registró, pero no fue posible abrir el formato automáticamente.",
+                "warning",
+              );
             }
 
-            // ✅ 2) Feedback y limpieza del formulario del portal
-            showToast(
-              data.message || "FURD registrado correctamente.",
-              "success",
-            );
-            formFurd.reset();
-            setAlertFurd("");
-
-            // limpiamos preview
-            if (evidenciasPreview) evidenciasPreview.innerHTML = "";
-            uploadFilesMeta = [];
-
-            // refrescar lista de procesos
-            procesosCargados = false;
-            loadMisProcesos().catch(() => {});
+            sendingPortalFurd = false;
+            if (btn) btn.disabled = false;
+            if (spinner) spinner.classList.add("d-none");
+            if (btnText) btnText.textContent = "Enviar FURD";
+            return;
           } else if (data.errors) {
+            hideLoader();
             const summary = Object.values(data.errors).join(" ");
             setAlertFurd(summary, "danger");
+
+            if (pdfWindow && !pdfWindow.closed) {
+              pdfWindow.document.body.innerHTML = `
+        <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+          <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+            <h2 style="margin:0 0 10px;color:#b42318;">No se pudo completar el proceso</h2>
+            <p style="margin:0;color:#6b7280;line-height:1.6;">
+              ${summary || "Revisa los datos ingresados e intenta nuevamente."}
+            </p>
+          </div>
+        </div>
+      `;
+            }
           } else {
+            hideLoader();
             setAlertFurd(data.msg || "No se pudo registrar el FURD.", "danger");
+
+            if (pdfWindow && !pdfWindow.closed) {
+              pdfWindow.document.body.innerHTML = `
+        <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+          <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+            <h2 style="margin:0 0 10px;color:#b42318;">No se pudo registrar el FURD</h2>
+            <p style="margin:0;color:#6b7280;line-height:1.6;">
+              ${data.msg || "Ocurrió un problema durante el proceso."}
+            </p>
+          </div>
+        </div>
+      `;
+            }
           }
         } else {
+          hideLoader();
           setAlertFurd(
             "Respuesta inesperada del servidor al registrar el FURD.",
             "danger",
           );
+
+          if (pdfWindow && !pdfWindow.closed) {
+            pdfWindow.document.body.innerHTML = `
+      <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+        <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+          <h2 style="margin:0 0 10px;color:#b42318;">Respuesta inesperada del servidor</h2>
+          <p style="margin:0;color:#6b7280;line-height:1.6;">
+            No fue posible interpretar la respuesta al registrar el FURD.
+          </p>
+        </div>
+      </div>
+    `;
+          }
         }
 
-        sending = false;
+        sendingPortalFurd = false;
         if (btn) btn.disabled = false;
         if (spinner) spinner.classList.add("d-none");
         if (btnText) btnText.textContent = "Enviar FURD";
@@ -295,7 +615,21 @@
           "Ocurrió un error de comunicación con el servidor.",
           "danger",
         );
-        sending = false;
+
+        if (pdfWindow && !pdfWindow.closed) {
+          pdfWindow.document.body.innerHTML = `
+      <div style="font-family:Arial,Helvetica,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f4f7f6;padding:24px;">
+        <div style="max-width:520px;background:#fff;border:1px solid #ead7d7;border-radius:18px;padding:28px;text-align:center;box-shadow:0 18px 45px rgba(16,24,40,.10);">
+          <h2 style="margin:0 0 10px;color:#b42318;">No se pudo generar el formato</h2>
+          <p style="margin:0;color:#6b7280;line-height:1.6;">
+            Ocurrió un problema de conexión con el servidor. Puedes cerrar esta pestaña e intentar nuevamente.
+          </p>
+        </div>
+      </div>
+    `;
+        }
+
+        sendingPortalFurd = false;
         if (btn) btn.disabled = false;
         if (spinner) spinner.classList.add("d-none");
         if (btnText) btnText.textContent = "Enviar FURD";
@@ -308,7 +642,6 @@
   // -----------------------
   // TAB 2: Mis procesos (data + filtros + paginador)
   // -----------------------
-
 
   function renderTablaMisProcesos(items = []) {
     if (!tbodyProcesos) return;
@@ -338,18 +671,22 @@
       let badgeClass = "badge bg-light text-dark fw-semibold px-3 py-2";
       switch (estadoRaw) {
         case "registro":
-          badgeClass = "badge bg-success-subtle text-success fw-semibold px-3 py-2";
+          badgeClass =
+            "badge bg-success-subtle text-success fw-semibold px-3 py-2";
           break;
         case "citacion":
         case "descargos":
         case "soporte":
-          badgeClass = "badge bg-warning-subtle text-warning fw-semibold px-3 py-2";
+          badgeClass =
+            "badge bg-warning-subtle text-warning fw-semibold px-3 py-2";
           break;
         case "decision":
-          badgeClass = "badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2";
+          badgeClass =
+            "badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2";
           break;
         case "archivado":
-          badgeClass = "badge bg-danger-subtle text-danger fw-semibold px-3 py-2";
+          badgeClass =
+            "badge bg-danger-subtle text-danger fw-semibold px-3 py-2";
           break;
       }
 
@@ -1498,9 +1835,6 @@
         timelineHeader.textContent =
           'Selecciona un proceso en la pestaña "Mis procesos".';
         timelineContent.innerHTML = "";
-        if (respuestaWrap) {
-          respuestaWrap.classList.add("d-none");
-        }
       }
     });
   }

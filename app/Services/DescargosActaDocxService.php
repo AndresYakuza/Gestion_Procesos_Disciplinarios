@@ -21,9 +21,9 @@ class DescargosActaDocxService
             return null;
         }
 
-        $template = APPPATH . 'Resources/RH-FO69_FORMATO_ACTA_DE_CARGOS_Y_DESCARGOS_COLOMBIA.docx';
-        if (!is_file($template)) {
-            log_message('error', '[DESCARGOS_DOCX] Plantilla no encontrada: {tpl}', ['tpl' => $template]);
+        $templateId = trim((string)env('GOOGLE_DOC_TEMPLATE_DESCARGOS', ''));
+        if ($templateId === '') {
+            log_message('error', '[DESCARGOS_DOCX] Falta GOOGLE_DOC_TEMPLATE_DESCARGOS en .env');
             return null;
         }
 
@@ -31,7 +31,7 @@ class DescargosActaDocxService
         $cedula  = trim((string)($furd['cedula'] ?? ''));
         $correo  = trim((string)($furd['correo'] ?? ''));
         $empresa = trim((string)($furd['empresa_usuaria'] ?? ''));
-        $hechos = $this->resolveHechosDesdeCitacion($furdId, $furd);
+        $hechos  = $this->resolveHechosDesdeCitacion($furdId, $furd);
         $cargo   = $this->resolveCargo($furd);
 
         $fechaDoc = $this->formatFechaLargaEs($fechaRaw);
@@ -42,25 +42,57 @@ class DescargosActaDocxService
 
         log_message('debug', '[DESCARGOS_DOCX] Datos a reemplazar: {data}', [
             'data' => json_encode([
-                'RADICADO'        => $consecutivo,
-                'NOMBRE'          => $nombre,
-                'CEDULA'          => $cedula,
-                'CORREO'          => $correo,
-                'EMPRESA'         => $empresa,
-                'CARGO'           => $cargo,
-                'CHK_PRESENCIAL'  => $chkPresencial,
-                'CHK_VIRTUAL'     => $chkVirtual,
-                'FECHA'           => $fechaDoc,
-                'HORA'            => $horaDoc,
-                'HECHOS'          => $hechos,
+                'RADICADO'       => $consecutivo,
+                'NOMBRE'         => $nombre,
+                'CEDULA'         => $cedula,
+                'CORREO'         => $correo,
+                'EMPRESA'        => $empresa,
+                'CARGO'          => $cargo,
+                'CHK_PRESENCIAL' => $chkPresencial,
+                'CHK_VIRTUAL'    => $chkVirtual,
+                'FECHA'          => $fechaDoc,
+                'HORA'           => $horaDoc,
+                'HECHOS'         => $hechos,
             ], JSON_UNESCAPED_UNICODE),
         ]);
 
-        try {
-            $processor = new TemplateProcessor($template);
+        $g = new GDrive();
 
-            // NO configurar macros << >> porque tu plantilla usa ${CAMPO}
-            // PhpWord por defecto trabaja con ${CAMPO}
+        $tmpDir = WRITEPATH . 'tmp/descargos';
+        if (!is_dir($tmpDir) && !@mkdir($tmpDir, 0775, true) && !is_dir($tmpDir)) {
+            log_message('error', '[DESCARGOS_DOCX] No se pudo crear carpeta temporal: {dir}', ['dir' => $tmpDir]);
+            return null;
+        }
+
+        $tmpTemplatePath = null;
+        $tmpOutputPath   = null;
+
+        try {
+            $templateMeta = $g->getFileMeta($templateId);
+            $templateMime = (string)($templateMeta['mimeType'] ?? '');
+
+            log_message('debug', '[DESCARGOS_DOCX] Plantilla detectada. mime={mime} name={name}', [
+                'mime' => $templateMime,
+                'name' => $templateMeta['name'] ?? '',
+            ]);
+
+            if ($templateMime === 'application/vnd.google-apps.document') {
+                $templateBinary = $g->exportGoogleFile(
+                    $templateId,
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
+            } else {
+                $templateBinary = $g->downloadFile($templateId);
+            }
+
+            $tmpTemplatePath = $tmpDir . DIRECTORY_SEPARATOR . 'tpl_' . uniqid('', true) . '.docx';
+            file_put_contents($tmpTemplatePath, $templateBinary);
+
+            if (!is_file($tmpTemplatePath) || filesize($tmpTemplatePath) <= 0) {
+                throw new \RuntimeException('No se pudo materializar la plantilla DOCX temporal.');
+            }
+
+            $processor = new TemplateProcessor($tmpTemplatePath);
 
             $processor->setValue('RADICADO', $consecutivo);
             $processor->setValue('NOMBRE', $nombre);
@@ -75,40 +107,26 @@ class DescargosActaDocxService
             $processor->setValue('HECHOS', $hechos);
 
             $safeConsec = preg_replace('/\W+/', '_', $consecutivo ?: 'PD_000000');
-            $fileName   = 'ACTA_CARGOS_DESCARGOS_' . $safeConsec . '.docx';
+            $fileName   = 'RH-FO69_ACTA_CARGOS_DESCARGOS_' . $safeConsec . '.docx';
 
-            $localDir = WRITEPATH . 'descargos';
-            if (!is_dir($localDir)) {
-                if (!@mkdir($localDir, 0775, true) && !is_dir($localDir)) {
-                    log_message('error', '[DESCARGOS_DOCX] No se pudo crear carpeta local: {dir}', ['dir' => $localDir]);
-                    return null;
-                }
+            $tmpOutputPath = $tmpDir . DIRECTORY_SEPARATOR . $fileName;
+            $processor->saveAs($tmpOutputPath);
+
+            if (!is_file($tmpOutputPath)) {
+                throw new \RuntimeException('No se generó el DOCX temporal de salida.');
             }
 
-            $localPath = $localDir . DIRECTORY_SEPARATOR . $fileName;
-            $processor->saveAs($localPath);
-
-            if (!is_file($localPath)) {
-                log_message('error', '[DESCARGOS_DOCX] No se generó el archivo local: {path}', ['path' => $localPath]);
-                return null;
-            }
-
-            $g = new GDrive();
-
-            $root       = (string) env('GDRIVE_ROOT', 'FURD');
-            $folderPath = rtrim($root, '/') . '/' . date('Y') . '/' . $furdId . '/descargos';
-            $parentId   = $g->ensurePath($folderPath);
+            $year          = date('Y');
+            $root          = trim((string)env('GDRIVE_ROOT', 'FURD'), '/');
+            $procesoPath   = "{$root}/{$year}/{$consecutivo}";
+            $descargosPath = "{$procesoPath}/Descargos";
+            $parentId      = $g->ensurePath($descargosPath);
 
             $mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-            $up   = $g->upload($localPath, $fileName, $mime, $parentId);
+            $up   = $g->upload($tmpOutputPath, $fileName, $mime, $parentId);
 
-            $viewLink = $up['webViewLink'] ?? null;
-            if (!$viewLink && !empty($up['id'])) {
-                $viewLink = 'https://drive.google.com/file/d/' . $up['id'] . '/view?usp=sharing';
-            }
-
-            $size = @filesize($localPath) ?: null;
-            $sha1 = @sha1_file($localPath) ?: null;
+            $size = @filesize($tmpOutputPath) ?: null;
+            $sha1 = @sha1_file($tmpOutputPath) ?: null;
 
             $adjuntoModel = new FurdAdjuntoModel();
             $adjuntoId = $adjuntoModel->insert([
@@ -116,35 +134,43 @@ class DescargosActaDocxService
                 'origen_id'              => $furdId,
                 'fase'                   => 'descargos',
                 'nombre_original'        => $fileName,
-                'ruta'                   => $folderPath . '/' . $fileName,
+                'ruta'                   => $descargosPath . '/' . $fileName,
                 'mime'                   => $mime,
                 'tamano_bytes'           => $size,
                 'sha1'                   => $sha1,
                 'storage_provider'       => 'gdrive',
                 'drive_file_id'          => $up['id'] ?? null,
-                'drive_web_view_link'    => $viewLink,
+                'drive_web_view_link'    => $up['webViewLink'] ?? null,
                 'drive_web_content_link' => $up['webContentLink'] ?? null,
                 'created_at'             => date('Y-m-d H:i:s'),
             ], true);
 
-            @unlink($localPath);
+            log_message('debug', '[DESCARGOS_DOCX] DOCX generado y subido a Drive: {id}', [
+                'id' => $up['id'] ?? null,
+            ]);
 
             return [
-                'adjunto_id'    => $adjuntoId,
-                'drive_file_id' => $up['id'] ?? null,
-                'view_link'     => $viewLink,
-                'download_link' => $up['webContentLink'] ?? null,
+                'adjunto_id'          => $adjuntoId,
+                'drive_file_id'       => $up['id'] ?? null,
+                'view_link'           => $up['webViewLink'] ?? null,
+                'download_link'       => $up['webContentLink'] ?? null,
+                'docx_name'           => $up['name'] ?? $fileName,
+                'descargos_folder_id' => $parentId,
+                'descargos_path'      => $descargosPath,
             ];
         } catch (\Throwable $e) {
             log_message('error', '[DESCARGOS_DOCX] Error generando/subiendo acta: {msg}', [
                 'msg' => $e->getMessage(),
             ]);
 
-            if (isset($localPath) && is_file($localPath)) {
-                @unlink($localPath);
-            }
-
             return null;
+        } finally {
+            if ($tmpTemplatePath && is_file($tmpTemplatePath)) {
+                @unlink($tmpTemplatePath);
+            }
+            if ($tmpOutputPath && is_file($tmpOutputPath)) {
+                @unlink($tmpOutputPath);
+            }
         }
     }
 
@@ -171,7 +197,6 @@ class DescargosActaDocxService
             }
         }
 
-        // fallback por si no existe citación o viene vacío
         return trim((string)($furd['hecho'] ?? ''));
     }
 
